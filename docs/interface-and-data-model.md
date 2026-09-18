@@ -26,7 +26,7 @@ User
 关联要点（基于需求）：
 - 登录提供方与用户解耦：微信 openid（按平台区分 web/小程序）、手机号、自建账号都可绑定到同一 `User`，实现双端共用账号。**待确认**：绑定主导/合并策略（同手机号撞库如何合并）。
 - `Interview` 保存**配置快照**而非外键引用：开始面试时锁定模板版本、风格规则、量表，历史面试不因后续版本发布而变化（对应「已开始面试锁定版本」需求）。
-- `Turn` 支持追问串：`parentTurnId` 表示追问关系；区分**首次表现**与**获提示后表现**（用 `stage=first|after_hint`）。**待确认**：是否作为独立 Turn，还是子记录。
+- `Turn` 通过 `parentTurnId` 表示追问串；每次作答记录为 `TurnAttempt`（`stage=first|after_hint`），并列展示首次与提示后表现。
 
 ## 2. 核心数据模型
 
@@ -36,7 +36,7 @@ User
 |---|---|---|
 | user.id | UUID | 主键，跨端共用 |
 | user.unionId | string? | 微信 unionid（可选，开放平台绑定后可得） |
-| user.defaultRetention | enum(request|session|forever) | 默认录音保留策略 |
+| user.defaultRetention | enum(request|session|forever) | 录音保留策略；**默认 `session`（会话结束即删）**，用户显式选择才保留 |
 | binding.id | UUID | 绑定记录 |
 | binding.provider | enum(wechat_web\|wechat_mini\|phone\|self) | 登录提供方 |
 | binding.identityKey | string | 微信 openid / 手机号 SHA256 / 用户名（各 provider 语义不同） |
@@ -50,7 +50,7 @@ User
 | resume.userId | UUID | |
 | resume.title | string | 用户命名 |
 | resume.source | enum(file_pdf\|file_docx\|file_md\|file_txt\|paste) | 对应一期支持格式 |
-| resume.rawText | 正文镜像 | 解析用原料（持久化与否待确认——含敏感信息） |
+| resume.rawText | 正文镜像 | 解析用原料；**仅持久化在自有本地存储**（不外送第三方；含敏感信息，需脱敏/加密处理） |
 | resume.status | enum(parsing\|parsed\|confirmed) | 解析状态机 |
 | resume.analysis | JSON | P01 结构化理解（教育/经历/技能…），可被用户修正 |
 | resume.revision | int | 版本号（多版本管理待需求确认） |
@@ -84,12 +84,18 @@ User
 | turn.phase | enum(intro\|tech\|biz\|hr) | 环节 |
 | turn.seqNo | int | 环节内序号 |
 | turn.parentTurnId | UUID? | 追问关系（null=主问题） |
-| turn.stage | enum(first\|after_hint) | 首次 vs 获提示后 |
 | turn.question | JSON | 系统问题 {text, ttsRef?} |
-| turn.userTranscript | string | ASR 转写 |
-| turn.audioRef | string? | 录音引用（是否持久化由策略决定） |
-| turn.evaluationId | UUID? | 陪练即时评价（P07） |
+| turn.attempts | TurnAttempt[] | 作答子记录（首次/提示后并存） |
 | turn.createdAt | datetime | |
+
+**TurnAttempt（作答子记录）**：一次作答即一条。
+
+| 字段 | 说明 |
+|---|---|
+| attempt.stage | enum(first\|after_hint) |
+| attempt.userTranscript | ASR 转写 |
+| attempt.audioRef | 录音引用（保留策略决定持久化） |
+| attempt.evaluationId | 陪练即时评价（P07） |
 
 ### 2.5 Evaluation 评价
 
@@ -122,6 +128,8 @@ User
 ## 3. 接口草案（REST / JSON）
 
 > 鉴权：登录后返回会话令牌（双端通用），后续请求携带。微信相关回调在服务端完成 `code2Session` / OAuth，**openid 不返回客户端**。管理器接口含单一管理员角色。
+>
+> **接口风格（已决策）：一期采用 REST / JSON，不使用 WebSocket**。依据：手动分轮交互、小程序 WS 并发受限、实时链路仅 Web 端可选增强。对「开始/结束作答」等实时性场景，用 **SSE 增量** 返回（如转写流、评价逐步到达），避免长连与轮询。后续若启用端到端实时通道再单独评估。
 
 ### 3.1 身份与账号
 
@@ -196,18 +204,18 @@ User
 
 > P01—P10 各自的输出骨架、字段枚举与校验规则，在评审通过后逐任务定义到接口规范。
 
-## 5. 待确认
+## 5. 已确认决策
 
-- 账号绑定主导/合并策略；是否存储简历原始文本（敏感）。
-- `Turn` 是否独立成「首次/获提示后」两条记录，还是子记录与字段并存。
-- 陪练重答的确切语义与计分规则（首次 vs 提示后如何展示）。
-- 简历多版本、文件大小上限与解析失败处理（承接需求待讨论）。
-- 录音保留策略默认值（个人版默认 `session`？）与删除机制实现。
-- 接口命名与 JSON 风格是否统一为 REST；是否需要 WebSocket 通道（现阶段倾向 REST + 轻量轮询/长轮询）。
+1. **简历原始文本**：仅持久化在**自有本地存储**，不外送第三方；处理时脱敏/加密。
+2. **Turn 的首次/获提示后**：同一道 Turn 一条记录，用 **`attempts` 子记录**区分首次与提示后（不拆成两条 Turn）——保持追问链表与环节序号稳定。
+3. **陪练重答语义**：同一量表对每次作答**分别评分、并列展示**「首次/提示后」；保留首次分为对照，**不以提示后最高分计入**成绩口径。
+4. **录音保留默认值**：个人主体版默认 **`session`（会话结束即删）**；保存需用户显式选择。默认不长期保存。
+5. **接口风格**：一期 **REST / JSON，无 WebSocket**；实时性场景用 SSE 增量。
+
+> 实现期进一步细化：管理员账号锚点、测试用例集与通过条件、版本发布粒度的实现细节（承接 [prompt-management 后续技术设计](prompt-management.md)）。
 
 ## 6. 推进顺序建议
 
-1. 评审并确认第 5 节待确认项。
-2. 逐任务定义 P01—P10 输出 JSON Schema 与服务端校验规则。
-3. 生成接口规范（每个端点入参/出参/错误码/鉴权）。
-4. 据此进入里程碑实现的开发验收标准。
+1. 逐任务定义 P01—P10 输出 JSON Schema 与服务端校验规则。
+2. 生成接口规范（每个端点入参/出参/错误码/鉴权）。
+3. 据此进入里程碑实现的开发验收标准。
