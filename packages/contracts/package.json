@@ -1,0 +1,21 @@
+{
+  "name": "@ai-interviewer/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "generate:schemas": "tsx scripts/generate-schemas.ts"
+  },
+  "dependencies": {
+    "zod": "latest",
+    "zod-to-json-schema": "latest"
+  },
+  "devDependencies": {
+    "tsx": "latest",
+    "vitest": "latest"
+  }
+}

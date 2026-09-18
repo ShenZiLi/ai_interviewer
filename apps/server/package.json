@@ -1,0 +1,40 @@
+{
+  "name": "@ai-interviewer/server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:live:glm": "vitest run src/providers/glm/glm-live.test.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@ai-interviewer/contracts": "workspace:*",
+    "@fastify/cors": "latest",
+    "@fastify/multipart": "latest",
+    "@nestjs/common": "latest",
+    "@nestjs/core": "latest",
+    "@nestjs/jwt": "latest",
+    "@nestjs/platform-fastify": "latest",
+    "@prisma/client": "latest",
+    "argon2": "latest",
+    "mammoth": "latest",
+    "pdf-parse": "1.1.1",
+    "reflect-metadata": "latest",
+    "rxjs": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "latest",
+    "@nestjs/testing": "latest",
+    "@types/node": "latest",
+    "@types/supertest": "latest",
+    "prisma": "latest",
+    "supertest": "latest",
+    "tsx": "latest",
+    "vitest": "latest"
+  }
+}
