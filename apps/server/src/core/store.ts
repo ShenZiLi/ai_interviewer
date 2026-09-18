@@ -33,6 +33,8 @@ export interface Turn {
   phase: 'intro' | 'tech' | 'biz' | 'hr';
   seqNo: number;
   question: string;
+  /** 主问题主题（追问轮继承父轮），用于方向覆盖统计。 */
+  topic?: string;
   parentTurnId?: string;
   ttsRef?: string;
   attempts: Attempt[];

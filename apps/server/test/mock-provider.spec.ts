@@ -55,10 +55,18 @@ describe('MockProvider P07 随作答内容确定性变化', () => {
     const a = (await p.completeTask({ task: 'P07', context: { transcript: '我会考虑分布式锁并做好幂等。' } })) as { dims: { dim: string; score: number }[] };
     const b = (await p.completeTask({ task: 'P07', context: { transcript: '先给结论再给约束。' } })) as { dims: { dim: string; score: number }[] };
     const a2 = (await p.completeTask({ task: 'P07', context: { transcript: '我会考虑分布式锁并做好幂等。' } })) as { dims: { dim: string; score: number }[] };
-    // 同文本 → 确定（等值）
     expect(a.dims.map((d) => d.score)).toEqual(a2.dims.map((d) => d.score));
-    // 不同文本 → 至少有一个维度分不同（体现个性化）
     const same = a.dims.every((d, i) => d.score === b.dims[i]?.score);
     expect(same).toBe(false);
+  });
+
+  it('方向覆盖按已作答主题去重计（同一主题多轮只算一次）', async () => {
+    const p = new MockProvider();
+    const ev = { dims: DIMS.map((dim, i) => ({ dim, score: 4 })) };
+    const sameTopic = (await p.completeTask({
+      task: 'P10', context: { it: { kind: 'coach', durationTier: '45m', outline: { outline: [{ topic: 'a', mainQuestion: 'q1' }, { topic: 'b', mainQuestion: 'q2' }] }, turns: [{ topic: 'a', attempts: [{ evaluation: ev }] }, { topic: 'a', attempts: [{ evaluation: ev }] }, { topic: 'b', attempts: [{ evaluation: ev }] }] } },
+    })) as { overview: { directionCoverage: { covered: number; planned: number }; completedAnswers: number } };
+    expect(sameTopic.overview.completedAnswers).toBe(3);
+    expect(sameTopic.overview.directionCoverage).toEqual({ covered: 2, planned: 2 });
   });
 });

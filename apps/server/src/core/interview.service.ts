@@ -167,6 +167,7 @@ export class InterviewService {
 
     let questionText: string | undefined;
     let parentId: string | undefined;
+    let topic: string | undefined;
     if (parentTurnId) {
       // 追问轮：取父轮最后一次作答里 P08 生成的追问文本
       const parent = it.turns.find((t) => t.id === parentTurnId);
@@ -175,11 +176,13 @@ export class InterviewService {
       if (text) {
         questionText = text;
         parentId = parentTurnId;
+        topic = parent?.topic;
       }
     }
     if (!questionText) {
       const q = (await this.compose.compose('P06', this.ctx(it, 'P06', { it, phase }))) as MainQuestion;
       questionText = q.questionText;
+      topic = q.topic;
     }
     const audio = await this.voice.synthesize({ text: questionText });
     const turn: Turn = {
@@ -187,6 +190,7 @@ export class InterviewService {
       phase,
       seqNo,
       question: questionText,
+      topic,
       parentTurnId: parentId,
       ttsRef: audio.audioRef,
       attempts: [],

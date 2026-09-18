@@ -159,7 +159,15 @@ export class MockProvider implements Provider {
         DIMS.forEach((dim, i) => { sum += WEIGHTS[dim] * scores[i]!; });
         const avgScore = Math.round(sum * 20);
         const planned = it?.outline?.outline?.length ?? 3;
-        const covered = Math.min(measurements.length, planned);
+        // 方向覆盖以「已作答轮的去重主题」计，而非作答数（同一主题多轮只算一次）。
+        const answeredTopics = new Set<string>();
+        for (const t of it?.turns ?? []) {
+          const attempts = t.attempts ?? [];
+          const last = attempts[attempts.length - 1];
+          if (last && last.evaluation) answeredTopics.add(t.topic ?? '');
+        }
+        answeredTopics.delete('');
+        const covered = Math.min(answeredTopics.size, planned);
         const durationUsedMinutes = { '15m': 14, '30m': 26, '45m': 40 }[it?.durationTier ?? '30m'] ?? 26;
         return {
           taskCode: 'P10',
@@ -189,7 +197,7 @@ interface P10Context {
   kind?: 'coach' | 'mock';
   durationTier?: string;
   outline?: { outline?: { topic: string; mainQuestion: string }[] };
-  turns?: { attempts?: { evaluation?: { dims?: { dim: string; score: number }[] } }[] }[];
+  turns?: { topic?: string; attempts?: { evaluation?: { dims?: { dim: string; score: number }[] } }[] }[];
 }
 
 /** 收集各轮末次作答（P07）的八维实测分（0–5）。 */
