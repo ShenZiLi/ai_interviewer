@@ -35,7 +35,14 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text}`);
+    let reason = text;
+    try {
+      const env = JSON.parse(text) as { error?: { message?: string; code?: string } };
+      reason = env.error?.message ? `${env.error.code ? `${env.error.code} · ` : ''}${env.error.message}` : text;
+    } catch {
+      /* 非 JSON 错误体，原样展示 */
+    }
+    throw new Error(`HTTP ${res.status}: ${reason}`);
   }
   return (await res.json()) as T;
 }
