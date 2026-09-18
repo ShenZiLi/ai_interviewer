@@ -223,6 +223,13 @@ P10 整场报告生成（模拟模式承载统一评价）。
   - `compose` 入参 = 上述上下文 + 锁定模板/风格/量表 + 本场输入；出参经 [output-schemas](output-schemas.md) 校验。
 - 供应商路由见 [系统架构 §5](system-architecture.md)：语音默认 GLM、可切阿里；文本 LLM 预设+自定义。
 
+### 5.1 文本模型供应商（运行期热切换，MVP 已实现）
+- `GET /settings/model` → `{ status: { mode: "platform"|"custom"|"mock", baseUrl?, model? }, presets: [{id, vendor, baseUrl, model}] }`
+  - `mode`：`platform`=服务端 env 生效；`custom`=用户自定义 API；`mock`=默认样本（无密钥）。
+- `POST /settings/model`，请求体 `{ mode?, baseUrl?, model?, apiKey? }`：
+  - `mode: "custom"` → 立即切到 `HttpProvider`（缺 `baseUrl`/`model` 返回 400）；`mode: "platform"` → 回到 env 决定（无 env 回落 `mock`）。
+  - 切换无需重启，对后续所有组合请求生效。预设含 GLM / DeepSeek / Qwen 的 OpenAI 兼容地址与默认模型。
+
 ---
 
 ## 6. 管理员 · 提示词模板（鉴权 + `role=admin`）
