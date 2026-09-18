@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
 import { api } from './api';
@@ -76,26 +76,72 @@ export function App() {
     },
   });
 
+  const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  const startRec = async () => {
+    setRecording(true);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError('当前浏览器不支持录音，已切换为文本作答');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
+      rec.start();
+      mediaRef.current = rec;
+    } catch {
+      setError('无法获取麦克风权限，已切换为文本作答');
+    }
+  };
+
   const submitAnswer = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (payload: { transcript?: string; audioRef?: string }) => {
       setRecording(false);
-      const res = await run(api.answer(interviewId!, turn!.id, draft));
+      mediaRef.current = null;
+      const transcript = payload.transcript ?? draft;
+      const answered = await run(api.answer(interviewId!, turn!.id, payload.audioRef ? { audioRef: payload.audioRef } : { transcript }));
       setTurn({
         ...turn!,
         answered: {
-          transcript: draft,
-          score: res.evaluation.score,
-          grade: res.evaluation.grade,
-          overall: res.evaluation.overall,
-          dims: res.evaluation.dims,
-          strengths: res.evaluation.strengths ?? [],
-          weaknesses: res.evaluation.weaknesses ?? [],
-          suggestion: res.evaluation.suggestions?.[0]?.body ?? '',
-          followup: res.next.questions.map((q) => q.text),
+          transcript: transcript || '(音频作答)',
+          score: answered.evaluation.score,
+          grade: answered.evaluation.grade,
+          overall: answered.evaluation.overall,
+          dims: answered.evaluation.dims,
+          strengths: answered.evaluation.strengths ?? [],
+          weaknesses: answered.evaluation.weaknesses ?? [],
+          suggestion: answered.evaluation.suggestions?.[0]?.body ?? '',
+          followup: answered.next.questions.map((q) => q.text),
         },
       });
     },
   });
+
+  const submitVoice = async () => {
+    const rec = mediaRef.current;
+    if (rec && rec.state === 'recording') {
+      const blob = await new Promise<Blob | null>((resolve) => {
+        let done = false;
+        const onStop = () => {
+          const b = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
+          if (!done) { done = true; resolve(b.size ? b : null); }
+        };
+        rec.addEventListener('stop', onStop, { once: true });
+        rec.stop();
+        mediaRef.current = null;
+        setTimeout(onStop, 3000);
+      });
+      if (blob) {
+        const up = await run(api.uploadAudio(blob));
+        await submitAnswer.mutateAsync({ audioRef: up.ref });
+        return;
+      }
+    }
+    await submitAnswer.mutateAsync({ transcript: draft });
+  };
 
   const finish = useMutation({
     mutationFn: async () => {
@@ -320,22 +366,22 @@ export function App() {
                         <div className={recording ? 'voice recording' : 'voice'}>
                           <div className="wave" aria-hidden>{Array.from({ length: 9 }).map((_, i) => <i key={i} />)}</div>
                           {!recording ? (
-                            <button className="primary" onClick={() => { setRecording(true); if (!draft) setDraft('（录音演示）我会结合部署边界，比较分布式锁与数据库条件更新的取舍。'); }} disabled={!turn}>
-                              ● 开始回答（演示）
+                            <button className="primary" onClick={startRec} disabled={!turn}>
+                              ● 开始回答（录音）
                             </button>
                           ) : (
-                            <button className="primary" onClick={() => submitAnswer.mutate()} disabled={submitAnswer.isPending}>
-                              {submitAnswer.isPending ? '转写并评价…' : '■ 回答完成'}
+                            <button className="primary" onClick={submitVoice} disabled={submitAnswer.isPending}>
+                              {submitAnswer.isPending ? '上传并评价…' : '■ 回答完成'}
                             </button>
                           )}
-                          <p>{recording ? '演示录音中 · 可同时编辑下方文本' : '手动开始 · 手动提交 · 留出思考时间'}</p>
+                          <p>{recording ? '录音中 · 完成后上传做语音转写（无麦克风则自动用文本）' : '手动开始 · 手动提交 · 留出思考时间'}</p>
                         </div>
                       )}
                       <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="亦可直接输入你的回答…" disabled={!!turn?.answered || submitAnswer.isPending} />
                       {!turn?.answered ? (
                         <div className="actions" style={{ marginTop: 10 }}>
-                          <button className="ghost" onClick={() => submitAnswer.mutate()} disabled={submitAnswer.isPending || !turn}>
-                            {submitAnswer.isPending ? '转写并评价…' : '提交（文本）'}
+                          <button className="ghost" onClick={() => submitAnswer.mutate({ transcript: draft })} disabled={submitAnswer.isPending || !turn}>
+                            {submitAnswer.isPending ? '上传并评价…' : '用文本文案提交'}
                           </button>
                         </div>
                       ) : (

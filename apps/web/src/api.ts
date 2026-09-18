@@ -56,16 +56,21 @@ export const api = {
   answer: (
     id: string,
     turnId: string,
-    transcript: string,
+    payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' },
   ) =>
     req<{
       evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[]; strengths?: string[]; weaknesses?: string[]; suggestions?: { title: string; body: string }[] };
       next: { shouldAsk: boolean; questions: { text: string }[]; nextStep: string };
-    }>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript, stage: 'first' }),
+    }>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript: payload.transcript, audioRef: payload.audioRef, stage: payload.stage ?? 'first' }),
   finish: (id: string) =>
     req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
   listInterviews: () => req<{ items: InterviewSummary[] }>('GET', '/interviews'),
   getInterview: (id: string) => req<{ interview: InterviewDetail }>('GET', `/interviews/${id}`),
+  uploadAudio: async (blob: Blob): Promise<{ ref: string; mime: string }> => {
+    const data = await blob.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(data)));
+    return req<{ ref: string; mime: string }>('POST', '/files/audio', { data: base64, mime: blob.type });
+  },
   /* ---------- 管理员提示词 ---------- */
   listTemplates: () => req<{ items: { id: string; taskCode: string; name: string; description: string; basePrompt: string }[] }>('GET', '/admin/templates'),
   listVersions: (id: string) =>
