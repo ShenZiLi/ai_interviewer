@@ -109,6 +109,16 @@ export class PromptService {
       .sort((a, b) => b.versionNo - a.versionNo);
   }
 
+  /** 取某任务编码的最新已发布版本快照（面试起始锁定用）。 */
+  getPublishedVersionForTask(taskCode: string): { templateId: string; versionId: string; versionNo: number } | undefined {
+    const tpl = [...this.templates.values()].find((t) => t.taskCode === taskCode);
+    if (!tpl) return undefined;
+    const latest = [...this.versions.values()]
+      .filter((v) => v.templateId === tpl.id && v.status === 'published')
+      .sort((a, b) => b.versionNo - a.versionNo)[0];
+    return latest ? { templateId: tpl.id, versionId: latest.id, versionNo: latest.versionNo } : undefined;
+  }
+
   test(templateId: string): PromptVersion {
     this.getTemplate(templateId);
     const draft = this.workingDraft(templateId);

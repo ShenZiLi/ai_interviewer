@@ -37,6 +37,11 @@ export interface Turn {
   createdAt: string;
 }
 
+export interface ConfigLock {
+  versionId: string;
+  versionNo: number;
+}
+
 export interface InterviewRecord {
   id: string;
   resumeId: string;
@@ -50,6 +55,7 @@ export interface InterviewRecord {
   directionsResult?: Record<string, unknown>;
   outline?: Record<string, unknown>;
   outlineAdjustedAt?: string;
+  promptLocks: Record<string, ConfigLock>;
   turns: Turn[];
   report?: Record<string, unknown>;
   createdAt: string;

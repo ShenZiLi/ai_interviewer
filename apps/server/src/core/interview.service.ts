@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException, Inject } from '@nestjs/common';
-import type {
+import {
   Directions,
   Evaluation,
   FollowUpDecision,
@@ -9,8 +9,10 @@ import type {
   PositionAnalysis,
   ResumeUnderstanding,
   SessionReport,
+  TASK_CODES,
 } from '@ai-interviewer/contracts';
 import { ComposeService } from '../ai/compose.service.js';
+import { PromptService } from '../admin/prompt.service.js';
 import { normalizeEvaluation } from './evaluation.guard.js';
 import { InMemoryStore, newId, now, type InterviewRecord, type Turn } from './store.js';
 
@@ -35,6 +37,7 @@ export class InterviewService {
   constructor(
     @Inject(InMemoryStore) private readonly store: InMemoryStore,
     @Inject(ComposeService) private readonly compose: ComposeService,
+    @Inject(PromptService) private readonly prompts: PromptService,
   ) {}
 
   /* ---------- 简历 ---------- */
@@ -72,6 +75,7 @@ export class InterviewService {
       directions: [],
       status: 'draft',
       turns: [],
+      promptLocks: {},
       createdAt: now(),
       updatedAt: now(),
     };
@@ -122,6 +126,13 @@ export class InterviewService {
   start(id: string): InterviewRecord {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft', 'active']);
+    // 开场快照：锁定 P01—P10 当前已发布版本，后续发布不影响本场
+    const promptLocks: InterviewRecord['promptLocks'] = {};
+    for (const code of TASK_CODES) {
+      const pv = this.prompts.getPublishedVersionForTask(code);
+      if (pv) promptLocks[code] = { versionId: pv.versionId, versionNo: pv.versionNo };
+    }
+    it.promptLocks = promptLocks;
     it.status = 'active';
     return this.store.saveInterview(it);
   }
