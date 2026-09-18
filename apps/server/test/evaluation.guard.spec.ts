@@ -74,4 +74,17 @@ describe('normalizeSessionReport 整场报告与逐题八维自洽', () => {
     const recomputed = Math.round(DIMS.reduce((acc, dim, i) => acc + out.dimensionReport[i].overallScore * (({ 切题与完整性: 0.07, 专业准确性: 0.2, 分析与推理: 0.18, 方案与取舍: 0.17, 项目深度与贡献: 0.15, 证据与一致性: 0.08, 表达与结构: 0.08, 沟通与反思: 0.07 } as Record<string, number>)[dim]), 0) * 20);
     expect(out.overview.avgScore).toBe(recomputed);
   });
+
+  it('整场方向覆盖以已作答主题去重计（同一主题多轮只算一次）', () => {
+    const ev = { ...base(60), dims: buildDims([4, 4, 4, 4, 4, 4, 4, 4]) };
+    const turnsWithTopics = [
+      { topic: '并发', attempts: [{ stage: 'first', transcript: 'a', evaluation: ev }] },
+      { topic: '并发', attempts: [{ stage: 'first', transcript: 'b', evaluation: ev }] },
+      { topic: '分布式', attempts: [{ stage: 'first', transcript: 'c', evaluation: ev }] },
+    ];
+    const out = normalizeSessionReport(report, turnsWithTopics);
+    // planned 来自 report = 2；作答 3 轮、去重主题 2
+    expect(out.overview.completedAnswers).toBe(3);
+    expect(out.overview.directionCoverage).toEqual({ covered: 2, planned: 2 });
+  });
 });

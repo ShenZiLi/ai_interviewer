@@ -33,12 +33,16 @@ export function normalizeEvaluation(input: Evaluation): Evaluation {
  * 保留模型的定性字段（mode/coverage/时长/highlight/actionPlan/trend 等）；
  * 无实测数据时原样返回。返回副本，不原地改。
  */
-export function normalizeSessionReport(report: SessionReport, turns: { attempts?: { evaluation?: unknown }[] }[]): SessionReport {
+export function normalizeSessionReport(report: SessionReport, turns: { topic?: string; attempts?: { evaluation?: unknown }[] }[]): SessionReport {
   const perTurn: Evaluation[] = [];
+  const answeredTopic = new Set<string>();
   for (const t of turns) {
     const attempts = t.attempts ?? [];
     const last = attempts[attempts.length - 1];
-    if (last?.evaluation) perTurn.push(last.evaluation as Evaluation);
+    if (last?.evaluation) {
+      perTurn.push(last.evaluation as Evaluation);
+      if (t.topic) answeredTopic.add(t.topic);
+    }
   }
   if (!perTurn.length) return report;
 
@@ -57,9 +61,16 @@ export function normalizeSessionReport(report: SessionReport, turns: { attempts?
   const trendOf = new Map<string, SessionReport['dimensionReport'][number]['trend']>(report.dimensionReport.map((d) => [d.dim, d.trend]));
   const dimensionReport = DIMS.map((dim, i) => ({ dim, overallScore: scores[i], trend: trendOf.get(dim) ?? 'flat' })) as SessionReport['dimensionReport'];
 
+  const covered = Math.min(answeredTopic.size, report.overview.directionCoverage.planned);
+
   return {
     ...report,
-    overview: { ...report.overview, avgScore, completedAnswers: perTurn.length },
+    overview: {
+      ...report.overview,
+      avgScore,
+      completedAnswers: perTurn.length,
+      directionCoverage: { ...report.overview.directionCoverage, covered },
+    },
     dimensionReport,
   };
 }
