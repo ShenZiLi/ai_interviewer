@@ -67,6 +67,8 @@ export function App() {
   const [dirs, setDirs] = useState<{ id: string; name: string; weight: number; reason?: string }[]>([]);
   const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
+  /** P02 岗位分析给出的考察重点（focusAreas），准备页展示。 */
+  const [positionAreas, setPositionAreas] = useState<string[]>([]);
   const [outlinePhases, setOutlinePhases] = useState<{ phase: string; minutes: number; questionCount: number; focus: string[] }[]>();
   const [outlineQuestions, setOutlineQuestions] = useState<{ topic: string; mainQuestion: string; difficulty?: string }[]>();
   const [turn, setTurn] = useState<RoomTurn>();
@@ -133,6 +135,7 @@ export function App() {
       setReview([]);
       setCoaching(undefined);
       setTopics([]);
+      setPositionAreas([]);
       setOutlinePhases(undefined);
       setOutlineQuestions(undefined);
       setSelectedDirs([]);
@@ -168,7 +171,8 @@ export function App() {
         durationTier: duration,
         style,
       }));
-      await run(api.analyze(interview.interview.id));
+      const pos = await run(api.analyze(interview.interview.id));
+      setPositionAreas(pos.position.focusAreas);
       const d = await run(api.directions(interview.interview.id, undefined, extra || undefined));
       setDirs(d.recommendedDirections.recommendedDirections);
       setSelectedDirs(d.recommendedDirections.recommendedDirections.map((x) => x.id));
@@ -940,6 +944,9 @@ export function App() {
                           <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向</small></div>
                           <label className="field" style={{ marginTop: 12 }}>补充诉求（可选）<input type="text" value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="例如：更看重原理深度、多考察分布式事务…" /></label>
                           <h3 style={{ marginTop: 18 }}>目标岗位：{role} · {level}</h3>
+                          {positionAreas.length > 0 && (
+                            <div className="row" style={{ marginTop: 8 }}><small style={{ marginRight: 4 }}>岗位考察重点：</small>{positionAreas.map((a) => <span className="summary-chip" key={a}>{a}</span>)}</div>
+                          )}
                           <div className="row">{topics.map((t) => <span className="summary-chip" key={t}>{t}</span>)}</div>
                           {outlinePhases && outlinePhases.length > 0 && (
                             <div className="flow" style={{ marginTop: 22 }}>
@@ -1240,7 +1247,7 @@ export function App() {
                   <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined);
       setPhaseProgress({});
       setPendingAdjust(undefined); setReport(undefined);
-      setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined);
+      setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setPositionAreas([]); setOutlinePhases(undefined);
       setOutlineQuestions(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
               )}
