@@ -51,6 +51,8 @@ export interface InterviewRecord {
   level: 'junior' | 'mid' | 'senior';
   kind: 'coach' | 'mock';
   durationTier: '15m' | '30m' | '45m';
+  /** 用户在本场是否显式选择保留录音（默认 session 即删）。 */
+  keepAudio?: boolean;
   directions: string[];
   status: InterviewStatus;
   position?: Record<string, unknown>;

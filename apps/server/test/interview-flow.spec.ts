@@ -119,6 +119,15 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(attempts.map((a: { stage: string }) => a.stage)).toEqual(['first', 'after_hint']);
   });
 
+  it('保留录音偏好持久化到面试详情', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach', durationTier: '30m', keepAudio: true })
+      .expect(201);
+    const got = await request(app.getHttpServer()).get(`/interviews/${created.body.interview.id}`).expect(200);
+    expect(got.body.interview.keepAudio).toBe(true);
+  });
+
   it('模式隔离：模拟面试作答仅记录，不返回即时评价', async () => {
     const created = await request(app.getHttpServer())
       .post('/interviews')

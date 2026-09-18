@@ -8,6 +8,7 @@ const createSchema = z.object({
   level: z.enum(['junior', 'mid', 'senior']).default('mid'),
   kind: z.enum(['coach', 'mock']).optional(),
   durationTier: z.enum(['15m', '30m', '45m']).optional(),
+  keepAudio: z.boolean().optional(),
 });
 const directionsSchema = z.object({ selectedDirections: z.array(z.string()).max(12).optional(), extra: z.string().max(500).optional() });
 const turnSchema = z.object({ phase: z.enum(['intro', 'tech', 'biz', 'hr']), parentTurnId: z.string().optional() });

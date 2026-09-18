@@ -21,6 +21,7 @@ export interface InterviewReport {
 
 export interface InterviewDetail extends InterviewSummary {
   directions: string[];
+  keepAudio?: boolean;
   promptLocks: Record<string, { versionId: string; versionNo: number }>;
   turns?: { phase: string; question: string; attempts: { transcript: string; stage?: string; evaluation?: { score: number; grade?: string } }[] }[];
 }
@@ -49,13 +50,14 @@ export type AnswerResult =
 export const api = {
   createResume: (text: string, title?: string) =>
     req<{ resume: { id: string; status: string; analysis: { summary: string } } }>('POST', '/resumes', { text, title }),
-  createInterview: (resumeId: string, kind: 'coach' | 'mock' = 'coach') =>
+  createInterview: (resumeId: string, kind: 'coach' | 'mock' = 'coach', keepAudio = false) =>
     req<{ interview: { id: string; status: string } }>('POST', '/interviews', {
       resumeId,
       targetRole: 'Java 后端工程师',
       level: 'mid',
       kind,
       durationTier: '30m',
+      keepAudio,
     }),
   analyze: (id: string) => req<{ position: { role: string; seniority: string; focusAreas: string[] } }>('POST', `/interviews/${id}/analyze`),
   directions: (id: string) => req<{ recommendedDirections: { recommendedDirections: { id: string; name: string; weight: number }[]; pendingClarify?: { question: string }[] } }>('POST', `/interviews/${id}/directions`, {}),

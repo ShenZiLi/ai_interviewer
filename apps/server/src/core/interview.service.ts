@@ -24,6 +24,7 @@ export interface CreateInterviewInput {
   level: 'junior' | 'mid' | 'senior';
   kind?: 'coach' | 'mock';
   durationTier?: '15m' | '30m' | '45m';
+  keepAudio?: boolean;
 }
 
 export interface AnswerInput {
@@ -76,6 +77,7 @@ export class InterviewService {
       level: input.level,
       kind: input.kind ?? 'coach',
       durationTier: input.durationTier ?? '30m',
+      keepAudio: input.keepAudio,
       directions: [],
       status: 'draft',
       turns: [],

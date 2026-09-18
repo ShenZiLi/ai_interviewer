@@ -87,7 +87,7 @@ export function App() {
   const bootstrap = useMutation({
     mutationFn: async () => {
       if (!resumeId) throw new Error('请先导入简历');
-      const interview = await run(api.createInterview(resumeId, mode));
+      const interview = await run(api.createInterview(resumeId, mode, keepAudio));
       await run(api.analyze(interview.interview.id));
       const d = await run(api.directions(interview.interview.id));
       setDirs(d.recommendedDirections.recommendedDirections);
