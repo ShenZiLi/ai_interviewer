@@ -2,6 +2,7 @@ import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
 import { api, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
+import { buildTrend } from './lib/trend';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -69,18 +70,6 @@ export function App() {
         const last = attempts[attempts.length - 1];
         return { id: t.id, parentId: t.parentTurnId, phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
       });
-
-  /** 计算「本场相对上一场」的趋势：综合分差值 + 各维差值（差值为 0 的维度省略）。 */
-  const buildTrend = (prev: InterviewReport, curAvg: number, curDims: { dim: string; displayScore?: number }[]) => {
-    const prevDims = prev.dimensionReport ?? [];
-    const dims = curDims
-      .map((d) => {
-        const p = prevDims.find((x) => x.dim === d.dim);
-        return { dim: d.dim, delta: p ? (d.displayScore ?? 0) - Math.round(p.overallScore * 20) : 0 };
-      })
-      .filter((x) => x.delta !== 0);
-    return { avgDelta: Math.round(curAvg - prev.overview.avgScore), dims };
-  };
 
   /** 抓取本场之前最近一场已完成面试的报告（用于横向对比；无上一场则返回 undefined）。 */
   const fetchPrevReport = async (curId: string): Promise<InterviewReport | undefined> => {
