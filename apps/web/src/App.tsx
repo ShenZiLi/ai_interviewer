@@ -56,7 +56,7 @@ export function App() {
   const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
   const [outlinePhases, setOutlinePhases] = useState<{ phase: string; minutes: number; questionCount: number; focus: string[] }[]>();
-  const [outlineQuestions, setOutlineQuestions] = useState<{ topic: string; mainQuestion: string }[]>();
+  const [outlineQuestions, setOutlineQuestions] = useState<{ topic: string; mainQuestion: string; difficulty?: string }[]>();
   const [turn, setTurn] = useState<RoomTurn>();
   const [phaseProgress, setPhaseProgress] = useState<Partial<Record<Phase, number>>>({});
   /** 自我介绍（陪练）后待确认的大纲调整建议。 */
@@ -828,6 +828,9 @@ export function App() {
                     <section className="bubble">
                       {(!resumeId || !interviewId) ? (
                         <>
+                          {!resumeId && (
+                            <div className="notice amber" style={{ marginBottom: 12 }}>还没有可用简历：请先在「我的简历」导入并确认，再回来生成面试计划。</div>
+                          )}
                           <h3>先告诉我这次的目标岗位。</h3>
                           <div className="fields">
                             <label className="field">目标岗位<input value={role} onChange={(e) => setRole(e.target.value)} /></label>
@@ -847,7 +850,7 @@ export function App() {
                           <label className="row" style={{ marginTop: 18, fontSize: 12 }}>
                             <input type="checkbox" checked={keepAudio} onChange={(e) => setKeepAudio(e.target.checked)} />保留本场录音，方便回听
                           </label>
-                          <div className="actions"><button className="primary" onClick={() => bootstrap.mutate()} disabled={bootstrap.isPending}>{bootstrap.isPending ? '生成面试计划…' : '查看面试流程 →'}</button></div>
+                          <div className="actions"><button className="primary" onClick={() => (!resumeId ? setPage('resume') : bootstrap.mutate())} disabled={bootstrap.isPending}>{!resumeId ? '去导入简历 →' : bootstrap.isPending ? '生成面试计划…' : '查看面试流程 →'}</button></div>
                         </>
                       ) : (
                         <>
@@ -880,7 +883,22 @@ export function App() {
                           {outlineQuestions && outlineQuestions.length > 0 && (
                             <details style={{ marginTop: 14 }}>
                               <summary>题目预览（{outlineQuestions.length} 道）</summary>
-                              <p style={{ marginTop: 10 }}>{outlineQuestions.map((q) => `· ${q.mainQuestion}`).join('\n')}</p>
+                              <div style={{ marginTop: 8 }}>
+                                {outlineQuestions.map((q, i) => (
+                                  <div className="list-row" key={i} style={{ padding: '10px 0' }}>
+                                    <div className="row" style={{ flex: 1, minWidth: 0, alignItems: 'flex-start' }}>
+                                      <span className="step-number">{i + 1}</span>
+                                      <div style={{ minWidth: 0, flex: 1 }}>
+                                        <b style={{ display: 'block', lineHeight: 1.6 }}>{q.mainQuestion}</b>
+                                        <div className="row" style={{ marginTop: 5, gap: 6 }}>
+                                          {q.difficulty && <span className="tag">{({ begin: '基础', mid: '进阶', deep: '深挖' } as Record<string, string>)[q.difficulty] ?? q.difficulty}</span>}
+                                          {q.topic && <span className="tag">主题：{q.topic}</span>}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </details>
                           )}
                           <div className="actions">
