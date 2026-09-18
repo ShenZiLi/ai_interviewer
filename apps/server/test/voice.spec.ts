@@ -42,7 +42,9 @@ describe('语音链路：TTS 出题 + ASR 转写作答 (e2e)', () => {
       .send({ audioRef: 'file://mock-record', stage: 'first' })
       .expect(201);
     expect(res.body.evaluation).toBeDefined();
-    // Mock ASR 返回固定转写文本，断言落库被转写文本填充
+    // answer 响应回显 ASR 转写文本，且等于 Mock 网关转写结果
+    expect(res.body.transcript).toBeTruthy();
+    expect(res.body.transcript).toBe('（Mock 转写）我会记录用户的实际回答。');
     const got = await request(app.getHttpServer()).get(`/interviews/${interviewId}`).expect(200);
     const attempt = got.body.interview.turns.find((x: { id: string }) => x.id === turnId).attempts[0];
     expect(attempt.transcript.length).toBeGreaterThan(0);

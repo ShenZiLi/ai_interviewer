@@ -59,6 +59,7 @@ export const api = {
     payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' },
   ) =>
     req<{
+      transcript: string;
       evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[]; strengths?: string[]; weaknesses?: string[]; suggestions?: { title: string; body: string }[] };
       next: { shouldAsk: boolean; questions: { text: string }[]; nextStep: string };
     }>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript: payload.transcript, audioRef: payload.audioRef, stage: payload.stage ?? 'first' }),

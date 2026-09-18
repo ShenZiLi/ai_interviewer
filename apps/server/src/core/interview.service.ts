@@ -200,7 +200,7 @@ export class InterviewService {
     const follow = (await this.compose.compose('P08', this.ctx(it, 'P08', { it, turn, evaluation: ev }))) as FollowUpDecision;
     turn.attempts.push({ id: newId('attempt'), stage, transcript, evaluation: ev, followUp: follow, createdAt: now() });
     this.store.saveInterview(it);
-    return { evaluation: ev, next: follow } as const;
+    return { evaluation: ev, next: follow, transcript } as const;
   }
 
   async adjust(id: string, confirm?: boolean): Promise<OutlineAdjustment> {

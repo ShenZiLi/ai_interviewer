@@ -106,7 +106,7 @@ export function App() {
       setTurn({
         ...turn!,
         answered: {
-          transcript: transcript || '(音频作答)',
+          transcript: answered.transcript || transcript || '(音频作答)',
           score: answered.evaluation.score,
           grade: answered.evaluation.grade,
           overall: answered.evaluation.overall,
