@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
 import { api, type AnswerResult } from './api';
@@ -53,6 +53,19 @@ export function App() {
       setPage('prepare');
     },
   });
+
+  const pickResumeFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const supported = f.name.endsWith('.md') || f.name.endsWith('.txt') || f.type === 'text/plain';
+    if (!supported) {
+      setError('MVP 支持粘贴文本或 .md/.txt 文件；其余格式请改为粘贴文本。');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setText(String(reader.result ?? ''));
+    reader.readAsText(f);
+  };
 
   const bootstrap = useMutation({
     mutationFn: async () => {
@@ -307,9 +320,12 @@ export function App() {
                     <h2>导入简历</h2>
                     <div className="dropzone">
                       <div className="upload-icon">↥</div>
-                      <h3>粘贴简历内容</h3>
-                      <p>PDF、DOCX、Markdown、TXT</p>
+                      <h3>粘贴简历内容 或 上传 .md/.txt</h3>
+                      <p>PDF、DOCX、Markdown、TXT（MVP 读取 .md/.txt，其余请粘贴）</p>
                       <textarea data-field="resumeText" value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="粘贴你的项目经历、技术栈与工作经历…" />
+                      <div className="row" style={{ marginTop: 12, justifyContent: 'center' }}>
+                        <input type="file" accept=".md,.txt,.pdf,.docx" onChange={pickResumeFile} aria-label="选择简历文件" />
+                      </div>
                     </div>
                     <div className="actions">
                       <button className="primary" onClick={() => parseResume.mutate()} disabled={parseResume.isPending}>
