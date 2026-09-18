@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
 import { api, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
 import { buildTrend } from './lib/trend';
+import { recentScores } from './lib/session-trend';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -413,6 +414,8 @@ export function App() {
     const scores = history.filter((h) => h.status === 'finished' && h.report).map((h) => h.report!.overview.avgScore);
     return scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
   })();
+  /** 最近几场综合分（旧→新），用于工作台「成绩走势」。 */
+  const scores = recentScores(history.filter((h) => h.status === 'finished'), 5);
   const openHistory = useMutation({
     mutationFn: async (id: string) => {
       const detail = await run(api.getInterview(id));
@@ -560,6 +563,18 @@ export function App() {
                     <section className="card"><small>已完成</small><div className="metric">{finCount}<span>场</span></div></section>
                     <section className="card"><small>平均表现</small><div className="metric">{avgFinished ? `${avgFinished}分` : '—'}<span>{avgFinished ? gradeOf(avgFinished) : '暂无'}</span></div></section>
                   </div>
+
+                  {scores.length > 0 && (
+                    <section className="card" style={{ marginTop: 18 }}>
+                      <div className="row between" style={{ marginBottom: 10 }}>
+                        <h3 style={{ margin: 0 }}>成绩走势</h3>
+                        {scores.length >= 2 && (() => { const d = scores[scores.length - 1] - scores[0]; return <span className={`tag ${d > 0 ? 'green' : d < 0 ? 'amber' : ''}`}>{d >= 0 ? '▲' : '▼'} 首尾 {Math.abs(d)} 分</span>; })()}
+                      </div>
+                      <div className="row" style={{ gap: 6 }}>
+                        {scores.map((s, i) => <span className="tag" key={i}>{s}<small> /100</small></span>)}
+                      </div>
+                    </section>
+                  )}
 
                   {history.length > 0 && (
                     <section className="card section-title">
