@@ -501,6 +501,9 @@ export function App() {
                           {mode === 'coach' && turn.answered?.followup.length ? (
                             <button onClick={() => askFollowUp.mutate()} disabled={askFollowUp.isPending || followUpCount >= 3}>{followUpCount >= 3 ? '追问已满' : '追问 →'}</button>
                           ) : null}
+                          {phase !== 'intro' && (
+                            <button onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>同环节再问一题</button>
+                          )}
                           <button onClick={advance}>{phase === 'hr' ? '完成面试' : '下一环节 →'}</button>
                           <button className="primary" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
                         </div>
