@@ -1027,7 +1027,7 @@ export function App() {
                         </div>
                       </div>
                     )}
-                    <div className="room-meta">{duration} 分钟 · {level}
+                    <div className="room-meta">{duration} 分钟 · {level} · {STYLES.find((s) => s.id === style)?.name}
                       {(() => {
                         const budget = parseInt(duration, 10);
                         const elapsed = startedAt ? Math.max(0, Math.floor((clock - new Date(startedAt).getTime()) / 60000)) : 0;
