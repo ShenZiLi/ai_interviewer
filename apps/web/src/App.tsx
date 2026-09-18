@@ -854,7 +854,7 @@ export function App() {
                           )}
                           <h3>先告诉我这次的目标岗位。</h3>
                           <div className="fields">
-                            <label className="field">目标岗位<input value={role} onChange={(e) => setRole(e.target.value)} /></label>
+                            <label className="field">目标岗位<input type="text" value={role} onChange={(e) => setRole(e.target.value)} /></label>
                             <label className="field">目标级别<select value={level} onChange={(e) => setLevel(e.target.value)}><option>初级</option><option>中级</option><option>高级</option></select></label>
                             <label className="field" style={{ gridColumn: '1 / -1' }}>目标岗位 JD（可选）<textarea value={jd} onChange={(e) => setJd(e.target.value)} rows={3} placeholder="粘贴岗位描述，让出题更有针对性（可选）" /></label>
                           </div>
@@ -889,7 +889,7 @@ export function App() {
                             })}
                           </div>
                           <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向</small></div>
-                          <label className="field" style={{ marginTop: 12 }}>补充诉求（可选）<input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="例如：更看重原理深度、多考察分布式事务…" /></label>
+                          <label className="field" style={{ marginTop: 12 }}>补充诉求（可选）<input type="text" value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="例如：更看重原理深度、多考察分布式事务…" /></label>
                           <h3 style={{ marginTop: 18 }}>目标岗位：{role} · {level}</h3>
                           <div className="row">{topics.map((t) => <span className="summary-chip" key={t}>{t}</span>)}</div>
                           {outlinePhases && outlinePhases.length > 0 && (
@@ -984,6 +984,16 @@ export function App() {
                       </div>
                     )}
                     <div className="question-context">先完整表达你的思路，再提交获得反馈。</div>
+                    {pendingAdjust !== undefined && (
+                      <div className="notice mobile-only" style={{ marginTop: 12 }}>
+                        <b>自我介绍后的大纲调整建议</b>
+                        <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c, i) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
+                        <div className="row" style={{ marginTop: 8 }}>
+                          <button style={{ padding: '4px 10px', fontSize: 12 }} onClick={applyAdjustAndAdvance}>确认应用</button>
+                          <button className="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={skipAdjustAndAdvance}>跳过</button>
+                        </div>
+                      </div>
+                    )}
                     <div className="answer">
                       {!turn?.answered && (
                         <div className={recording ? 'voice recording' : 'voice'}>

@@ -13,3 +13,11 @@
 .highlight-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.highlight-item{border:1px solid var(--line);border-radius:12px;padding:15px 16px;background:#fafcff}.highlight-item b{display:block;font-size:13px;line-height:1.7}.highlight-item p{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.7}
 /* 陪练重答并列对比 */
 .revise-compare{border-bottom:1px dashed var(--line);padding-bottom:12px;margin-bottom:6px}.revise-compare .score-row{font-size:11px}.revise-compare .score-row:first-child .bar{background:transparent;flex:1}.revise-compare .score-row b{font-weight:600;font-size:11px;min-width:28px;text-align:right}
+/* 移动端专属（仅 390px 窄容器内显示）：主卡片里的大纲调整确认，避免左侧栏被隐藏导致流程卡死 */
+.mobile-only{display:none}
+/* 移动端布局修正（放在基类规则之后，保证覆盖）：高亮卡片单列、作答按钮两列换行 */
+@container (max-width:700px){
+  .mobile-only{display:block}
+  .highlight-grid{grid-template-columns:1fr}
+  .room .actions button{flex:1 1 calc(50% - 6px)}
+}
