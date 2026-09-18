@@ -30,6 +30,8 @@ interface RoomTurn {
   topic?: string;
   difficulty?: string;
   targetAspect?: string;
+  /** 是否追问轮（不占用本环节主问题计数）。 */
+  followup?: boolean;
   /** 首次作答提交（反馈出现）的时间戳，用于统计「反馈阅读 + 重答耗时」。 */
   answeredAt?: number;
   reanswer?: { readMs: number; reanswerMs: number };
@@ -56,6 +58,7 @@ export function App() {
   const [outlinePhases, setOutlinePhases] = useState<{ phase: string; minutes: number; questionCount: number; focus: string[] }[]>();
   const [outlineQuestions, setOutlineQuestions] = useState<{ topic: string; mainQuestion: string }[]>();
   const [turn, setTurn] = useState<RoomTurn>();
+  const [phaseProgress, setPhaseProgress] = useState<Partial<Record<Phase, number>>>({});
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
   const [revising, setRevising] = useState(false);
@@ -100,6 +103,7 @@ export function App() {
       setInterviewId(undefined);
       setPhase('intro');
       setTurn(undefined);
+      setPhaseProgress({});
       setReport(undefined);
       setTrend(undefined);
       setReview([]);
@@ -166,7 +170,7 @@ export function App() {
       reanswerStartRef.current = undefined;
       setRecording(false);
       setFollowUpCount(0);
-      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: false });
       setPage('room');
     },
   });
@@ -182,7 +186,7 @@ export function App() {
       reanswerStartRef.current = undefined;
       setRecording(false);
       setFollowUpCount((c) => c + 1);
-      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: true });
     },
   });
 
@@ -260,6 +264,10 @@ export function App() {
         reanswerStartRef.current = undefined;
       }
       const patch = { answeredAt, ...(reanswer ? { reanswer } : {}) };
+      // 主问题首次作答计入本环节进度（追问轮与重答不计）。
+      if (!turn?.followup && stage === 'first' && turn?.phase) {
+        setPhaseProgress((p) => ({ ...p, [turn.phase!]: (p[turn.phase!] ?? 0) + 1 }));
+      }
       if ('recorded' in answered && answered.recorded) {
         setTurn({
           ...turn!,
@@ -481,6 +489,12 @@ export function App() {
       if (detail.interview.status !== 'active') throw new Error('该场不在进行中');
       const turns = detail.interview.turns ?? [];
       const resumePhase = (turns[turns.length - 1]?.phase as Phase) ?? 'intro';
+      // 按已有轮次重建各环节已答主问题数（追问轮不计）。
+      const progress: Partial<Record<Phase, number>> = {};
+      for (const t of turns) {
+        if (!t.parentTurnId) progress[t.phase as Phase] = (progress[t.phase as Phase] ?? 0) + 1;
+      }
+      setPhaseProgress(progress);
       const res = await run(api.newTurn(id, resumePhase));
       setInterviewId(id);
       setStartedAt(detail.interview.startedAt);
@@ -496,7 +510,7 @@ export function App() {
       setRecording(false);
       setFollowUpCount(0);
       setAdjustNote('已从上次进度继续，这是本环节下一题。');
-      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: false });
       setPage('room');
     },
     onSuccess: () => histQuery.refetch(),
@@ -792,8 +806,13 @@ export function App() {
                     <h3>本场流程</h3>
                     {stages.map((name, i) => {
                       const idx = PHASES.indexOf(phase);
+                      const ph = PHASES[i];
                       const state = phase && i < idx ? 'done' : phase && i === idx ? 'active' : '';
-                      return <div className={`stage ${state}`} key={name}><span className="step-number">{i < (phase ? PHASES.indexOf(phase) : -1) ? '✓' : `${i + 1}`}</span><div><b>{name}</b><small>{state === 'done' ? '已完成' : state === 'active' ? '进行中' : '待开始'}</small></div></div>;
+                      const done = phaseProgress[ph] ?? 0;
+                      const planned = outlinePhases?.find((p) => p.phase === ph)?.questionCount;
+                      return (
+                        <div className={`stage ${state}`} key={name}><span className="step-number">{i < (phase ? PHASES.indexOf(phase) : -1) ? '✓' : `${i + 1}`}</span><div><b>{name}</b><small>{state === 'done' ? '已完成' : state === 'active' ? '进行中' : '待开始'}{planned ? ` · 已答 ${done}/${planned} 题` : done ? ` · 已答 ${done} 题` : ''}</small></div></div>
+                      );
                     })}
                     {adjustNote && <div className="notice" style={{ marginTop: 10 }}>{adjustNote}</div>}
                     <div className="room-meta">{duration} 分钟 · {level}
@@ -985,7 +1004,8 @@ export function App() {
                       })}
                     </section>
                   )}
-                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined);
+                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined);
+      setPhaseProgress({}); setReport(undefined);
       setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined);
       setOutlineQuestions(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
