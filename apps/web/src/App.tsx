@@ -260,6 +260,16 @@ export function App() {
   });
 
   const active = page;
+  const reportLine = (() => {
+    if (!report) return { head: '', sub: '' };
+    const sorted = [...report.dims].sort((a, b) => (a.displayScore ?? 0) - (b.displayScore ?? 0));
+    const weakest = sorted[0];
+    const highest = sorted[sorted.length - 1];
+    const band = report.avgScore >= 80 ? '整体表现出色' : report.avgScore >= 70 ? '整体表达清楚' : report.avgScore >= 60 ? '基础可用，但深度与取舍仍有空间' : '整体不足，建议夯实基础后再战';
+    const head = `${band}，相对短板在${weakest ? `「${weakest.dim}」` : '综合表现'}。`;
+    const sub = `本场共 ${report.completed} 题，方向覆盖 ${report.coverage}；${highest ? `「${highest.dim}」表现较稳` : '整体较为平均'}。建议聚焦行动清单前几项，补足适用前提、失败处理与验证结果。`;
+    return { head, sub };
+  })();
   const breadcrumb = `首页 / ${titles[active]}`;
 
   // ---- 工作台：历史报告 ----
@@ -558,8 +568,8 @@ export function App() {
                     <div className="report-top">
                       <div className="big-score"><strong>{report.avgScore}</strong><small>综合表现 / 100 · {report.grade}</small></div>
                       <div>
-                        <h2>基础表达清楚，方案取舍需要更深入。</h2>
-                        <p className="muted">当场回答了 {report.completed} 题，方向覆盖 {report.coverage}。整体可以进一步补充适用前提、失败处理和验证结果。</p>
+                        <h2>{reportLine.head}</h2>
+                        <p className="muted">{reportLine.sub}</p>
                         <div className="row"><span className="tag">{role}</span><span className="tag">{level}</span><span className="tag blue">复盘报告</span></div>
                       </div>
                     </div>
