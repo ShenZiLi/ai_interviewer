@@ -15,6 +15,7 @@
     "zod-to-json-schema": "latest"
   },
   "devDependencies": {
+    "@types/node": "latest",
     "tsx": "latest",
     "vitest": "latest"
   }

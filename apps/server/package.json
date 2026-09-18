@@ -19,7 +19,7 @@
     "@nestjs/core": "latest",
     "@nestjs/jwt": "latest",
     "@nestjs/platform-fastify": "latest",
-    "@prisma/client": "latest",
+    "@prisma/client": "6.19.0",
     "argon2": "latest",
     "mammoth": "latest",
     "pdf-parse": "1.1.1",
@@ -32,7 +32,7 @@
     "@nestjs/testing": "latest",
     "@types/node": "latest",
     "@types/supertest": "latest",
-    "prisma": "latest",
+    "prisma": "6.19.0",
     "supertest": "latest",
     "tsx": "latest",
     "vitest": "latest"

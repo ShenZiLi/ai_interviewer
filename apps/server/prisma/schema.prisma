@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  username String @unique
+  createdAt DateTime @default(now())
+  credential Credential?
+  resumes Resume[]
+  interviews Interview[]
+}
+model Credential {
+  id String @id @default(cuid())
+  userId String @unique
+  passwordHash String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+model Resume {
+  id String @id @default(cuid())
+  userId String
+  fileName String
+  contentType String
+  extractedText String
+  disclosureConsent Boolean
+  noticeVersion String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviews Interview[]
+}
+model Interview {
+  id String @id @default(cuid())
+  userId String
+  resumeId String
+  position String
+  status String @default("CREATED")
+  currentIndex Int @default(0)
+  questionCount Int @default(5)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resume Resume @relation(fields: [resumeId], references: [id])
+  turns Turn[]
+  report Report?
+}
+model Turn {
+  id String @id @default(cuid())
+  interviewId String
+  sequence Int
+  answerText String
+  questionText String?
+  score Int?
+  createdAt DateTime @default(now())
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  @@unique([interviewId, sequence])
+}
+model Report {
+  id String @id
+  interviewId String @unique
+  score Int
+  strengths Json
+  weaknesses Json
+  feedback String
+  createdAt DateTime @default(now())
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+}
+model IdempotencyRecord {
+  key String @id
+  userId String
+  response Json
+  createdAt DateTime @default(now())
+}

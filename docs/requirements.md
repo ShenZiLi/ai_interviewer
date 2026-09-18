@@ -147,3 +147,11 @@ MVP 启动前的最终范围确认。需求、UI 原型、系统架构、接口�
 3. 评审系统架构图和有官方资料依据的技术选型。
 4. 完善开发规范、验收标准和分阶段实施计划。
 5. 获得设计确认后分阶段实现，每次改动检查并本地提交。
+
+## MVP 实现状态（2026-09-18）
+- 已完成 React/Vite Web、NestJS/Fastify API、Prisma/PostgreSQL 数据模型与迁移脚本。
+- 已完成用户名+密码注册/登录（Argon2id、JWT Bearer）、简历单独同意记录、面试/回合持久化。
+- 已接入 GLM 文本、ASR、TTS 适配器；未配置 GLM_API_KEY 时返回明确配置错误。
+- 已完成共享 Zod 契约、P01-P10 版本化提示词与 JSON schema 生成。
+- 本机 PostgreSQL 服务可连接但当前凭据未验证，需按 .env.example 配置 DATABASE_URL 后执行 prisma migrate deploy。
+

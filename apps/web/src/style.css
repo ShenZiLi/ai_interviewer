@@ -1,0 +1,149 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #f3f3f0;
+  background: #10110f;
+  line-height: 1.5;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+.shell {
+  max-width: 1040px;
+  margin: auto;
+  padding: 40px 24px;
+}
+.auth {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+.card {
+  background: #191b18;
+  border: 1px solid #30332e;
+  border-radius: 24px;
+  padding: 32px;
+  box-shadow: 0 14px 50px #0004;
+}
+.auth .card {
+  width: min(440px, 100%);
+}
+.eyebrow {
+  color: #a3d65c;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+.muted {
+  color: #a5aaa0;
+}
+h1 {
+  font-size: 40px;
+  line-height: 1.05;
+  margin: 8px 0 12px;
+}
+h2 {
+  font-size: 32px;
+  line-height: 1.15;
+  margin: 8px 0 16px;
+}
+h3 {
+  font-size: 28px;
+  margin: 8px 0 20px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+nav {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #30332e;
+  margin: 26px 0;
+  padding-bottom: 10px;
+}
+button {
+  background: #b8e86a;
+  color: #111;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ghost,
+.link {
+  background: transparent;
+  color: #c4cabd;
+}
+.link {
+  display: block;
+  margin: 16px auto 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 20px;
+}
+.hero {
+  background: linear-gradient(140deg, #26371d, #191b18);
+}
+form,
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #cfd5c9;
+}
+input,
+textarea,
+select {
+  background: #11130f;
+  color: #f3f3f0;
+  border: 1px solid #43483d;
+  border-radius: 10px;
+  padding: 12px;
+  font: inherit;
+}
+textarea {
+  min-height: 220px;
+  resize: vertical;
+}
+.check {
+  flex-direction: row;
+  align-items: flex-start;
+  font-size: 14px;
+}
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 13px 0;
+  border-top: 1px solid #30332e;
+}
+.row small {
+  color: #a3d65c;
+}
+.error {
+  color: #ff927e;
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .shell {
+    padding: 24px 16px;
+  }
+}
