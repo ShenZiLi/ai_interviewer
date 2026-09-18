@@ -137,6 +137,35 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(res.body).toEqual({ recorded: true });
   });
 
+  it('模拟模式：静默评估存档，整场复盘基于真实作答而非固定样本', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'mock', durationTier: '30m' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+
+    // 作答：不返回评价，但内部应已存档 P07 实测
+    const res = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '只记录不反馈。', stage: 'first' })
+      .expect(201);
+    expect(res.body).toEqual({ recorded: true });
+    const got = await request(app.getHttpServer()).get(`/interviews/${mid}`).expect(200);
+    const stored = got.body.interview.turns.find((x: { id: string }) => x.id === t.body.turn.id).attempts[0];
+    expect(stored.transcript).toBe('只记录不反馈。');
+    expect(stored.evaluation).toBeTruthy();
+
+    // 整场报告应反映实测作答（维度条完整），而非固定样本兜底
+    const fin = await request(app.getHttpServer()).post(`/interviews/${mid}/finish`).expect(201);
+    expect(fin.body.report.overview.completedAnswers).toBe(1);
+    expect(fin.body.report.dimensionReport.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('追问链：以父轮 P08 追问文本生成追问轮', async () => {
     const created = await request(app.getHttpServer())
       .post('/interviews')

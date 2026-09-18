@@ -209,8 +209,9 @@ export class InterviewService {
     if (!transcript.trim()) throw new ConflictException('需要转写文本或音频');
 
     if (it.kind === 'mock') {
-      // 模拟：仅记录，不即时反馈
-      turn.attempts.push({ id: newId('attempt'), stage, transcript, createdAt: now() });
+      // 模拟：不向用户返回即时评价，但静默评估存档，供「结束后统一复盘」基于真实作答生成整场报告。
+      const ev = normalizeEvaluation((await this.compose.compose('P07', this.ctx(it, 'P07', { it, turn, transcript }))) as Evaluation);
+      turn.attempts.push({ id: newId('attempt'), stage, transcript, evaluation: ev, createdAt: now() });
       this.store.saveInterview(it);
       return { recorded: true } as const;
     }
