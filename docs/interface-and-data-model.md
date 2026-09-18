@@ -53,7 +53,9 @@ MVP 仅实现 `self`：用户名 + 密码自助注册/登录，JWT Bearer 会话
 | resume.userId | UUID | |
 | resume.title | string | 用户命名 |
 | resume.source | enum(file_pdf\|file_docx\|file_md\|file_txt\|paste) | 对应一期支持格式 |
-| resume.rawText | 正文镜像 | 解析用原料；**仅持久化在自有本地存储**（不外送第三方；含敏感信息，需脱敏/加密处理） |
+| resume.rawText | 正文镜像 | 解析用原料；仅持久化在自有 PostgreSQL。用户单独同意后可按 P01—P04 最小必要范围发送 GLM；含敏感信息，需加密保护 |
+| resume.glmConsentAt | datetime? | 用户同意将该简历必要文本发送 GLM 的时间 |
+| resume.glmNoticeVersion | string? | 用户同意时展示的说明版本，如 `resume-glm-v1` |
 | resume.status | enum(parsing\|parsed\|confirmed) | 解析状态机 |
 | resume.analysis | JSON | P01 结构化理解（教育/经历/技能…），可被用户修正 |
 | resume.revision | int | 版本号（多版本管理待需求确认） |
@@ -210,7 +212,7 @@ MVP 仅实现 `self`：用户名 + 密码自助注册/登录，JWT Bearer 会话
 
 ## 5. 已确认决策
 
-1. **简历原始文本**：仅持久化在**自有本地存储**，不外送第三方；处理时脱敏/加密。
+1. **简历原始文本**：仅持久化在自有 PostgreSQL；首次发送 GLM 前展示最小必要说明并取得单独同意，保存授权时间与说明版本；请求正文不写日志。
 2. **Turn 的首次/获提示后**：同一道 Turn 一条记录，用 **`attempts` 子记录**区分首次与提示后（不拆成两条 Turn）——保持追问链表与环节序号稳定。
 3. **陪练重答语义**：同一量表对每次作答**分别评分、并列展示**「首次/提示后」；保留首次分为对照，**不以提示后最高分计入**成绩口径。
 4. **录音保留默认值**：个人主体版默认 **`session`（会话结束即删）**；保存需用户显式选择。默认不长期保存。

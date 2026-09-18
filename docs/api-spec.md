@@ -91,16 +91,16 @@ Web 扫码回调 code 换登录态。
 ### 2.1 POST `/resumes/import`（鉴权，multipart）
 上传简历文件 → 创建解析任务。
 
-- 字段：`file`（.pdf/.docx/.md/.txt）、`title?`
+- 字段：`file`（.pdf/.docx/.md/.txt）、`title?`、`glmConsentAccepted=true`、`glmNoticeVersion=resume-glm-v1`
 - 200（202 语义）：`{ "resume": { "id", "status": "parsing" } }`
 - 错误：`INVALID_REQUEST`（格式不支持/超大小上限——上限待需求确认）、`RATE_LIMITED`
 
 ### 2.2 POST `/resumes`（鉴权）
 粘贴文本创建简历。
 
-- 请求：`{ "title": "…", "text": "…" }`
+- 请求：`{ "title": "…", "text": "…", "glmConsent": { "accepted": true, "noticeVersion": "resume-glm-v1" } }`
 - 200：`{ "resume": { "id", "status": "parsing", "source": "paste" } }`
-- 说明：文本仅本地持久化（§接口草案已决策），不外送第三方。
+- 说明：同意后将完成 P01—P04 所需文本发送 GLM；服务端保存授权时间与说明版本。原文仅持久化在自有 PostgreSQL，请求正文不得写入日志。
 
 ### 2.3 GET `/resumes/:id`（鉴权，属主）
 - 200：`{ "id", "title", "source", "status", "analysis": <P01 结构> }`
