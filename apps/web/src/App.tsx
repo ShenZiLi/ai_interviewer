@@ -330,6 +330,21 @@ export function App() {
   // ---- 管理员提示词管理 ----
   const [selId, setSelId] = useState<string>();
   const [draftText, setDraftText] = useState('');
+
+  // ---- 模型供应商设置 ----
+  const modelQuery = useQuery({ queryKey: ['modelSettings'], queryFn: api.getModelSettings, enabled: page === 'settings' });
+  const [cfgMode, setCfgMode] = useState<{ baseUrl: string; model: string; apiKey: string; mode: 'platform' | 'custom' }>({ baseUrl: '', model: '', apiKey: '', mode: 'custom' });
+  useEffect(() => {
+    const s = modelQuery.data?.status;
+    if (s) setCfgMode((c) => ({ ...c, baseUrl: s.baseUrl ?? c.baseUrl, model: s.model ?? c.model }));
+  }, [modelQuery.data?.status?.model, modelQuery.data?.status?.baseUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  const saveModel = useMutation({
+    mutationFn: async () => {
+      await api.setModelConfig({ mode: cfgMode.mode, baseUrl: cfgMode.baseUrl, model: cfgMode.model, apiKey: cfgMode.apiKey || undefined });
+      modelQuery.refetch();
+    },
+  });
+  const applyPreset = (p: { baseUrl: string; model: string }) => setCfgMode((c) => ({ ...c, baseUrl: p.baseUrl, model: p.model, mode: 'custom' }));
   const tplQuery = useQuery({ queryKey: ['adminTemplates'], queryFn: api.listTemplates, enabled: page === 'admin' });
   const verQuery = useQuery({ queryKey: ['adminVersions', selId], queryFn: () => api.listVersions(selId!), enabled: !!selId && page === 'admin' });
   const selectedVersions = useMemo(() => (verQuery.data ? [...verQuery.data.items].sort((a, b) => b.versionNo - a.versionNo) : []), [verQuery.data]);
@@ -678,8 +693,22 @@ export function App() {
               {active === 'settings' && (
                 <div className="grid2">
                   <section className="card"><h2>模型配置</h2>
-                    <div className="choice"><button aria-pressed>平台默认<small>无需填写密钥</small></button><button>自定义 API<small>使用自己的服务配置</small></button></div>
-                    <div className="notice" style={{ marginTop: 20 }}>GLM、DeepSeek、Qwen 的具体模型与语音能力将在真实厂商接入阶段配置。</div>
+                    <div className="choice" style={{ marginBottom: 4 }}>
+                      <button aria-pressed={cfgMode.mode === 'platform'} onClick={() => setCfgMode((c) => ({ ...c, mode: 'platform' }))}>平台默认<small>按服务端环境配置</small></button>
+                      <button aria-pressed={cfgMode.mode === 'custom'} onClick={() => setCfgMode((c) => ({ ...c, mode: 'custom' }))}>自定义 API<small>使用自己的服务配置</small></button>
+                    </div>
+                    <div className="row" style={{ marginTop: 14 }}>
+                      {(modelQuery.data?.presets ?? []).map((p) => (
+                        <button key={p.id} onClick={() => applyPreset(p)}>{p.vendor}</button>
+                      ))}
+                    </div>
+                    <label className="field" style={{ marginTop: 12 }}>Base URL<input value={cfgMode.baseUrl} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, baseUrl: e.target.value }))} placeholder="https://open.bigmodel.cn/api/paas/v4" /></label>
+                    <label className="field">模型名<input value={cfgMode.model} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, model: e.target.value }))} placeholder="glm-4-flash" /></label>
+                    <label className="field">API Key<input type="password" value={cfgMode.apiKey} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, apiKey: e.target.value }))} placeholder="sk-…（可选，保存在服务端内存）" /></label>
+                    <div className="actions">
+                      <button className="primary" onClick={() => saveModel.mutate()} disabled={saveModel.isPending}>{saveModel.isPending ? '保存中…' : '保存并生效'}</button>
+                      <span className="tag">{modelQuery.data ? { mock: '默认样本（无需密钥）', platform: '平台默认', custom: '自定义 API' }[modelQuery.data.status.mode] : '加载中…'}</span>
+                    </div>
                   </section>
                   <section className="card"><h2>账号与数据</h2>
                     <div className="setting-row"><div><b>林同学 · 演示账号</b><p>Web 与小程序使用同一份练习记录</p></div><span className="tag">示例</span></div>
