@@ -630,10 +630,13 @@ export function App() {
   }, [modelQuery.data?.status?.model, modelQuery.data?.status?.baseUrl]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveModel = useMutation({
     mutationFn: async () => {
+      setSaveOk(false);
       await api.setModelConfig({ mode: cfgMode.mode, baseUrl: cfgMode.baseUrl, model: cfgMode.model, apiKey: cfgMode.apiKey || undefined });
       modelQuery.refetch();
+      setSaveOk(true);
     },
   });
+  const [saveOk, setSaveOk] = useState(false);
   const applyPreset = (p: { baseUrl: string; model: string }) => setCfgMode((c) => ({ ...c, baseUrl: p.baseUrl, model: p.model, mode: 'custom' }));
   const [testResult, setTestResult] = useState<{ ok: boolean; latencyMs: number; error?: string }>();
   const testModel = useMutation({
@@ -1190,11 +1193,12 @@ export function App() {
                     ))}
                   </section>
                   <section className="card">
-                    <h2>模板草稿</h2>
+                    <h2>模板草稿{(() => { const t = (tplQuery.data?.items ?? []).find((x) => x.id === selId); return t ? ` · ${t.taskCode} ${t.name}` : ''; })()}</h2>
                     {!selId ? (
                       <div className="empty">选择一个任务模板开始编辑。<br />MVP 中模板为管理数据，尚不影响 Mock 生成。</div>
                     ) : (
                       <>
+                        {(() => { const t = (tplQuery.data?.items ?? []).find((x) => x.id === selId); return t?.variables?.length ? <p className="muted" style={{ marginBottom: 10 }}>可用上下文变量：{t.variables.map((v) => <span className="tag" key={v} style={{ marginRight: 4 }}>{v}</span>)}</p> : null; })()}
                         <label className="field">基础提示词<textarea value={draftText} onChange={(e) => setDraftText(e.target.value)} rows={8} /></label>
                         <div className="row between">
                           <div className="row">
@@ -1240,6 +1244,9 @@ export function App() {
                       <button onClick={() => testModel.mutate()} disabled={testModel.isPending}>{testModel.isPending ? '测试中…' : '测试连接'}</button>
                       <span className="tag">{modelQuery.data ? { mock: '默认样本（无需密钥）', platform: '平台默认', custom: '自定义 API' }[modelQuery.data.status.mode] : '加载中…'}</span>
                     </div>
+                    {saveOk && (
+                      <div className="notice" style={{ marginTop: 12, background: '#edf8f3', color: 'var(--green)' }}>已保存并生效。</div>
+                    )}
                     {testResult && (
                       <div className="notice" style={{ marginTop: 12, ...(testResult.ok ? { background: '#edf8f3', color: 'var(--green)' } : { background: '#fff1f0', color: '#b34545' }) }}>
                         {testResult.ok ? `连接成功 · 延迟 ${testResult.latencyMs} ms` : `连接失败：${testResult.error ?? '未知错误'}`}
