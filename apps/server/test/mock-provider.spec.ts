@@ -76,6 +76,23 @@ describe('MockProvider P07 随作答内容确定性变化', () => {
     expect(ra.dimensionReport.some((d, i) => d.overallScore !== rb.dimensionReport[i]?.overallScore)).toBe(true);
   });
 
+  it('P06 主问题按阶段与同阶段序号轮转（避免全场同一题）', async () => {
+    const p = new MockProvider();
+    const ask = async (phase: string, turns: { phase: string }[]) =>
+      (await p.completeTask({ task: 'P06', context: { it: { turns }, phase } })) as { questionText: string; topic: string; difficulty: string; targetAspect?: string };
+    const tech1 = await ask('tech', []);
+    const tech2 = await ask('tech', [{ phase: 'tech' }]);
+    const biz1 = await ask('biz', []);
+    const hr1 = await ask('hr', []);
+    // 同阶段序号不同 → 问题轮转
+    expect(tech1.questionText).not.toBe(tech2.questionText);
+    // 不同阶段 → 题目不同，且各自带主题/难度/考察维度
+    expect(biz1.questionText).not.toBe(hr1.questionText);
+    expect(tech1.topic).toBeTruthy();
+    expect(['begin', 'mid', 'deep']).toContain(tech1.difficulty);
+    expect(tech1.targetAspect).toBeTruthy();
+  });
+
   it('方向覆盖按已作答主题去重计（同一主题多轮只算一次）', async () => {
     const p = new MockProvider();
     const ev = { dims: DIMS.map((dim, i) => ({ dim, score: 4 })) };

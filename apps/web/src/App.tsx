@@ -582,7 +582,7 @@ export function App() {
               <div className="breadcrumb"><strong>{titles[active]}</strong></div>
               <div className="row">
                 {active === 'room' && <span className="tag blue">{mode === 'coach' ? '陪练模式' : '模拟面试'}</span>}
-                {active === 'report' && <span className="tag amber">示例报告</span>}
+                {active === 'report' && <span className="tag amber">复盘报告</span>}
               </div>
             </header>
             <div className="content">

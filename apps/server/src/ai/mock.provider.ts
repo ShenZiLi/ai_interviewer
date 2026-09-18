@@ -71,17 +71,23 @@ export class MockProvider implements Provider {
           mode: 'auto',
           confidence: 0.85,
         };
-      case 'P06':
+      case 'P06': {
+        // 按阶段 + 同阶段序号出题，让 mock 演示的主问题随流程推进变化（避免全场同一题）。
+        const { it, phase } = (context ?? {}) as { it?: P06Ctx; phase?: string };
+        const seq = (it?.turns ?? []).filter((t) => t.phase === phase).length + 1;
+        const bank = QUESTIONS_BY_PHASE[phase as keyof typeof QUESTIONS_BY_PHASE] ?? QUESTIONS_BY_PHASE.tech;
+        const q = bank[(seq - 1) % bank.length];
         return {
-          questionText: '在线购物结算如何保证不超卖？',
-          topic: '并发控制',
-          difficulty: 'mid',
-          targetAspect: '方案取舍',
-          probePoints: [{ purpose: '考察部署边界', hint: '多实例时本地锁是否有效' }],
-          biasToDirections: ['concurrency'],
+          questionText: q.text,
+          topic: q.topic,
+          difficulty: q.difficulty,
+          targetAspect: q.targetAspect,
+          probePoints: q.probePoints,
+          biasToDirections: q.biasToDirections,
           contextUsed: ['简历项目：库存扣减'],
           confidence: 0.86,
         };
+      }
       case 'P07': {
         // 按作答内容做确定性扰动，让每个维度的分随文本轻微变化（跨会话自然分化，
         // 使复盘「vs 上一场」趋势默认可见）；同文本恒确定。
@@ -199,6 +205,42 @@ const DIMS_SAMPLE: { dim: (typeof DIMS)[number]; overallScore: number; trend: 'u
     overallScore: [4, 4, 3.5, 3.5, 3, 3, 4, 3][i],
     trend: 'flat',
   }));
+
+/** P06 需要的面试上下文子集（阶段 + 已有轮次，用于按阶段/序号出题）。 */
+interface P06Ctx {
+  phase?: string;
+  turns?: { phase?: string }[];
+}
+
+interface MockQuestion {
+  text: string;
+  topic: string;
+  difficulty: 'begin' | 'mid' | 'deep';
+  targetAspect: string;
+  probePoints?: { purpose: string; hint?: string }[];
+  biasToDirections?: string[];
+}
+
+/** 按阶段准备的 mock 主问题池（与 P04 大纲主题呼应），同阶段序号轮转取题。 */
+const QUESTIONS_BY_PHASE: Record<string, MockQuestion[]> = {
+  intro: [
+    { text: '先用 1-2 分钟做个自我介绍，重点讲你最拿手的项目。', topic: '自我介绍', difficulty: 'begin', targetAspect: '表达与结构' },
+    { text: '简单说说你上一段经历中最大的成长。', topic: '成长复盘', difficulty: 'begin', targetAspect: '沟通与反思' },
+  ],
+  tech: [
+    { text: '在线购物结算如何保证不超卖？', topic: '并发控制', difficulty: 'mid', targetAspect: '方案取舍', probePoints: [{ purpose: '考察部署边界', hint: '多实例时本地锁是否有效' }], biasToDirections: ['concurrency'] },
+    { text: '跨服务扣库存与下单如何保证一致？', topic: '分布式事务', difficulty: 'deep', targetAspect: '分析与推理', probePoints: [{ purpose: '考察方案深度', hint: '本地消息表与 TCC 的取舍' }], biasToDirections: ['distributed'] },
+    { text: '缓存与数据库的一致性如何保证？', topic: '缓存一致性', difficulty: 'mid', targetAspect: '证据与一致性', probePoints: [{ purpose: '考察一致性取舍', hint: '旁路缓存 / 双写' }], biasToDirections: ['cacheredis'] },
+  ],
+  biz: [
+    { text: '介绍一个你主导过的项目：背景、你的取舍与最终结果。', topic: '项目深挖', difficulty: 'mid', targetAspect: '项目深度与贡献' },
+    { text: '这个项目如果再给你一次机会，你会改哪个决策？', topic: '取舍复盘', difficulty: 'mid', targetAspect: '方案取舍' },
+  ],
+  hr: [
+    { text: '为什么考虑换工作？未来 3 年的规划是什么？', topic: '职业规划', difficulty: 'begin', targetAspect: '沟通与反思' },
+    { text: '你如何理解团队协作中的分歧处理？', topic: '协作', difficulty: 'begin', targetAspect: '沟通与反思' },
+  ],
+};
 
 /** P10 需要的面试上下文（取 ctx 中完整 it 的一个子集）。 */
 interface P10Context {
