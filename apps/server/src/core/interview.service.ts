@@ -168,21 +168,26 @@ export class InterviewService {
     let questionText: string | undefined;
     let parentId: string | undefined;
     let topic: string | undefined;
+    let difficulty: Turn['difficulty'];
+    let targetAspect: Turn['targetAspect'];
     if (parentTurnId) {
       // 追问轮：取父轮最后一次作答里 P08 生成的追问文本
       const parent = it.turns.find((t) => t.id === parentTurnId);
-      const hint = parent?.attempts[parent.attempts.length - 1]?.followUp as { questions?: { text: string }[] } | undefined;
-      const text = hint?.questions?.[0]?.text;
-      if (text) {
-        questionText = text;
+      const hint = parent?.attempts[parent.attempts.length - 1]?.followUp as { questions?: { text: string; difficulty?: Turn['difficulty'] }[] } | undefined;
+      const q0 = hint?.questions?.[0];
+      if (q0?.text) {
+        questionText = q0.text;
         parentId = parentTurnId;
         topic = parent?.topic;
+        difficulty = q0.difficulty;
       }
     }
     if (!questionText) {
       const q = (await this.compose.compose('P06', this.ctx(it, 'P06', { it, phase }))) as MainQuestion;
       questionText = q.questionText;
       topic = q.topic;
+      difficulty = q.difficulty;
+      targetAspect = q.targetAspect;
     }
     const audio = await this.voice.synthesize({ text: questionText });
     const turn: Turn = {
@@ -191,6 +196,8 @@ export class InterviewService {
       seqNo,
       question: questionText,
       topic,
+      difficulty,
+      targetAspect,
       parentTurnId: parentId,
       ttsRef: audio.audioRef,
       attempts: [],

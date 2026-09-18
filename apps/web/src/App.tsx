@@ -25,6 +25,9 @@ interface RoomTurn {
   id: string;
   phase?: Phase;
   question: string;
+  topic?: string;
+  difficulty?: string;
+  targetAspect?: string;
   answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[] };
 }
 
@@ -154,7 +157,7 @@ export function App() {
       setRevising(false);
       setRecording(false);
       setFollowUpCount(0);
-      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase });
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
       setPage('room');
     },
   });
@@ -169,7 +172,7 @@ export function App() {
       setRevising(false);
       setRecording(false);
       setFollowUpCount((c) => c + 1);
-      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase });
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
     },
   });
 
@@ -462,7 +465,7 @@ export function App() {
       setRecording(false);
       setFollowUpCount(0);
       setAdjustNote('已从上次进度继续，这是本环节下一题。');
-      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase });
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
       setPage('room');
     },
     onSuccess: () => histQuery.refetch(),
@@ -761,6 +764,13 @@ export function App() {
                     <div className="row between"><span className="tag blue">主问题</span><small>语音问答 · 可输入文本作答</small></div>
                     <div className="row" style={{ marginTop: 22 }}><span className="bot">面试官</span><div><b>面试官</b><br /><small>沿着你的回答继续深入</small></div></div>
                     <h2 className="question">{turn?.question ?? '点击开始，面试官将提出第一题。'}</h2>
+                    {turn?.answered ? null : (
+                      <div className="row" style={{ marginTop: 6, gap: 6 }}>
+                        {turn?.topic && <span className="tag">主题：{turn.topic}</span>}
+                        {turn?.difficulty && <span className="tag">{({ begin: '基础', mid: '进阶', deep: '深挖' } as Record<string, string>)[turn.difficulty] ?? turn.difficulty}</span>}
+                        {turn?.targetAspect && <span className="tag">侧重：{turn.targetAspect}</span>}
+                      </div>
+                    )}
                     <div className="question-context">先完整表达你的思路，再提交获得反馈。</div>
                     <div className="answer">
                       {!turn?.answered && (

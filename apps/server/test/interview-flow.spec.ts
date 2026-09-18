@@ -271,6 +271,33 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(fu.body.turn.question).toBe(followText);
   });
 
+  it('主问题带出题元信息（主题/难度/考察维度），追问轮继承主题', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const main = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+    expect(main.body.turn.topic).toBeTruthy();
+    expect(['begin', 'mid', 'deep']).toContain(main.body.turn.difficulty);
+    expect(main.body.turn.targetAspect).toBeTruthy();
+    const ans = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${main.body.turn.id}/answer`)
+      .send({ transcript: '先给结论，再给约束。', stage: 'first' })
+      .expect(201);
+    void ans;
+    const fu = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns`)
+      .send({ phase: 'tech', parentTurnId: main.body.turn.id })
+      .expect(201);
+    expect(fu.body.turn.parentTurnId).toBe(main.body.turn.id);
+    expect(fu.body.turn.topic).toBe(main.body.turn.topic); // 追问轮继承主题
+  });
+
   it('未生成大纲直接开始 → 409', async () => {
     const created = await request(app.getHttpServer())
       .post('/interviews')

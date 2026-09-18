@@ -39,6 +39,10 @@ export interface Turn {
   question: string;
   /** 主问题主题（追问轮继承父轮），用于方向覆盖统计。 */
   topic?: string;
+  /** 出题难度（begin/mid/deep），随 P06/P08 出题生成，供面试室展示。 */
+  difficulty?: string;
+  /** 本题考察维度（如「方案取舍」），随 P06 主问题生成。 */
+  targetAspect?: string;
   parentTurnId?: string;
   ttsRef?: string;
   attempts: Attempt[];

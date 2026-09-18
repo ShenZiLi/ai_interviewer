@@ -72,7 +72,7 @@ export const api = {
   outline: (id: string) => req<{ outline: { summary: string; durationPlan: { tier: string; budgetMinutes: number; phases: { phase: string; minutes: number; questionCount: number; focus: string[] }[] }; outline: { topic: string; mainQuestion: string }[] } }>('POST', `/interviews/${id}/outline`),
   start: (id: string) => req<{ interview: { id: string; status: string; startedAt?: string } }>('POST', `/interviews/${id}/start`),
   newTurn: (id: string, phase?: 'intro' | 'tech' | 'biz' | 'hr', parentTurnId?: string) =>
-    req<{ turn: { id: string; phase: string; question: string } }>('POST', `/interviews/${id}/turns`, { phase: phase ?? 'tech', parentTurnId }),
+    req<{ turn: { id: string; phase: string; question: string; topic?: string; difficulty?: string; targetAspect?: string } }>('POST', `/interviews/${id}/turns`, { phase: phase ?? 'tech', parentTurnId }),
   adjustOutline: (id: string, confirm?: boolean) =>
     req<{ adjustment: { mode: string; changes?: { type: string; after: string }[] } }>('POST', `/interviews/${id}/outline/adjust`, { confirm }),
   answer: (
