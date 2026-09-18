@@ -1008,7 +1008,7 @@ export function App() {
                     )}
                   </section>
                   <div className="grid2 section-title">
-                    <section className="card"><h2>下一个题，专注这三件事</h2>
+                    <section className="card"><h2>下一个题，专注这 {report.actions.length} 件事</h2>
                       {report.actions.map((a, i) => <div className="list-row" key={i}><div className="row"><span className="step-number">0{i + 1}</span><div><b>{a}</b></div></div></div>)}
                     </section>
                   </div>
