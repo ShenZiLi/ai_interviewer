@@ -43,7 +43,7 @@
 
 ## 5. 里程碑 1（M1）：Web 单端最小闭环
 
-**范围**：Web 端打通 `简历导入 → P01→P02→P03→P04 → 自我介绍 → P06 主问题 → 作答转写 P07 → 陪练评价 → P08 追问 → P10 报告`，**级联链路**（ASR→文本LLM→TTS），默认 GLM 语音 + 选定的文本 LLM。无登录/数据库先以本地态或最小持久化验证（登录与 DB 列入 M2）。
+**范围**：Web 端打通 `登录 → 简历导入 → P01→P02→P03→P04 → 自我介绍 → P06 主问题 → 作答转写 P07 → 陪练评价 → P08 追问 → P10 报告`，**级联链路**（ASR→文本LLM→TTS），文本、ASR 与 TTS 统一使用 GLM。用户、简历、面试、轮次、评价与报告使用 PostgreSQL + Prisma 持久化。
 
 ### 5.1 验收条件（Definition of Done）
 
@@ -57,17 +57,18 @@
 | AC6 | 契约校验 | 全程 `compose` 输出 100% 过 Schema；失败重试后降级有日志 |
 | AC7 | 模式隔离测试 | 陪练/模拟两端行为断言通过 |
 | AC8 | 测试与提交 | 单测+契约+冒烟全绿；按规范提交，无敏感文件 |
+| AC9 | 登录与持久化 | 未登录不可进入面试；登录后刷新页面仍可恢复未完成面试，并可查看已完成报告 |
 
 ### 5.2 范围外（M1 不做）
 
-登录（微信/账号）、跨端、真实持久化与录音长期保留、管理员后台的真实 LLM 测试、端到端实时通道、简历多版本/OCR。
+微信小程序端、录音长期保留、管理员后台的真实 LLM 测试、端到端实时通道、简历多版本/OCR。具体未纳入首版的登录渠道在 MVP 设计确认时明确。
 
 ## 6. 技术栈（已确认 2026-09-18）
 
 - **Monorepo**：pnpm workspaces；`apps/web` + `apps/server` + `packages/contracts`。
 - **后端**：NestJS + `@nestjs/platform-fastify`（结构化 + 快）。
 - **契约 / 校验**：`packages/contracts` 用 **zod** 定义端点 DTO 与 P01—P10 输出；`zod-to-json-schema` 生成 `schemas/*.json`；运行时 zod 校验 `compose` 输出，前后端共享同一份契约。
-- **数据库**：PostgreSQL + Prisma（迁移/枚举友好）；M1 先做最小持久化。
+- **数据库**：PostgreSQL + Prisma（迁移/枚举友好）；M1 持久化用户、简历、面试、轮次、评价与报告。
 - **前端**：Vite + React + TypeScript + TanStack Query。
 - **测试**：Vitest + Supertest（REST 契约）；后续 Playwright 冒烟。
 - **工程**：ESLint + Prettier；Node 20+；脚本走 `pnpm`。
