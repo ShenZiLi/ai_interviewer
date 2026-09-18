@@ -63,15 +63,15 @@ export type AnswerResult =
 export const api = {
   createResume: (text: string, title?: string) =>
     req<{ resume: { id: string; status: string; analysis: { summary: string; candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] } } }>('POST', '/resumes', { text, title }),
-  createInterview: (resumeId: string, kind: 'coach' | 'mock' = 'coach', keepAudio = false, jdText?: string) =>
+  createInterview: (resumeId: string, opts: { kind?: 'coach' | 'mock'; keepAudio?: boolean; jdText?: string; role?: string; level?: 'junior' | 'mid' | 'senior'; durationTier?: '15m' | '30m' | '45m' } = {}) =>
     req<{ interview: { id: string; status: string } }>('POST', '/interviews', {
       resumeId,
-      targetRole: 'Java 后端工程师',
-      level: 'mid',
-      kind,
-      durationTier: '30m',
-      keepAudio,
-      jdText,
+      targetRole: opts.role ?? 'Java 后端工程师',
+      level: opts.level ?? 'mid',
+      kind: opts.kind ?? 'coach',
+      durationTier: opts.durationTier ?? '30m',
+      keepAudio: opts.keepAudio,
+      jdText: opts.jdText,
     }),
   analyze: (id: string) => req<{ position: { role: string; seniority: string; focusAreas: string[] } }>('POST', `/interviews/${id}/analyze`),
   directions: (id: string, selected?: string[], extra?: string) => req<{ recommendedDirections: { recommendedDirections: { id: string; name: string; weight: number }[]; pendingClarify?: { question: string }[] } }>('POST', `/interviews/${id}/directions`, { selectedDirections: selected, extra }),

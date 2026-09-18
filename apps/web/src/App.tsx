@@ -97,11 +97,11 @@ export function App() {
         }
       : undefined;
 
-  /** 抓取本场之前最近一场已完成面试的报告（用于横向对比；无上一场则返回 undefined）。 */
-  const fetchPrevReport = async (curId: string): Promise<InterviewReport | undefined> => {
+  /** 抓取本场之前最近一场「同目标岗位」的已完成面试报告（用于横向对比；无上一场则返回 undefined）。 */
+  const fetchPrevReport = async (curId: string, curRole?: string): Promise<InterviewReport | undefined> => {
     const items = (await api.listInterviews()).items;
     const prev = items
-      .filter((h) => h.status === 'finished' && h.report && h.id !== curId)
+      .filter((h) => h.status === 'finished' && h.report && h.id !== curId && (!curRole || h.targetRole === curRole))
       .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
     return prev[0]?.report;
   };
@@ -149,7 +149,14 @@ export function App() {
   const bootstrap = useMutation({
     mutationFn: async () => {
       if (!resumeId) throw new Error('请先导入简历');
-      const interview = await run(api.createInterview(resumeId, mode, keepAudio, jd || undefined));
+      const interview = await run(api.createInterview(resumeId, {
+        kind: mode,
+        keepAudio,
+        jdText: jd || undefined,
+        role,
+        level: ({ 初级: 'junior', 中级: 'mid', 高级: 'senior' } as Record<string, 'junior' | 'mid' | 'senior'>)[level],
+        durationTier: duration,
+      }));
       await run(api.analyze(interview.interview.id));
       const d = await run(api.directions(interview.interview.id, undefined, extra || undefined));
       setDirs(d.recommendedDirections.recommendedDirections);
@@ -428,7 +435,7 @@ export function App() {
         actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}`),
         highlight: resolveHighlight(res.report, detail.interview.turns ?? []),
       });
-      const prev = await fetchPrevReport(interviewId!);
+      const prev = await fetchPrevReport(interviewId!, role);
       setTrend(prev ? buildTrend(prev, res.report.overview.avgScore, dims) : undefined);
       setPage('report');
     },
@@ -569,7 +576,7 @@ export function App() {
         actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}`),
         highlight: resolveHighlight(r, detail.interview.turns ?? []),
       });
-      const prev = await fetchPrevReport(id);
+      const prev = await fetchPrevReport(id, role);
       setTrend(prev ? buildTrend(prev, r.overview.avgScore, dims) : undefined);
       setPage('report');
     },
