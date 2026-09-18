@@ -41,6 +41,9 @@ User
 | binding.provider | enum(wechat_web\|wechat_mini\|phone\|self) | 登录提供方 |
 | binding.identityKey | string | 微信 openid / 手机号 SHA256 / 用户名（各 provider 语义不同） |
 | binding.userId | UUID | 归属 User |
+| binding.passwordHash | string? | 仅 `provider=self` 使用；Argon2id 哈希，永不返回客户端或写入日志 |
+
+MVP 仅实现 `self`：用户名 + 密码自助注册/登录，JWT Bearer 会话。`wechat_web`、`wechat_mini`、`phone` 与账号绑定放入 M2。
 
 ### 2.2 Resume 简历
 

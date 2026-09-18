@@ -36,41 +36,48 @@
 
 ## 1. 身份与账号
 
-### 1.1 POST `/auth/wechat-mini`（公开）
+### 1.1 POST `/auth/register`（公开，MVP）
+创建自建账号。用户名在 `self` 登录提供方内唯一；密码只保存 Argon2id 哈希。
+
+- 请求：`{ "username": "string", "password": "string" }`
+- 201：`{ "token": "…", "user": { "id", "created": true } }`
+- 错误：`INVALID_REQUEST`、`ACCOUNT_TAKEN`
+
+### 1.2 POST `/auth/self`（公开，MVP）
+用户名与密码登录，成功后签发 JWT Bearer 会话。
+
+- 请求：`{ "username", "password" }`
+- 200：`{ "token", "user": { "id", "created": false } }`
+- 错误：`INVALID_REQUEST`、`AUTH_UNAUTHORIZED`
+
+### 1.3 GET `/auth/me`（鉴权，MVP）
+当前用户与已绑定身份。
+
+- 200：`{ "user": { "id", "defaultRetention" }, "bindings": [ { "provider", "maskedIdentity" } ] }`
+- 错误：`AUTH_UNAUTHORIZED`
+
+### 1.4 POST `/auth/wechat-mini`（公开，M2）
 小程序 `wx.login` 的 code 换登录态。服务端调 `code2Session` 换 openid 绑定/登录。
 
 - 请求：`{ "code": "string" }`
 - 200：`{ "token": "…", "user": { "id", "created" } }`（**不下发 openid**）
 - 错误：`INVALID_REQUEST`、`AUTH_UNAUTHORIZED`（code 无效）
 
-### 1.2 POST `/auth/wechat-web`（公开）
+### 1.5 POST `/auth/wechat-web`（公开，M2）
 Web 扫码回调 code 换登录态。
 
 - 请求：`{ "code": "string" }`
 - 200：同上
 - 错误：同上
 
-### 1.3 POST `/auth/self`（公开）
-自建账号/密码（兜底登录）。**预留**：一期如需实现此通道，密码用服务端加盐哈希，绝不明文存。
-
-- 请求：`{ "username", "password" }`
-- 200：`{ "token", "user" }`
-- 错误：`INVALID_REQUEST`、`AUTH_UNAUTHORIZED`
-
-### 1.4 POST `/auth/sms`（公开）
+### 1.6 POST `/auth/sms`（公开，M2）
 手机号短信验证码登录。**预留**：需接短信供应商。
 
 - 请求：`{ "phone", "code" }`（`code` = 验证码）
 - 200：`{ "token", "user" }`
 - 错误：`INVALID_REQUEST`、`AUTH_UNAUTHORIZED`
 
-### 1.5 GET `/auth/me`（鉴权）
-当前用户与已绑定身份。
-
-- 200：`{ "user": { "id", "unionId?", "defaultRetention" }, "bindings": [ { "provider", "maskedIdentity" } ] }`（`maskedIdentity` 脱敏展示，不返回明文 openid）
-- 错误：`AUTH_UNAUTHORIZED`
-
-### 1.6 POST `/auth/bind`（鉴权）
+### 1.7 POST `/auth/bind`（鉴权，M2）
 把另一登录方式绑定到当前账号（双端合并）。
 
 - 请求：`{ "provider": "wechat_mini|wechat_web|phone|self", "code?|phone?|username?": "…" }`
