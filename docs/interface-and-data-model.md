@@ -216,6 +216,6 @@ User
 
 ## 6. 推进顺序建议
 
-1. 逐任务定义 P01—P10 输出 JSON Schema 与服务端校验规则。
-2. 生成接口规范（每个端点入参/出参/错误码/鉴权）。
+1. 逐任务定义 P01—P10 输出 JSON Schema 与服务端校验规则（见 [output-schemas.md](output-schemas.md)）。
+2. 生成接口规范（每个端点入参/出参/错误码/鉴权）（见 [api-spec.md](api-spec.md)）。
 3. 据此进入里程碑实现的开发验收标准。
