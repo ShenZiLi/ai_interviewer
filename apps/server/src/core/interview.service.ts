@@ -143,6 +143,8 @@ export class InterviewService {
   start(id: string): InterviewRecord {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft', 'active']);
+    // 业务守卫：未生成大纲不允许开考（避免空场次）。
+    if (!it.outline) throw new ConflictException('尚未生成面试大纲，无法开始');
     // 开场快照：锁定 P01—P10 当前已发布版本，后续发布不影响本场
     const promptLocks: InterviewRecord['promptLocks'] = {};
     for (const code of TASK_CODES) {

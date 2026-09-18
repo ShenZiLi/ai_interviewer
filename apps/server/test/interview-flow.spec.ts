@@ -136,4 +136,12 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
       .expect(201);
     expect(res.body).toEqual({ recorded: true });
   });
+
+  it('未生成大纲直接开始 → 409', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${created.body.interview.id}/start`).expect(409);
+  });
 });
