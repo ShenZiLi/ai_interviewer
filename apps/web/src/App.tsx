@@ -258,7 +258,7 @@ export function App() {
   const submitAnswer = useMutation({
     mutationFn: async (payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' }) => {
       setRecording(false);
-      mediaRef.current = null;
+      stopRecording();
       const stage = payload.stage ?? (revising ? 'after_hint' : 'first');
       const transcript = payload.transcript ?? draft;
       const answered = await run(api.answer(interviewId!, turn!.id, payload.audioRef ? { audioRef: payload.audioRef, stage } : { transcript, stage }));
@@ -317,6 +317,19 @@ export function App() {
     },
   });
 
+  /** 停止录音器并释放麦克风流（MediaRecorder 持有的 stream tracks），避免录音结束后麦克风仍占用。 */
+  const stopRecording = () => {
+    const rec = mediaRef.current;
+    mediaRef.current = null;
+    if (!rec) return;
+    try {
+      if (rec.state !== 'inactive') rec.stop();
+      rec.stream.getTracks().forEach((t) => t.stop());
+    } catch {
+      /* 停止异常忽略，不阻塞主流程 */
+    }
+  };
+
   const submitVoice = async () => {
     const rec = mediaRef.current;
     if (rec && rec.state === 'recording') {
@@ -328,7 +341,7 @@ export function App() {
         };
         rec.addEventListener('stop', onStop, { once: true });
         rec.stop();
-        mediaRef.current = null;
+        stopRecording();
         setTimeout(onStop, 3000);
       });
       if (blob) {
@@ -573,6 +586,8 @@ export function App() {
     const t = setInterval(() => setClock(Date.now()), 30000);
     return () => clearInterval(t);
   }, [page, startedAt]);
+  // 离开页面/卸载时释放仍在录音的麦克风。
+  useEffect(() => () => stopRecording(), []);
   const tplQuery = useQuery({ queryKey: ['adminTemplates'], queryFn: api.listTemplates, enabled: page === 'admin' });
   const verQuery = useQuery({ queryKey: ['adminVersions', selId], queryFn: () => api.listVersions(selId!), enabled: !!selId && page === 'admin' });
   const selectedVersions = useMemo(() => (verQuery.data ? [...verQuery.data.items].sort((a, b) => b.versionNo - a.versionNo) : []), [verQuery.data]);
@@ -877,7 +892,7 @@ export function App() {
                       ) : (
                         <div className="actions" style={{ marginTop: 10 }}>
                           {mode === 'coach' && !scoreHistory.some((s) => s.stage === 'after_hint') && (
-                            <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); mediaRef.current?.stop(); mediaRef.current = null; reanswerStartRef.current = Date.now(); setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
+                            <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); stopRecording(); reanswerStartRef.current = Date.now(); setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
                           )}
                           {mode === 'coach' && turn.answered?.followup.length ? (
                             <button onClick={() => askFollowUp.mutate()} disabled={askFollowUp.isPending || followUpCount >= 3}>{followUpCount >= 3 ? '追问已满' : '追问 →'}</button>
