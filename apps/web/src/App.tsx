@@ -302,6 +302,31 @@ export function App() {
     onSuccess: () => histQuery.refetch(),
   });
 
+  /** 中途离开后继续进行中的面试：恢复现场并继续本环节下一题。 */
+  const resumeInterview = useMutation({
+    mutationFn: async (id: string) => {
+      const detail = await run(api.getInterview(id));
+      if (detail.interview.status !== 'active') throw new Error('该场不在进行中');
+      const turns = detail.interview.turns ?? [];
+      const resumePhase = (turns[turns.length - 1]?.phase as Phase) ?? 'intro';
+      const res = await run(api.newTurn(id, resumePhase));
+      setInterviewId(id);
+      setMode(detail.interview.kind);
+      setLevel(detail.interview.level === 'senior' ? '高级' : detail.interview.level === 'junior' ? '初级' : '中级');
+      setPhase(resumePhase);
+      setTopics(detail.interview.directions);
+      setDraft('');
+      setScoreHistory([]);
+      setRevising(false);
+      setRecording(false);
+      setFollowUpCount(0);
+      setAdjustNote('已从上次进度继续，这是本环节下一题。');
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase });
+      setPage('room');
+    },
+    onSuccess: () => histQuery.refetch(),
+  });
+
   // ---- 管理员提示词管理 ----
   const [selId, setSelId] = useState<string>();
   const [draftText, setDraftText] = useState('');
@@ -379,6 +404,8 @@ export function App() {
                           </div>
                           {h.status === 'finished' ? (
                             <button onClick={() => openHistory.mutate(h.id)} disabled={openHistory.isPending}>查看报告</button>
+                          ) : h.status === 'active' ? (
+                            <button onClick={() => resumeInterview.mutate(h.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续'}</button>
                           ) : (
                             <span className="tag">{h.status}</span>
                           )}
