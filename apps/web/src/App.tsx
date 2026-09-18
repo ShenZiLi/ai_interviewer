@@ -609,13 +609,16 @@ export function App() {
         if (!t.parentTurnId) progress[t.phase as Phase] = (progress[t.phase as Phase] ?? 0) + 1;
       }
       setPhaseProgress(progress);
+      // 还原大纲与题目元信息，使环节计划题数提示/防早收确认在恢复后仍生效（页面刷新后原状态丢失）。
+      setOutlinePhases(detail.interview.outline?.durationPlan?.phases);
+      setOutlineQuestions(detail.interview.outline?.outline);
+      setTopics(detail.interview.outline?.outline?.map((q) => q.topic) ?? []);
       const res = await run(api.newTurn(id, resumePhase));
       setInterviewId(id);
       setStartedAt(detail.interview.startedAt);
       setMode(detail.interview.kind);
       setLevel(detail.interview.level === 'senior' ? '高级' : detail.interview.level === 'junior' ? '初级' : '中级');
       setPhase(resumePhase);
-      setTopics(detail.interview.directions);
       setDraft('');
       setScoreHistory([]);
       setCoaching(undefined);
