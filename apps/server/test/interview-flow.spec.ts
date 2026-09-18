@@ -119,6 +119,18 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(attempts.map((a: { stage: string }) => a.stage)).toEqual(['first', 'after_hint']);
   });
 
+  it('开考时间戳 startedAt 在 start 时记录（时长预算起点），重复 start 幂等', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    const st = await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    expect(st.body.interview.startedAt).toBeTruthy();
+    const st2 = await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    expect(st2.body.interview.startedAt).toBe(st.body.interview.startedAt);
+  });
+
   it('大纲调整模式隔离：模拟自动应用，陪练未确认不应用', async () => {
     // 陪练未确认 → 不静默应用
     const coach = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);

@@ -47,6 +47,8 @@ export function App() {
   const [revising, setRevising] = useState(false);
   const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number; dims: { dim: string; displayScore?: number }[]; grade?: string }[]>([]);
   const [followUpCount, setFollowUpCount] = useState(0);
+  const [startedAt, setStartedAt] = useState<string>();
+  const [clock, setClock] = useState(Date.now());
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
   const [review, setReview] = useState<{ phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
   const [error, setError] = useState<string>();
@@ -94,7 +96,8 @@ export function App() {
       setDirs(d.recommendedDirections.recommendedDirections);
       const o = await run(api.outline(interview.interview.id));
       setTopics(o.outline.outline.map((q) => q.topic));
-      await run(api.start(interview.interview.id));
+      const st = await run(api.start(interview.interview.id));
+      setStartedAt(st.interview.startedAt);
       setInterviewId(interview.interview.id);
       setError(undefined);
     },
@@ -322,6 +325,7 @@ export function App() {
       const resumePhase = (turns[turns.length - 1]?.phase as Phase) ?? 'intro';
       const res = await run(api.newTurn(id, resumePhase));
       setInterviewId(id);
+      setStartedAt(detail.interview.startedAt);
       setMode(detail.interview.kind);
       setLevel(detail.interview.level === 'senior' ? '高级' : detail.interview.level === 'junior' ? '初级' : '中级');
       setPhase(resumePhase);
@@ -356,6 +360,13 @@ export function App() {
     },
   });
   const applyPreset = (p: { baseUrl: string; model: string }) => setCfgMode((c) => ({ ...c, baseUrl: p.baseUrl, model: p.model, mode: 'custom' }));
+
+  // 面试室内软计时：每 30s 刷新，用于「到时提示收尾」而非强制截断。
+  useEffect(() => {
+    if (page !== 'room' || !startedAt) return;
+    const t = setInterval(() => setClock(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, [page, startedAt]);
   const tplQuery = useQuery({ queryKey: ['adminTemplates'], queryFn: api.listTemplates, enabled: page === 'admin' });
   const verQuery = useQuery({ queryKey: ['adminVersions', selId], queryFn: () => api.listVersions(selId!), enabled: !!selId && page === 'admin' });
   const selectedVersions = useMemo(() => (verQuery.data ? [...verQuery.data.items].sort((a, b) => b.versionNo - a.versionNo) : []), [verQuery.data]);
@@ -529,7 +540,14 @@ export function App() {
                       return <div className={`stage ${state}`} key={name}><span className="step-number">{i < (phase ? PHASES.indexOf(phase) : -1) ? '✓' : `${i + 1}`}</span><div><b>{name}</b><small>{state === 'done' ? '已完成' : state === 'active' ? '进行中' : '待开始'}</small></div></div>;
                     })}
                     {adjustNote && <div className="notice" style={{ marginTop: 10 }}>{adjustNote}</div>}
-                    <div className="room-meta">{duration} 分钟 · {level}<br />{topics.join(' / ')}</div>
+                    <div className="room-meta">{duration} 分钟 · {level}
+                      {(() => {
+                        const budget = parseInt(duration, 10);
+                        const elapsed = startedAt ? Math.max(0, Math.floor((clock - new Date(startedAt).getTime()) / 60000)) : 0;
+                        const overdue = startedAt && elapsed >= budget;
+                        return (<span>{overdue ? ` ｜ 已超时（已进行 ${elapsed} 分钟，可收尾）` : startedAt ? ` ｜ 已进行 ${elapsed} / ${budget} 分钟` : ''}</span>);
+                      })()}
+                      <br />{topics.join(' / ')}</div>
                   </aside>
                   <section className="card">
                     <div className="row between"><span className="tag blue">主问题</span><small>语音问答 · 可输入文本作答</small></div>

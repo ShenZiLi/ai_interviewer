@@ -155,6 +155,7 @@ export class InterviewService {
     }
     it.promptLocks = promptLocks;
     it.status = 'active';
+    it.startedAt = it.startedAt ?? now();
     return this.store.saveInterview(it);
   }
 

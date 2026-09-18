@@ -59,6 +59,8 @@ export interface InterviewRecord {
   directionsResult?: Record<string, unknown>;
   outline?: Record<string, unknown>;
   outlineAdjustedAt?: string;
+  /** 开考时间戳（时长预算的起点；用于「到时提示收尾」）。 */
+  startedAt?: string;
   promptLocks: Record<string, ConfigLock>;
   turns: Turn[];
   report?: Record<string, unknown>;

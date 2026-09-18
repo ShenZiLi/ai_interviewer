@@ -22,6 +22,7 @@ export interface InterviewReport {
 export interface InterviewDetail extends InterviewSummary {
   directions: string[];
   keepAudio?: boolean;
+  startedAt?: string;
   promptLocks: Record<string, { versionId: string; versionNo: number }>;
   turns?: { phase: string; question: string; attempts: { transcript: string; stage?: string; evaluation?: { score: number; grade?: string } }[] }[];
 }
@@ -62,7 +63,7 @@ export const api = {
   analyze: (id: string) => req<{ position: { role: string; seniority: string; focusAreas: string[] } }>('POST', `/interviews/${id}/analyze`),
   directions: (id: string) => req<{ recommendedDirections: { recommendedDirections: { id: string; name: string; weight: number }[]; pendingClarify?: { question: string }[] } }>('POST', `/interviews/${id}/directions`, {}),
   outline: (id: string) => req<{ outline: { summary: string; outline: { topic: string; mainQuestion: string }[] } }>('POST', `/interviews/${id}/outline`),
-  start: (id: string) => req<{ interview: { id: string; status: string } }>('POST', `/interviews/${id}/start`),
+  start: (id: string) => req<{ interview: { id: string; status: string; startedAt?: string } }>('POST', `/interviews/${id}/start`),
   newTurn: (id: string, phase?: 'intro' | 'tech' | 'biz' | 'hr', parentTurnId?: string) =>
     req<{ turn: { id: string; phase: string; question: string } }>('POST', `/interviews/${id}/turns`, { phase: phase ?? 'tech', parentTurnId }),
   adjustOutline: (id: string, confirm?: boolean) =>
