@@ -15,6 +15,7 @@ const nav: { k: NavKey; icon: string; label: string }[] = [
   { k: 'admin', icon: '✎', label: '提示词管理' },
 ];
 const stages = ['自我介绍', '技术问题', '业务问题', 'HR 问题'];
+const phaseLabel: Record<string, string> = { intro: '自我介绍', tech: '技术问题', biz: '业务问题', hr: 'HR 问题' };
 const PHASES = ['intro', 'tech', 'biz', 'hr'] as const;
 type Phase = (typeof PHASES)[number];
 
@@ -270,6 +271,15 @@ export function App() {
     const sub = `本场共 ${report.completed} 题，方向覆盖 ${report.coverage}；${highest ? `「${highest.dim}」表现较稳` : '整体较为平均'}。建议聚焦行动清单前几项，补足适用前提、失败处理与验证结果。`;
     return { head, sub };
   })();
+  const reviewGroups = review.reduce<{ phase: string; items: typeof review }[]>(
+    (acc, it) => {
+      const g = acc.find((x) => x.phase === it.phase);
+      if (g) g.items.push(it);
+      else acc.push({ phase: it.phase, items: [it] });
+      return acc;
+    },
+    [],
+  );
   const breadcrumb = `首页 / ${titles[active]}`;
 
   // ---- 工作台：历史报告 ----
@@ -633,13 +643,18 @@ export function App() {
                   {review.length > 0 && (
                     <section className="card section-title">
                       <div className="row between"><h2>回答转写回顾</h2><span className="tag blue">{review.length} 题</span></div>
-                      {review.map((it, i) => (
-                        <div className="review-item" key={i}>
-                          <div className="row between" style={{ alignItems: 'flex-start' }}>
-                            <b style={{ minWidth: 0 }}>{it.question}</b>
-                            {it.score !== undefined ? <span className="tag">{it.score}<small> /100 · {it.grade}</small></span> : <span className="tag">仅记录</span>}
-                          </div>
-                          {it.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap' }}>{it.transcript}</p>}
+                      {reviewGroups.map((g) => (
+                        <div key={g.phase} className="review-phase">
+                          <div className="row" style={{ marginTop: 10 }}><span className="tag blue">{phaseLabel[g.phase] ?? g.phase}</span><small>{g.items.length} 题</small></div>
+                          {g.items.map((it, i) => (
+                            <div className="review-item" key={`${g.phase}-${i}`}>
+                              <div className="row between" style={{ alignItems: 'flex-start' }}>
+                                <b style={{ minWidth: 0 }}>{it.question}</b>
+                                {it.score !== undefined ? <span className="tag">{it.score}<small> /100 · {it.grade}</small></span> : <span className="tag">仅记录</span>}
+                              </div>
+                              {it.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap' }}>{it.transcript}</p>}
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </section>
