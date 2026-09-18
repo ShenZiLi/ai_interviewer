@@ -138,12 +138,13 @@ MVP 仅实现 `self`：用户名 + 密码自助注册/登录，JWT Bearer 会话
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/auth/wechat-mini` | 小程序 code → 换取 openid 绑定登录 |
-| POST | `/auth/wechat-web` | Web 扫码 OAuth code → 登录 |
-| POST | `/auth/sms` | 手机号短信码登录（预留） |
-| POST | `/auth/self` | 账号密码登录（兜底） |
-| GET | `/auth/me` | 当前用户与绑定 |
-| POST | `/auth/bind` | 绑定/合并另一提供方身份 |
+| POST | `/auth/register` | 用户名 + 密码自助注册，密码保存 Argon2id 哈希（MVP） |
+| POST | `/auth/self` | 用户名 + 密码登录，返回 JWT Bearer 会话（MVP） |
+| GET | `/auth/me` | 获取当前用户和脱敏后的登录绑定（MVP） |
+| POST | `/auth/wechat-mini` | 小程序 code → 换取 openid 绑定登录（M2） |
+| POST | `/auth/wechat-web` | Web 扫码 OAuth code → 登录（M2） |
+| POST | `/auth/sms` | 手机号短信码登录（M2） |
+| POST | `/auth/bind` | 绑定/合并另一提供方身份（M2） |
 
 ### 3.2 简历
 
