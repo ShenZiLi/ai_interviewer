@@ -741,7 +741,7 @@ export function App() {
                       ))}
                     </section>
                   )}
-                  <div className="actions"><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setResumeId(undefined); }}>再来一次 →</button></div>
+                  <div className="actions"><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined); setReview([]); setCoaching(undefined); setTopics([]); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
               )}
 
