@@ -613,6 +613,13 @@ export function App() {
       refreshAdmin();
     },
   });
+  const deleteTemplate = useMutation({
+    mutationFn: async (id: string) => {
+      await api.deleteTemplate(id);
+      if (selId === id) setSelId(undefined);
+      refreshAdmin();
+    },
+  });
 
   return (
     <div id="viewport">
@@ -1064,7 +1071,10 @@ export function App() {
                     {tplQuery.isLoading ? <p className="muted">加载中…</p> : (tplQuery.data?.items ?? []).map((t) => (
                       <div className="list-row" key={t.id}>
                         <div><b>{t.taskCode} · {t.name}</b><p>{t.description}</p>{t.variables?.length ? <p className="muted" style={{ marginTop: 6 }}>上下文变量：{t.variables.map((v) => <span className="tag" key={v} style={{ marginRight: 4 }}>{v}</span>)}</p> : null}</div>
-                        <button className={selId === t.id ? 'primary' : ''} onClick={() => setSelId(t.id)}>编辑</button>
+                        <div className="row">
+                          <button className={selId === t.id ? 'primary' : ''} onClick={() => setSelId(t.id)}>编辑</button>
+                          <button className="danger ghost" onClick={() => { if (window.confirm(`删除模板 ${t.taskCode} 及其全部版本？已开始面试的回落到默认提示词。`)) deleteTemplate.mutate(t.id); }} disabled={deleteTemplate.isPending}>删除</button>
+                        </div>
                       </div>
                     ))}
                   </section>

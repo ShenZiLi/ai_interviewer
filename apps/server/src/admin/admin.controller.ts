@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, Patch, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { PromptService } from './prompt.service.js';
 
@@ -39,6 +39,12 @@ export class AdminController {
   @Get(':id')
   get(@Param('id') id: string) {
     return { template: this.prompts.getTemplate(id) };
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    this.prompts.removeTemplate(id);
+    return { ok: true };
   }
 
   @Patch(':id')

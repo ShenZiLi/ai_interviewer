@@ -82,6 +82,15 @@ export class PromptService {
     return t;
   }
 
+  /** 删除模板及其全部版本（含已发布）。已开始面试的锁定快照按 id 取不到时回落默认提示词。 */
+  removeTemplate(id: string): void {
+    this.getTemplate(id);
+    this.templates.delete(id);
+    for (const v of [...this.versions.values()]) {
+      if (v.templateId === id) this.versions.delete(v.id);
+    }
+  }
+
   /**
    * 更新「工作草稿」：取最新 draft|tested 版本；若无则从最近发布复制新建草稿。
    * 一旦有内容被改，测试态回到 draft（需重测）。

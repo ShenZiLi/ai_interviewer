@@ -34,8 +34,17 @@ describe('管理员提示词管理 (e2e)', () => {
     const some = (await request(app.getHttpServer()).get('/admin/templates').expect(200)).body.items[0];
     await request(app.getHttpServer())
       .post('/admin/templates')
-      .send({ taskCode: some.taskCode, name: 'duplicate', basePrompt: 'x' })
+      .send({ taskCode: some.taskCode, name: 'dup', basePrompt: 'x' })
       .expect(409);
+  });
+
+  it('删除模板同时清空其版本，删除后详情 404', async () => {
+    const items = (await request(app.getHttpServer()).get('/admin/templates').expect(200)).body.items as { id: string }[];
+    const target = items[0];
+    await request(app.getHttpServer()).delete(`/admin/templates/${target.id}`).expect(200);
+    await request(app.getHttpServer()).get(`/admin/templates/${target.id}`).expect(404);
+    const after = (await request(app.getHttpServer()).get('/admin/templates').expect(200)).body.items as { id: string }[];
+    expect(after.some((t) => t.id === target.id)).toBe(false);
   });
 
   it('草稿→测试→发布，发布后版本为 published', async () => {

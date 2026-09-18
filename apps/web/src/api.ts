@@ -106,6 +106,7 @@ export const api = {
     req<{ items: { id: string; versionNo: number; status: 'draft' | 'tested' | 'published' | 'rolled_back'; content: string; basedOnId?: string; createdAt: string }[] }>('GET', `/admin/templates/${id}/versions`),
   updateDraft: (id: string, basePrompt: string) =>
     req<{ version: { id: string; status: 'draft' | 'tested' | 'published' | 'rolled_back' } }>('PATCH', `/admin/templates/${id}`, { basePrompt }),
+  deleteTemplate: (id: string) => req<{ ok: boolean }>('DELETE', `/admin/templates/${id}`),
   actVersion: (id: string, action: 'test' | 'publish' | 'rollback', targetVersionId?: string) =>
     req<{ version: { id: string; status: string; versionNo: number; basedOnId?: string } }>('POST', `/admin/templates/${id}/versions`, { action, targetVersionId }),
 };
