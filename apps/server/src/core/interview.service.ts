@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, Inject } from '@nestjs/common';
 import {
+  Coaching,
   Directions,
   Evaluation,
   FollowUpDecision,
@@ -224,6 +225,18 @@ export class InterviewService {
     turn.attempts.push({ id: newId('attempt'), stage, transcript, evaluation: ev, followUp: follow, createdAt: now() });
     this.store.saveInterview(it);
     return { evaluation: ev, next: follow, transcript } as const;
+  }
+
+  /** 单轮辅导优化（P09）：基于末次作答生成更高分示范与改进建议。 */
+  async coach(id: string, turnId: string): Promise<Coaching> {
+    const it = this.mustGet(id);
+    this.assertStatus(it, ['active']);
+    const turn = it.turns.find((t) => t.id === turnId);
+    if (!turn) throw new NotFoundException('作答轮不存在');
+    const last = turn.attempts[turn.attempts.length - 1];
+    if (!last) throw new ConflictException('该轮尚未作答');
+    const transcript = last.transcript;
+    return (await this.compose.compose('P09', this.ctx(it, 'P09', { it, turn, transcript }))) as Coaching;
   }
 
   async adjust(id: string, confirm?: boolean): Promise<OutlineAdjustment> {

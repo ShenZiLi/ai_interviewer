@@ -69,6 +69,12 @@ export class InterviewsController {
     return this.service.answer({ interviewId: id, turnId, transcript: input.transcript, audioRef: input.audioRef, stage: input.stage });
   }
 
+  /** 单轮辅导优化（P09）。 */
+  @Post(':id/turns/:turnId/coaching')
+  async coaching(@Param('id') id: string, @Param('turnId') turnId: string) {
+    return { coaching: await this.service.coach(id, turnId) };
+  }
+
   @Post(':id/outline/adjust')
   async adjust(@Param('id') id: string, @Body() body: unknown) {
     const { confirm } = adjustSchema.parse(body ?? {});

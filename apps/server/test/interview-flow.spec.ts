@@ -119,6 +119,20 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(attempts.map((a: { stage: string }) => a.stage)).toEqual(['first', 'after_hint']);
   });
 
+  it('单轮辅导优化（P09）基于末次作答返回示范', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${id}/turns`).send({ phase: 'tech' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/turns/${t.body.turn.id}/answer`).send({ transcript: '先讲结论再讲约束。', stage: 'first' }).expect(201);
+    const c = await request(app.getHttpServer()).post(`/interviews/${id}/turns/${t.body.turn.id}/coaching`).expect(201);
+    expect(c.body.coaching.modelAnswer.summary).toBeTruthy();
+    expect(c.body.coaching.modelAnswer.structure.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('开考时间戳 startedAt 在 start 时记录（时长预算起点），重复 start 幂等', async () => {
     const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
     const id = created.body.interview.id;

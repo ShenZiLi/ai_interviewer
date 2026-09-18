@@ -46,6 +46,7 @@ export function App() {
   const [recording, setRecording] = useState(false);
   const [revising, setRevising] = useState(false);
   const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number; dims: { dim: string; displayScore?: number }[]; grade?: string }[]>([]);
+  const [coaching, setCoaching] = useState<{ summary: string; structure: { point: string; explanation: string }[]; optimization?: { userPoint: string; improved: string; why: string }[]; note?: string; practice?: string }>();
   const [followUpCount, setFollowUpCount] = useState(0);
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
@@ -108,6 +109,7 @@ export function App() {
       const res = await run(api.newTurn(interviewId!, phase));
       setDraft('');
       setScoreHistory([]);
+      setCoaching(undefined);
       setRevising(false);
       setRecording(false);
       setFollowUpCount(0);
@@ -122,6 +124,7 @@ export function App() {
       const res = await run(api.newTurn(interviewId!, phase, turn!.id));
       setDraft('');
       setScoreHistory([]);
+      setCoaching(undefined);
       setRevising(false);
       setRecording(false);
       setFollowUpCount((c) => c + 1);
@@ -246,6 +249,14 @@ export function App() {
     await submitAnswer.mutateAsync({ transcript: draft });
   };
 
+  /** 单轮辅导优化（P09）：获取更高分示范与改进建议。 */
+  const coachTurn = useMutation({
+    mutationFn: async () => {
+      const c = await run(api.coach(interviewId!, turn!.id));
+      setCoaching({ summary: c.coaching.modelAnswer.summary, structure: c.coaching.modelAnswer.structure, optimization: c.coaching.optimization, note: c.coaching.coachingNote, practice: c.coaching.practicePrompt });
+    },
+  });
+
   const finish = useMutation({
     mutationFn: async () => {
       const res = await run(api.finish(interviewId!));
@@ -332,6 +343,7 @@ export function App() {
       setTopics(detail.interview.directions);
       setDraft('');
       setScoreHistory([]);
+      setCoaching(undefined);
       setRevising(false);
       setRecording(false);
       setFollowUpCount(0);
@@ -628,6 +640,26 @@ export function App() {
                             <div className="feedback-block"><h3>做得好的地方</h3><p>{turn.answered.strengths.join('；') || '—'}</p></div>
                             <div className="feedback-block"><h3>还缺少什么</h3><p>{turn.answered.weaknesses.join('；') || turn.answered.suggestion}</p></div>
                             {turn.answered.followup.length > 0 && <div className="feedback-block"><h3>挑香追问</h3><p>{turn.answered.followup.join('；')}</p></div>}
+                            <div className="feedback-block">
+                              {coaching ? (
+                                <>
+                                  <div className="row between"><h3>更高分示范（P09）</h3><small>基于本次作答</small></div>
+                                  <p>{coaching.summary}</p>
+                                  {coaching.structure.map((s, i) => (
+                                    <div className="list-row" key={i} style={{ padding: '8px 0' }}><b style={{ minWidth: 0 }}>{s.point}</b><small style={{ minWidth: 0, marginLeft: 8 }}>{s.explanation}</small></div>
+                                  ))}
+                                  {coaching.optimization?.map((o, i) => (
+                                    <div key={`opt-${i}`} className="stack" style={{ gap: 4, marginTop: 8 }}>
+                                      <small>原答「{o.userPoint}」→ 更优「{o.improved}」（{o.why}）</small>
+                                    </div>
+                                  ))}
+                                  {coaching.note && <p className="muted">{coaching.note}</p>}
+                                  {coaching.practice && <p className="muted">练习建议：{coaching.practice}</p>}
+                                </>
+                              ) : (
+                                <button className="ghost" onClick={() => coachTurn.mutate()} disabled={coachTurn.isPending}>{coachTurn.isPending ? '生成中…' : '查看更高分示范 →'}</button>
+                              )}
+                            </div>
                           </>
                         )}
                       </>
