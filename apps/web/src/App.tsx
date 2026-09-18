@@ -533,7 +533,10 @@ export function App() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ai_interviewer-report-${new Date().toISOString().slice(0, 10)}.md`;
+    const safeRole = (role || '面试').replace(/[\\/:*?"<>|]/g, '_');
+    const d = new Date();
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    a.download = `ai_interviewer-${dateStr}-${safeRole}-${report.avgScore}分.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -1006,6 +1009,7 @@ export function App() {
                         </div>
                       ) : (
                         <div className="actions" style={{ marginTop: 10 }}>
+                          {(() => { const p = plannedOf(phase); const d = phaseProgress[phase] ?? 0; return p && d >= p ? <div className="notice" style={{ marginBottom: 10, background: '#edf8f3', color: 'var(--green)' }}>本环节计划题数已完成（{d}/{p}），可进入下一环节，或继续加练。</div> : null; })()}
                           {mode === 'coach' && !scoreHistory.some((s) => s.stage === 'after_hint') && (
                             <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); stopRecording(); reanswerStartRef.current = Date.now(); setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
                           )}
