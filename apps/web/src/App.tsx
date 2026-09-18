@@ -1,7 +1,7 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
-import { api, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
+import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
 import { buildTrend } from './lib/trend';
 import { recentScores } from './lib/session-trend';
 import { filterByRole, uniqueRoles } from './lib/session-filter';
@@ -70,7 +70,7 @@ export function App() {
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[]; highlight?: { best: { q?: string; why: string }; improve: { q?: string; why: string } } }>();
-  const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
+  const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string; audioRef?: string }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [error, setError] = useState<string>();
 
@@ -81,7 +81,7 @@ export function App() {
     turns
       .filter((t) => t.attempts.length > 0)
       .map((t) => {
-        const attempts = t.attempts.map((a) => ({ stage: a.stage, transcript: a.transcript, score: a.evaluation?.score, grade: a.evaluation?.grade }));
+        const attempts = t.attempts.map((a) => ({ stage: a.stage, transcript: a.transcript, score: a.evaluation?.score, grade: a.evaluation?.grade, audioRef: a.audioRef }));
         const last = attempts[attempts.length - 1];
         return { id: t.id, parentId: t.parentTurnId, phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
       });
@@ -463,6 +463,11 @@ export function App() {
       {it.attempts.map((a, j) => (
         <div key={j} style={{ marginTop: 6 }}>
           {a.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap', marginBottom: 2 }}>{a.transcript}</p>}
+          {a.audioRef && (
+            <audio controls preload="none" src={audioSrc(a.audioRef)} style={{ width: '100%', height: 34, marginTop: 6 }} aria-label="回听本段作答录音">
+              你的浏览器不支持音频回放。
+            </audio>
+          )}
           {it.attempts.length > 1 && (
             <small>{a.stage === 'after_hint' ? '复读作答' : '首次作答'} · {a.score !== undefined ? `${a.score} 分` : '仅记录'}</small>
           )}

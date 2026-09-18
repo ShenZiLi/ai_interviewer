@@ -26,8 +26,11 @@ export interface InterviewDetail extends InterviewSummary {
   keepAudio?: boolean;
   startedAt?: string;
   promptLocks: Record<string, { versionId: string; versionNo: number }>;
-  turns?: { id: string; phase: string; question: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; evaluation?: { score: number; grade?: string } }[] }[];
+  turns?: { id: string; phase: string; question: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; audioRef?: string; evaluation?: { score: number; grade?: string } }[] }[];
 }
+
+/** 录音回听地址（保留策略决定音频是否存在，不存在时播放器自然报错）。 */
+export const audioSrc = (ref: string): string => `${API_BASE}/files/audio/${ref}`;
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
