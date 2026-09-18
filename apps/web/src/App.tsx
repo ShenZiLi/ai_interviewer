@@ -43,6 +43,7 @@ export function App() {
   const [dirs, setDirs] = useState<{ id: string; name: string; weight: number; reason?: string }[]>([]);
   const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
+  const [outlinePhases, setOutlinePhases] = useState<{ phase: string; minutes: number; questionCount: number; focus: string[] }[]>();
   const [turn, setTurn] = useState<RoomTurn>();
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
@@ -123,6 +124,7 @@ export function App() {
       setDirs(d.recommendedDirections.recommendedDirections);
       const o = await run(api.outline(interviewId!));
       setTopics(o.outline.outline.map((q) => q.topic));
+      setOutlinePhases(o.outline.durationPlan?.phases);
       const st = await run(api.start(interviewId!));
       setStartedAt(st.interview.startedAt);
       setError(undefined);
@@ -654,6 +656,17 @@ export function App() {
                           <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向</small></div>
                           <h3 style={{ marginTop: 18 }}>目标岗位：{role} · {level}</h3>
                           <div className="row">{topics.map((t) => <span className="summary-chip" key={t}>{t}</span>)}</div>
+                          {outlinePhases && outlinePhases.length > 0 && (
+                            <div className="flow" style={{ marginTop: 22 }}>
+                              {outlinePhases.map((p) => (
+                                <div className="flow-node" key={p.phase}>
+                                  <span className="step-number">{p.phase === 'intro' ? '1' : p.phase === 'tech' ? '2' : p.phase === 'biz' ? '3' : '4'}</span>
+                                  <b>{phaseLabel[p.phase] ?? p.phase}</b>
+                                  <p>{p.minutes} 分钟 · {p.questionCount} 题{p.focus?.length ? ` · ${p.focus.join('/')}` : ''}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <div className="actions">
                             {topics.length === 0 ? (
                               <button className="primary" onClick={() => generatePlan.mutate()} disabled={generatePlan.isPending}>{generatePlan.isPending ? '生成面试流程…' : '按所选生成面试流程 →'}</button>
