@@ -35,6 +35,7 @@ pnpm --filter @ai-interviewer/web dev --host
 pnpm -r run typecheck
 pnpm -r run test
 pnpm --filter @ai-interviewer/web run build   # 前端生产构建
+pnpm smoke:e2e                                 # 端到端回归冒烟（需先启动后端）
 ```
 
 ## 第一版 UI 原型

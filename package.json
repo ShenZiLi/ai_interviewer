@@ -8,6 +8,7 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "smoke": "pnpm -r run typecheck && pnpm -r run test && pnpm --filter @ai-interviewer/web run build",
+    "smoke:e2e": "node scripts/smoke-e2e.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "schemas": "pnpm --filter @ai-interviewer/contracts run schemas"
