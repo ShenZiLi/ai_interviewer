@@ -327,4 +327,23 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
       .expect(201);
     await request(app.getHttpServer()).post(`/interviews/${created.body.interview.id}/start`).expect(409);
   });
+
+  it('列表接口只返回摘要视图：不外送 turns（转写/评价），active 带 currentPhase', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${id}/turns`).send({ phase: 'tech' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/turns/${t.body.turn.id}/answer`).send({ transcript: '机密作答', stage: 'first' }).expect(201);
+    const list = await request(app.getHttpServer()).get('/interviews').expect(200);
+    const item = list.body.items.find((x: { id: string }) => x.id === id);
+    expect(item).toBeDefined();
+    expect(item.turns).toBeUndefined();
+    expect(item.currentPhase).toBe('tech');
+  });
 });

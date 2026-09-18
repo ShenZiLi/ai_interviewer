@@ -50,15 +50,16 @@ describe('配置快照：面试起始锁定提示词版本 (e2e)', () => {
   });
 
   it('面试开始后再发布新版本，已开始面试的锁定不变', async () => {
-    // 取「上一个测试」中创建的面试（列表按 updatedAt 最新在前）
+    // 取「上一个测试」中创建的面试（列表按 updatedAt 最新在前；锁在详情而非列表摘要）
     const list = (await request(app.getHttpServer()).get('/interviews').expect(200)).body.items;
     const target = list[0];
+    const before = await request(app.getHttpServer()).get(`/interviews/${target.id}`).expect(200);
+    const locked = before.body.interview.promptLocks.P05.versionNo;
 
     // 再发布 P05 更高版本
     await request(app.getHttpServer()).patch(`/admin/templates/${p05.id}`).send({ basePrompt: 'P05 第二版' }).expect(200);
     await request(app.getHttpServer()).post(`/admin/templates/${p05.id}/versions`).send({ action: 'test' }).expect(201);
     const pub2 = await request(app.getHttpServer()).post(`/admin/templates/${p05.id}/versions`).send({ action: 'publish' }).expect(201);
-    const locked = target.promptLocks.P05.versionNo;
 
     const got = await request(app.getHttpServer()).get(`/interviews/${target.id}`).expect(200);
     expect(pub2.body.version.versionNo).toBeGreaterThan(locked);
