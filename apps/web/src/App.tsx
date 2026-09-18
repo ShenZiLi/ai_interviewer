@@ -53,7 +53,7 @@ export function App() {
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
-  const [review, setReview] = useState<{ phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
+  const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
   const [error, setError] = useState<string>();
 
   const run = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => { setError(String((e as Error)?.message ?? e)); throw e; });
@@ -65,7 +65,7 @@ export function App() {
       .map((t) => {
         const attempts = t.attempts.map((a) => ({ stage: a.stage, transcript: a.transcript, score: a.evaluation?.score, grade: a.evaluation?.grade }));
         const last = attempts[attempts.length - 1];
-        return { phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
+        return { id: t.id, parentId: t.parentTurnId, phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
       });
 
   const parseResume = useMutation({
@@ -319,6 +319,23 @@ export function App() {
       return acc;
     },
     [],
+  );
+  /** 单题回顾内容（题目 + 各次作答）。 */
+  const reviewItemJSX = (it: (typeof review)[number]) => (
+    <div className="review-item">
+      <div className="row between" style={{ alignItems: 'flex-start' }}>
+        <b style={{ minWidth: 0 }}>{it.question}</b>
+        {it.score !== undefined ? <span className="tag">{it.score}<small> /100 · {it.grade}</small></span> : <span className="tag">仅记录</span>}
+      </div>
+      {it.attempts.map((a, j) => (
+        <div key={j} style={{ marginTop: 6 }}>
+          {a.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap', marginBottom: 2 }}>{a.transcript}</p>}
+          {it.attempts.length > 1 && (
+            <small>{a.stage === 'after_hint' ? '复读作答' : '首次作答'} · {a.score !== undefined ? `${a.score} 分` : '仅记录'}</small>
+          )}
+        </div>
+      ))}
+    </div>
   );
   const breadcrumb = `首页 / ${titles[active]}`;
 
@@ -754,27 +771,30 @@ export function App() {
                   {review.length > 0 && (
                     <section className="card section-title">
                       <div className="row between"><h2>回答转写回顾</h2><span className="tag blue">{review.length} 题</span></div>
-                      {reviewGroups.map((g) => (
-                        <div key={g.phase} className="review-phase">
-                          <div className="row" style={{ marginTop: 10 }}><span className="tag blue">{phaseLabel[g.phase] ?? g.phase}</span><small>{g.items.length} 题</small></div>
-                          {g.items.map((it, i) => (
-                            <div className="review-item" key={`${g.phase}-${i}`}>
-                              <div className="row between" style={{ alignItems: 'flex-start' }}>
-                                <b style={{ minWidth: 0 }}>{it.question}</b>
-                                {it.score !== undefined ? <span className="tag">{it.score}<small> /100 · {it.grade}</small></span> : <span className="tag">仅记录</span>}
-                              </div>
-                              {it.attempts.map((a, j) => (
-                                <div key={j} style={{ marginTop: 6 }}>
-                                  {a.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap', marginBottom: 2 }}>{a.transcript}</p>}
-                                  {it.attempts.length > 1 && (
-                                    <small>{a.stage === 'after_hint' ? '复读作答' : '首次作答'} · {a.score !== undefined ? `${a.score} 分` : '仅记录'}</small>
-                                  )}
+                      {reviewGroups.map((g) => {
+                        const mains = g.items.filter((it) => !it.parentId);
+                        const children = g.items.filter((it) => it.parentId);
+                        const orphans = children.filter((c) => !mains.some((m) => m.id === c.parentId));
+                        return (
+                          <div key={g.phase} className="review-phase">
+                            <div className="row" style={{ marginTop: 10 }}><span className="tag blue">{phaseLabel[g.phase] ?? g.phase}</span><small>{g.items.length} 题</small></div>
+                            {[...mains, ...orphans].map((it) => {
+                              const kids = children.filter((c) => c.parentId === it.id);
+                              return (
+                                <div key={it.id}>
+                                  {reviewItemJSX(it)}
+                                  {kids.map((k) => (
+                                    <div key={k.id} style={{ marginLeft: 18, borderLeft: '2px solid var(--line)', paddingLeft: 12 }}>
+                                      <small className="muted">追问</small>
+                                      {reviewItemJSX(k)}
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                      ))}
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
                     </section>
                   )}
                   <div className="actions"><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined); setReview([]); setCoaching(undefined); setTopics([]); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
