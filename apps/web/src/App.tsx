@@ -827,7 +827,7 @@ export function App() {
                         <div className="list-row" key={h.id}>
                           <div>
                             <b>{h.targetRole} · {h.level === 'mid' ? '中级' : h.level === 'junior' ? '初级' : '高级'}</b>
-                            <p>{h.kind === 'coach' ? '陪练' : '模拟'} · {h.status === 'finished' ? `报告 ${h.report?.overview.avgScore} 分 · 完成 ${h.report?.overview.completedAnswers} 题` : h.status === 'active' ? '进行中' : '草稿'} · {new Date(h.updatedAt).toLocaleString()}</p>
+                            <p>{h.kind === 'coach' ? '陪练' : '模拟'} · {h.status === 'finished' ? `报告 ${h.report?.overview.avgScore} 分 · 完成 ${h.report?.overview.completedAnswers} 题` : h.status === 'active' ? `进行中${h.currentPhase ? ` · ${phaseLabel[h.currentPhase]}` : ''}` : '草稿'} · {new Date(h.updatedAt).toLocaleString()}</p>
                           </div>
                           {h.status === 'finished' ? (
                             <button onClick={() => openHistory.mutate(h.id)} disabled={openHistory.isPending}>查看报告</button>

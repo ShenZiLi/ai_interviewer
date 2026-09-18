@@ -10,6 +10,8 @@ export interface InterviewSummary {
   targetRole: string;
   durationTier: string;
   updatedAt: string;
+  /** 进行中场次的当前环节（最近一轮 phase），供工作台预览。 */
+  currentPhase?: 'intro' | 'tech' | 'biz' | 'hr';
   report?: InterviewReport;
 }
 

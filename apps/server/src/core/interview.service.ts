@@ -321,6 +321,7 @@ export class InterviewService {
     return true;
   }
   list() {
-    return this.store.listInterviews();
+    // 列表附带进行中场次的当前环节（最近一轮的 phase），供工作台「继续」前预览。
+    return this.store.listInterviews().map((it) => ({ ...it, currentPhase: it.status === 'active' ? it.turns[it.turns.length - 1]?.phase : undefined }));
   }
 }
