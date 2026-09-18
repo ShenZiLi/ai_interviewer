@@ -336,7 +336,8 @@ export function App() {
     const highest = sorted[sorted.length - 1];
     const band = report.avgScore >= 80 ? '整体表现出色' : report.avgScore >= 70 ? '整体表达清楚' : report.avgScore >= 60 ? '基础可用，但深度与取舍仍有空间' : '整体不足，建议夯实基础后再战';
     const head = `${band}，相对短板在${weakest ? `「${weakest.dim}」` : '综合表现'}。`;
-    const sub = `本场共 ${report.completed} 题，方向覆盖 ${report.coverage}；${highest ? `「${highest.dim}」表现较稳` : '整体较为平均'}。建议聚焦行动清单前几项，补足适用前提、失败处理与验证结果。`;
+    const trendNote = trend ? (trend.avgDelta > 5 ? `较上一场提升 ${trend.avgDelta} 分，保持住！` : trend.avgDelta < -5 ? `较上一场回落 ${Math.abs(trend.avgDelta)} 分，建议重练短板。` : '较上一场基本持平。') : '';
+    const sub = `本场共 ${report.completed} 题，方向覆盖 ${report.coverage}；${highest ? `「${highest.dim}」表现较稳` : '整体较为平均'}。${trendNote}建议聚焦行动清单前几项，补足适用前提、失败处理与验证结果。`;
     return { head, sub };
   })();
   const reviewGroups = review.reduce<{ phase: string; items: typeof review }[]>(
