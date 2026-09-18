@@ -69,7 +69,7 @@ export function App() {
   const [followUpCount, setFollowUpCount] = useState(0);
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
-  const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
+  const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
   const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [error, setError] = useState<string>();
@@ -412,6 +412,7 @@ export function App() {
         grade: gradeOf(res.report.overview.avgScore),
         completed: res.report.overview.completedAnswers,
         coverage: `${res.report.overview.directionCoverage.covered}/${res.report.overview.directionCoverage.planned}`,
+        usedMinutes: res.report.overview.durationUsedMinutes,
         dims,
         actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}`),
       });
@@ -430,7 +431,7 @@ export function App() {
     const band = report.avgScore >= 80 ? '整体表现出色' : report.avgScore >= 70 ? '整体表达清楚' : report.avgScore >= 60 ? '基础可用，但深度与取舍仍有空间' : '整体不足，建议夯实基础后再战';
     const head = `${band}，相对短板在${weakest ? `「${weakest.dim}」` : '综合表现'}。`;
     const trendNote = trend ? (trend.avgDelta > 5 ? `较上一场提升 ${trend.avgDelta} 分，保持住！` : trend.avgDelta < -5 ? `较上一场回落 ${Math.abs(trend.avgDelta)} 分，建议重练短板。` : '较上一场基本持平。') : '';
-    const sub = `本场共 ${report.completed} 题，方向覆盖 ${report.coverage}；${highest ? `「${highest.dim}」表现较稳` : '整体较为平均'}。${trendNote}建议聚焦行动清单前几项，补足适用前提、失败处理与验证结果。`;
+    const sub = `本场共 ${report.completed} 题，方向覆盖 ${report.coverage}${report.usedMinutes !== undefined ? `，实际用时 ${report.usedMinutes} 分钟` : ''}；${highest ? `「${highest.dim}」表现较稳` : '整体较为平均'}。${trendNote}建议聚焦行动清单前几项，补足适用前提、失败处理与验证结果。`;
     return { head, sub };
   })();
   const reviewGroups = review.reduce<{ phase: string; items: typeof review }[]>(
@@ -467,7 +468,7 @@ export function App() {
     const L: string[] = [];
     L.push(`# 复盘报告 · ${role}（${level}）`);
     L.push(`综合表现：${report.avgScore} / 100 · ${report.grade}`);
-    L.push(`作答 ${report.completed} 题 · 方向覆盖 ${report.coverage}`);
+    L.push(`作答 ${report.completed} 题 · 方向覆盖 ${report.coverage}${report.usedMinutes !== undefined ? ` · 实际用时 ${report.usedMinutes} 分钟` : ''}`);
     L.push('');
     L.push(`## 八维表现`);
     report.dims.forEach((d) => L.push(`- ${d.dim}：${d.displayScore ?? '—'}`));
@@ -540,6 +541,7 @@ export function App() {
         grade: gradeOf(r.overview.avgScore),
         completed: r.overview.completedAnswers,
         coverage: `${r.overview.directionCoverage.covered}/${r.overview.directionCoverage.planned}`,
+        usedMinutes: r.overview.durationUsedMinutes,
         dims,
         actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}`),
       });

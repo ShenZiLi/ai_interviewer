@@ -14,7 +14,7 @@ export interface InterviewSummary {
 }
 
 export interface InterviewReport {
-  overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } };
+  overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number }; durationUsedMinutes?: number };
   dimensionReport?: { dim: string; overallScore: number }[];
   actionPlan?: { area: string; suggestion: string; priority: string }[];
 }
@@ -84,7 +84,7 @@ export const api = {
   coach: (id: string, turnId: string) =>
     req<{ coaching: { modelAnswer: { summary: string; structure: { point: string; explanation: string }[] }; optimization?: { userPoint: string; improved: string; why: string }[]; coachingNote?: string; practicePrompt?: string } }>('POST', `/interviews/${id}/turns/${turnId}/coaching`),
   finish: (id: string) =>
-    req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; dimensionReport?: { dim: string; overallScore: number }[]; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
+    req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number }; durationUsedMinutes?: number }; dimensionReport?: { dim: string; overallScore: number }[]; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
   listInterviews: () => req<{ items: InterviewSummary[] }>('GET', '/interviews'),
   getInterview: (id: string) => req<{ interview: InterviewDetail }>('GET', `/interviews/${id}`),
   deleteInterview: (id: string) => req<{ ok: boolean }>('DELETE', `/interviews/${id}`),
