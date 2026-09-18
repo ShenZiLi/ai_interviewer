@@ -130,4 +130,15 @@ describe('录音保留策略 (e2e)', () => {
     await request(app.getHttpServer()).delete(`/interviews/${interviewId}`).expect(200);
     await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(404);
   });
+
+  it('删除面试时即使 keepAudio 也清理录音（删除即弃，避免无主音频泄漏）', async () => {
+    const { interviewId, turnId } = await setupInterview(app, true);
+    const up = await uploadAudio('delete-even-kept').expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${turnId}/answer`).send({ audioRef: up.body.ref }).expect(201);
+    // 保留偏好下结束本可回取
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(200);
+    await request(app.getHttpServer()).delete(`/interviews/${interviewId}`).expect(200);
+    // 记录删除后音频一并清理
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(404);
+  });
 });

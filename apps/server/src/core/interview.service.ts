@@ -289,10 +289,10 @@ export class InterviewService {
   get(id: string): InterviewRecord {
     return this.mustGet(id);
   }
-  /** 删除一场面试记录（任意状态），并按其保留策略处置录音。 */
+  /** 删除一场面试记录（任意状态）。删除即弃：无论保留偏好如何，录音一并清理（记录都没了，音频无主）。 */
   remove(id: string): boolean {
     const it = this.mustGet(id);
-    if (!it.keepAudio) this.deleteSessionAudio(it);
+    this.deleteSessionAudio(it);
     if (!this.store.deleteInterview(id)) throw new NotFoundException('面试不存在');
     return true;
   }
