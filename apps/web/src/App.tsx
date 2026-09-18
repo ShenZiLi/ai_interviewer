@@ -54,6 +54,7 @@ export function App() {
   const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
   const [outlinePhases, setOutlinePhases] = useState<{ phase: string; minutes: number; questionCount: number; focus: string[] }[]>();
+  const [outlineQuestions, setOutlineQuestions] = useState<{ topic: string; mainQuestion: string }[]>();
   const [turn, setTurn] = useState<RoomTurn>();
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
@@ -105,6 +106,7 @@ export function App() {
       setCoaching(undefined);
       setTopics([]);
       setOutlinePhases(undefined);
+      setOutlineQuestions(undefined);
       setSelectedDirs([]);
       setDirs([]);
       setAdjustNote(undefined);
@@ -147,6 +149,7 @@ export function App() {
       const o = await run(api.outline(interviewId!));
       setTopics(o.outline.outline.map((q) => q.topic));
       setOutlinePhases(o.outline.durationPlan?.phases);
+      setOutlineQuestions(o.outline.outline);
       const st = await run(api.start(interviewId!));
       setStartedAt(st.interview.startedAt);
       setError(undefined);
@@ -763,6 +766,12 @@ export function App() {
                               ))}
                             </div>
                           )}
+                          {outlineQuestions && outlineQuestions.length > 0 && (
+                            <details style={{ marginTop: 14 }}>
+                              <summary>题目预览（{outlineQuestions.length} 道）</summary>
+                              <p style={{ marginTop: 10 }}>{outlineQuestions.map((q) => `· ${q.mainQuestion}`).join('\n')}</p>
+                            </details>
+                          )}
                           <div className="actions">
                             {topics.length === 0 ? (
                               <button className="primary" onClick={() => generatePlan.mutate()} disabled={generatePlan.isPending}>{generatePlan.isPending ? '生成面试流程…' : '按所选生成面试流程 →'}</button>
@@ -977,7 +986,8 @@ export function App() {
                     </section>
                   )}
                   <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined);
-      setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
+      setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined);
+      setOutlineQuestions(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
               )}
 
