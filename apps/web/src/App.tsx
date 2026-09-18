@@ -38,6 +38,8 @@ export function App() {
   const [turn, setTurn] = useState<RoomTurn>();
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
+  const [revising, setRevising] = useState(false);
+  const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number }[]>([]);
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
   const [error, setError] = useState<string>();
 
@@ -71,6 +73,9 @@ export function App() {
     mutationFn: async () => {
       const res = await run(api.newTurn(interviewId!));
       setDraft('');
+      setScoreHistory([]);
+      setRevising(false);
+      setRecording(false);
       setTurn({ id: res.turn.id, question: res.turn.question });
       setPage('room');
     },
@@ -98,11 +103,14 @@ export function App() {
   };
 
   const submitAnswer = useMutation({
-    mutationFn: async (payload: { transcript?: string; audioRef?: string }) => {
+    mutationFn: async (payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' }) => {
       setRecording(false);
       mediaRef.current = null;
+      const stage = payload.stage ?? (revising ? 'after_hint' : 'first');
       const transcript = payload.transcript ?? draft;
-      const answered = await run(api.answer(interviewId!, turn!.id, payload.audioRef ? { audioRef: payload.audioRef } : { transcript }));
+      const answered = await run(api.answer(interviewId!, turn!.id, payload.audioRef ? { audioRef: payload.audioRef, stage } : { transcript, stage }));
+      setScoreHistory((h) => [...h, { stage, score: answered.evaluation.score }]);
+      setRevising(false);
       setTurn({
         ...turn!,
         answered: {
@@ -386,6 +394,9 @@ export function App() {
                         </div>
                       ) : (
                         <div className="actions" style={{ marginTop: 10 }}>
+                          {!scoreHistory.some((s) => s.stage === 'after_hint') && (
+                            <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); mediaRef.current?.stop(); mediaRef.current = null; setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
+                          )}
                           <button onClick={() => beginTurn.mutate()}>下一题</button>
                           <button className="primary" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
                         </div>
@@ -398,6 +409,9 @@ export function App() {
                     ) : (
                       <>
                         <div className="row between"><h3>本轮反馈</h3><span className="tag blue">陪练</span></div>
+                        {scoreHistory.length > 1 ? (
+                          <p className="subtitle">首次 {scoreHistory[0].score} 分 → 复发 {scoreHistory[scoreHistory.length - 1].score} 分</p>
+                        ) : null}
                         <div className="score">{turn.answered.score}<small> / 100 · {turn.answered.grade}</small></div>
                         <p className="subtitle">{turn.answered.overall}</p>
                         {turn.answered.dims.map((d) => (

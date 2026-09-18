@@ -92,6 +92,33 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
       .expect(409);
   });
 
+  it('重答：after_hint 独立记录，与首次并列', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach', durationTier: '30m' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '首次回答', stage: 'first' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '重答（得到提示后）', stage: 'after_hint' })
+      .expect(201);
+
+    const got = await request(app.getHttpServer()).get(`/interviews/${mid}`).expect(200);
+    const attempts = got.body.interview.turns.find((x: { id: string }) => x.id === t.body.turn.id).attempts;
+    expect(attempts.length).toBe(2);
+    expect(attempts.map((a: { stage: string }) => a.stage)).toEqual(['first', 'after_hint']);
+  });
+
   it('模式隔离：模拟面试作答仅记录，不返回即时评价', async () => {
     const created = await request(app.getHttpServer())
       .post('/interviews')
