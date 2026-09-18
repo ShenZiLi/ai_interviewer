@@ -53,7 +53,9 @@ export function App() {
   const [level, setLevel] = useState('中级');
   const [mode, setMode] = useState<'coach' | 'mock'>('coach');
   const [duration, setDuration] = useState<'15m' | '30m' | '45m'>('30m');
-  const [keepAudio, setKeepAudio] = useState(false);
+  const [keepAudio, setKeepAudio] = useState(() => localStorage.getItem('keepAudio') === '1');
+  /** 录音保留默认值：设置页可切换并持久化，准备页 checkbox 同步该状态。 */
+  const setKeepAudioDefault = (v: boolean) => { setKeepAudio(v); localStorage.setItem('keepAudio', v ? '1' : '0'); };
   const [extra, setExtra] = useState('');
   /** 面试风格：设置页存默认（localStorage），准备页本场可调整。 */
   const [style, setStyle] = useState<'professional' | 'coaching' | 'concise'>(() => (localStorage.getItem('style') as 'professional' | 'coaching' | 'concise') || 'professional');
@@ -923,7 +925,7 @@ export function App() {
                             ))}
                           </div>
                           <label className="row" style={{ marginTop: 18, fontSize: 12 }}>
-                            <input type="checkbox" checked={keepAudio} onChange={(e) => setKeepAudio(e.target.checked)} />保留本场录音，方便回听
+                            <input type="checkbox" checked={keepAudio} onChange={(e) => setKeepAudioDefault(e.target.checked)} />保留本场录音，方便回听
                           </label>
                           <div className="actions"><button className="primary" onClick={() => (!resumeId ? setPage('resume') : bootstrap.mutate())} disabled={bootstrap.isPending}>{!resumeId ? '去导入简历 →' : bootstrap.isPending ? '生成面试计划…' : '查看面试流程 →'}</button></div>
                         </>
@@ -1343,7 +1345,7 @@ export function App() {
                   </section>
                   <section className="card"><h2>账号与数据</h2>
                     <div className="setting-row"><div><b>林同学 · 演示账号</b><p>Web 与小程序使用同一份练习记录</p></div><span className="tag">示例</span></div>
-                    <div className="setting-row"><div><b>回答录音</b><p>每场开始前，由你选择是否保留</p></div>{keepAudio ? <span className="tag green">本场保留</span> : <span className="tag">仅转写</span>}</div>
+                    <div className="setting-row"><div><b>回答录音</b><p>新场次的默认保留偏好，准备页也可按本场调整</p></div><button onClick={() => setKeepAudioDefault(!keepAudio)} aria-pressed={keepAudio}>{keepAudio ? <span className="tag green">默认保留</span> : <span className="tag">默认仅转写</span>}</button></div>
                   </section>
                 </div>
                 <section className="card" style={{ marginTop: 20 }}>
