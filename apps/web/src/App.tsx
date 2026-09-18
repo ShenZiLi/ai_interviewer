@@ -1,7 +1,7 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
-import { api, type AnswerResult } from './api';
+import { api, type AnswerResult, type InterviewDetail } from './api';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -47,9 +47,19 @@ export function App() {
   const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number }[]>([]);
   const [followUpCount, setFollowUpCount] = useState(0);
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
+  const [review, setReview] = useState<{ phase: string; question: string; transcript: string; score?: number; grade?: string }[]>([]);
   const [error, setError] = useState<string>();
 
   const run = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => { setError(String((e as Error)?.message ?? e)); throw e; });
+
+  /** 从面试 turns 汇总「回答转写回顾」：每题取最后一次作答（转写+得分）。 */
+  const buildReview = (turns: NonNullable<InterviewDetail['turns']>) =>
+    turns
+      .filter((t) => t.attempts.length > 0)
+      .map((t) => {
+        const last = t.attempts[t.attempts.length - 1];
+        return { phase: t.phase, question: t.question, transcript: last.transcript, score: last.evaluation?.score, grade: last.evaluation?.grade };
+      });
 
   const parseResume = useMutation({
     mutationFn: async () => {
@@ -215,6 +225,8 @@ export function App() {
   const finish = useMutation({
     mutationFn: async () => {
       const res = await run(api.finish(interviewId!));
+      const detail = await run(api.getInterview(interviewId!));
+      setReview(buildReview(detail.interview.turns ?? []));
       const evScore = (turn?.answered?.score ?? 0);
       setReport({
         avgScore: res.report.overview.avgScore,
@@ -244,6 +256,7 @@ export function App() {
       const detail = await run(api.getInterview(id));
       const r = detail.interview.report;
       if (!r) throw new Error('该场尚无报告');
+      setReview(buildReview(detail.interview.turns ?? []));
       setReport({
         avgScore: r.overview.avgScore,
         grade: gradeOf(r.overview.avgScore),
@@ -529,6 +542,21 @@ export function App() {
                       {report.actions.map((a, i) => <div className="list-row" key={i}><div className="row"><span className="step-number">0{i + 1}</span><div><b>{a}</b></div></div></div>)}
                     </section>
                   </div>
+
+                  {review.length > 0 && (
+                    <section className="card section-title">
+                      <div className="row between"><h2>回答转写回顾</h2><span className="tag blue">{review.length} 题</span></div>
+                      {review.map((it, i) => (
+                        <div className="review-item" key={i}>
+                          <div className="row between" style={{ alignItems: 'flex-start' }}>
+                            <b style={{ minWidth: 0 }}>{it.question}</b>
+                            {it.score !== undefined ? <span className="tag">{it.score}<small> /100 · {it.grade}</small></span> : <span className="tag">仅记录</span>}
+                          </div>
+                          {it.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap' }}>{it.transcript}</p>}
+                        </div>
+                      ))}
+                    </section>
+                  )}
                   <div className="actions"><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setResumeId(undefined); }}>再来一次 →</button></div>
                 </>
               )}

@@ -22,6 +22,7 @@ export interface InterviewReport {
 export interface InterviewDetail extends InterviewSummary {
   directions: string[];
   promptLocks: Record<string, { versionId: string; versionNo: number }>;
+  turns?: { phase: string; question: string; attempts: { transcript: string; stage?: string; evaluation?: { score: number; grade?: string } }[] }[];
 }
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
