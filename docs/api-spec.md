@@ -232,7 +232,7 @@ P10 整场报告生成（模拟模式承载统一评价）。
 
 ---
 
-## 6. 管理员 · 提示词模板（鉴权 + `role=admin`）
+## 6. 管理员 · 提示词模板（M2，鉴权 + `role=admin`）
 
 ### 6.1 CRUD `/admin/templates`
 - `GET/POST /admin/templates`：列表/新建模板（`taskCode` P01—P10 唯一，冲突返回 `CONFLICT_STATE`/400）。
