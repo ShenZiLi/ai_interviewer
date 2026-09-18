@@ -573,13 +573,14 @@ export function App() {
   // ---- 工作台：历史报告 ----
   const [histFilter, setHistFilter] = useState<'all' | 'active' | 'finished'>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [modeFilter, setModeFilter] = useState<'all' | 'coach' | 'mock'>('all');
   const histQuery = useQuery({ queryKey: ['interviews'], queryFn: api.listInterviews, enabled: page === 'home' });
   const history = histQuery.data?.items ?? [];
   const roles = uniqueRoles(history);
   /** 目标岗位缩范围（岗位被删光时回落到「全部」，避免空列表）。 */
   const effectiveRole = roleFilter !== 'all' && !roles.includes(roleFilter) ? 'all' : roleFilter;
   /** 按目标岗位缩范围后的场次（「全部」为 all）。 */
-  const scoped = filterByRole(history, effectiveRole);
+  const scoped = filterByRole(history, effectiveRole).filter((h) => modeFilter === 'all' || h.kind === modeFilter);
   const filteredHistory = scoped.filter((h) => (histFilter === 'active' ? h.status !== 'finished' : histFilter === 'finished' ? h.status === 'finished' : true));
   const finCount = scoped.filter((h) => h.status === 'finished').length;
   const avgFinished = (() => {
@@ -812,6 +813,9 @@ export function App() {
                       )}
                       <div className="row between"><h2>历史场次</h2>
                         <div className="row" style={{ gap: 4 }}>
+                          {([['all', '全部'], ['coach', '陪练'], ['mock', '模拟']] as const).map(([k, label]) => (
+                            <button key={k} aria-pressed={modeFilter === k} onClick={() => setModeFilter(k)} style={{ padding: '5px 10px', fontSize: 12 }}>{label}</button>
+                          ))}
                           {([['all', '全部'], ['active', '进行中'], ['finished', '已完成']] as const).map(([k, label]) => (
                             <button key={k} aria-pressed={histFilter === k} onClick={() => setHistFilter(k)} style={{ padding: '5px 10px', fontSize: 12 }}>{label}</button>
                           ))}
