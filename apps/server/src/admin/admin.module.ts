@@ -1,4 +1,5 @@
 import { Inject, Injectable, Module, OnModuleInit } from '@nestjs/common';
+import { AiModule } from '../ai/ai.module.js';
 import { PromptService } from './prompt.service.js';
 import { AdminController } from './admin.controller.js';
 
@@ -27,6 +28,7 @@ class PromptSeed implements OnModuleInit {
 }
 
 @Module({
+  imports: [AiModule],
   controllers: [AdminController],
   providers: [PromptService, PromptSeed],
   exports: [PromptService],

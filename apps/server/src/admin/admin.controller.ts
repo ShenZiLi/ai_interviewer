@@ -53,11 +53,11 @@ export class AdminController {
   }
 
   @Post(':id/versions')
-  action(@Param('id') id: string, @Body() body: unknown) {
+  async action(@Param('id') id: string, @Body() body: unknown) {
     const { action, targetVersionId } = actionSchema.parse(body);
     switch (action) {
       case 'test':
-        return { version: this.prompts.test(id) };
+        return { version: await this.prompts.test(id) };
       case 'publish':
         return { version: this.prompts.publish(id) };
       case 'rollback':

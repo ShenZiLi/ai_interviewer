@@ -1,4 +1,6 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { TaskCode } from '@ai-interviewer/contracts';
+import { ComposeService } from '../ai/compose.service.js';
 import { newId, now } from '../core/store.js';
 
 export type VersionStatus = 'draft' | 'tested' | 'published' | 'rolled_back';
@@ -46,6 +48,8 @@ export class PromptService {
   private templates = new Map<string, PromptTemplate>();
   private versions = new Map<string, PromptVersion>();
   private readonly author = 'admin';
+
+  constructor(@Inject(ComposeService) private readonly compose: ComposeService) {}
 
   /* ---------- 模板 ---------- */
 
@@ -124,12 +128,18 @@ export class PromptService {
     return this.versions.get(id);
   }
 
-  test(templateId: string): PromptVersion {
-    this.getTemplate(templateId);
+  async test(templateId: string): Promise<PromptVersion> {
+    const tpl = this.getTemplate(templateId);
     const draft = this.workingDraft(templateId);
     if (!draft.content.trim()) throw new ConflictException('草稿为空，无法测试');
+    // 真正运行一次该任务 (+ 草稿模板作为 promptTemplate)，输出通过 taskSchema 才算通过。
+    try {
+      await this.compose.compose(tpl.taskCode as TaskCode, { promptTemplate: draft.content });
+    } catch {
+      throw new ConflictException('示例测试未通过：输出未通过该校验，请调整后重试');
+    }
     draft.status = 'tested';
-    draft.testResult = { passed: true, note: '示例测试通过（MVP 仅校验非空与结构）' };
+    draft.testResult = { passed: true, note: '示例测试通过（已实际生成并校验）' };
     this.versions.set(draft.id, draft);
     return draft;
   }
