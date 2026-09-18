@@ -37,4 +37,32 @@ describe('HttpProvider (OpenAI 兼容)', () => {
     const p = stub(() => ({ choices: [{ message: { content: 'not-json' } }] }));
     await expect(p.completeTask({ task: 'P01', context: {} })).rejects.toThrow();
   });
+
+  it('context.promptTemplate 会进入 LLM 请求体（锁定版本内容流入）', async () => {
+    let sentBody = '';
+    const p = new HttpProvider({
+      baseUrl: 'http://x',
+      model: 'm',
+      fetchImpl: async (_url, init) => {
+        sentBody = String(init.body);
+        return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"summary":"ok"}' } }] }) } as never;
+      },
+    });
+    await p.completeTask({ task: 'P06', context: { promptTemplate: '【管理员 P06 模板】给出深度追问' } });
+    expect(sentBody).toContain('【管理员 P06 模板】给出深度追问');
+  });
+
+  it('无 promptTemplate 时使用默认任务指令', async () => {
+    let sentBody = '';
+    const p = new HttpProvider({
+      baseUrl: 'http://x',
+      model: 'm',
+      fetchImpl: async (_url, init) => {
+        sentBody = String(init.body);
+        return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: '{"summary":"ok"}' } }] }) } as never;
+      },
+    });
+    await p.completeTask({ task: 'P06', context: {} });
+    expect(sentBody).toContain('主问题');
+  });
 });

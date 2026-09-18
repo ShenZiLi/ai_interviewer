@@ -39,7 +39,7 @@ export class HttpProvider implements Provider {
 
   async completeTask({ task, context }: { task: TaskCode; context: unknown }): Promise<unknown> {
     const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
-    const instruction = TASK_PROMPTS[task];
+    const instruction = (context as { promptTemplate?: string })?.promptTemplate ?? TASK_PROMPTS[task];
     const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}\n只输出 JSON 对象。`;
 
     const res = await this.fetchImpl(url, {

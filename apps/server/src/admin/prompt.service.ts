@@ -119,6 +119,11 @@ export class PromptService {
     return latest ? { templateId: tpl.id, versionId: latest.id, versionNo: latest.versionNo } : undefined;
   }
 
+  /** 按版本 id 返回版本（含内容），供 compose 以锁定版本拼提示词。 */
+  getVersion(id: string): PromptVersion | undefined {
+    return this.versions.get(id);
+  }
+
   test(templateId: string): PromptVersion {
     this.getTemplate(templateId);
     const draft = this.workingDraft(templateId);

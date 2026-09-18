@@ -10,6 +10,7 @@ import {
   ResumeUnderstanding,
   SessionReport,
   TASK_CODES,
+  type TaskCode,
 } from '@ai-interviewer/contracts';
 import { ComposeService } from '../ai/compose.service.js';
 import { MockVoiceGateway } from '../ai/mock.provider.js';
@@ -90,6 +91,19 @@ export class InterviewService {
     if (!it) throw new NotFoundException('面试不存在');
     return it;
   }
+
+  /** 取本场锁定的任务版本内容（无锁定则用默认提示词的落点由 provider 决定）。 */
+  private lockedPrompt(it: InterviewRecord, task: TaskCode): string | undefined {
+    const lock = it.promptLocks[task];
+    if (!lock) return undefined;
+    return this.prompts.getVersion(lock.versionId)?.content;
+  }
+
+  /** 组装 compose 上下文；若该场锁定过该任务版本，则附上 promptTemplate 供 provider 使用。 */
+  private ctx(it: InterviewRecord, task: TaskCode, extra: Record<string, unknown>): Record<string, unknown> {
+    const promptTemplate = this.lockedPrompt(it, task);
+    return promptTemplate ? { ...extra, promptTemplate } : extra;
+  }
   private assertStatus(it: InterviewRecord, statuses: InterviewRecord['status'][]) {
     if (!statuses.includes(it.status)) throw new ConflictException(`当前状态不允许该操作: ${it.status}`);
   }
@@ -98,7 +112,7 @@ export class InterviewService {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
     const resume = this.getResume(it.resumeId);
-    const position = (await this.compose.compose('P02', { resume: resume.analysis, targetRole: it.targetRole })) as PositionAnalysis;
+    const position = (await this.compose.compose('P02', this.ctx(it, 'P02', { resume: resume.analysis, targetRole: it.targetRole }))) as PositionAnalysis;
     it.position = position;
     this.store.saveInterview(it);
     return position;
@@ -107,7 +121,7 @@ export class InterviewService {
   async directions(id: string, selected?: string[]): Promise<Directions> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
-    const result = (await this.compose.compose('P03', { position: it.position, selected })) as Directions;
+    const result = (await this.compose.compose('P03', this.ctx(it, 'P03', { position: it.position, selected }))) as Directions;
     it.directionsResult = result;
     it.directions = selected ?? result.recommendedDirections.map((d) => d.id);
     this.store.saveInterview(it);
@@ -117,7 +131,7 @@ export class InterviewService {
   async outline(id: string): Promise<InterviewOutline> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
-    const outline = (await this.compose.compose('P04', { it })) as InterviewOutline;
+    const outline = (await this.compose.compose('P04', this.ctx(it, 'P04', { it }))) as InterviewOutline;
     const budget = outline.durationPlan.budgetMinutes;
     const used = outline.durationPlan.phases.reduce((s, p) => s + p.minutes, 0);
     if (used > budget) throw new ConflictException(`大纲时长超预算: ${used}/${budget}`);
@@ -143,7 +157,7 @@ export class InterviewService {
   async newTurn(id: string, phase: InterviewRecord['turns'][number]['phase']): Promise<Turn> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['active']);
-    const q = (await this.compose.compose('P06', { it, phase })) as MainQuestion;
+    const q = (await this.compose.compose('P06', this.ctx(it, 'P06', { it, phase }))) as MainQuestion;
     const seqNo = it.turns.filter((t) => t.phase === phase).length + 1;
     const audio = await this.voice.synthesize({ text: q.questionText });
     const turn: Turn = {
@@ -182,8 +196,8 @@ export class InterviewService {
       return { recorded: true } as const;
     }
 
-    const ev = normalizeEvaluation((await this.compose.compose('P07', { it, turn, transcript })) as Evaluation);
-    const follow = (await this.compose.compose('P08', { it, turn, evaluation: ev })) as FollowUpDecision;
+    const ev = normalizeEvaluation((await this.compose.compose('P07', this.ctx(it, 'P07', { it, turn, transcript }))) as Evaluation);
+    const follow = (await this.compose.compose('P08', this.ctx(it, 'P08', { it, turn, evaluation: ev }))) as FollowUpDecision;
     turn.attempts.push({ id: newId('attempt'), stage, transcript, evaluation: ev, followUp: follow, createdAt: now() });
     this.store.saveInterview(it);
     return { evaluation: ev, next: follow } as const;
@@ -192,7 +206,7 @@ export class InterviewService {
   async adjust(id: string, confirm?: boolean): Promise<OutlineAdjustment> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['active']);
-    const adj = (await this.compose.compose('P05', { it })) as OutlineAdjustment;
+    const adj = (await this.compose.compose('P05', this.ctx(it, 'P05', { it }))) as OutlineAdjustment;
     if (adj.mode === 'auto' || confirm === true) {
       it.outlineAdjustedAt = now();
       this.store.saveInterview(it);
@@ -203,7 +217,7 @@ export class InterviewService {
   async finish(id: string): Promise<SessionReport> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['active']);
-    const report = (await this.compose.compose('P10', { it })) as SessionReport;
+    const report = (await this.compose.compose('P10', this.ctx(it, 'P10', { it }))) as SessionReport;
     it.report = report;
     it.status = 'finished';
     this.store.saveInterview(it);
