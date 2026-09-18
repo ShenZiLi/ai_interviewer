@@ -82,7 +82,7 @@ export function App() {
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[]; highlight?: { best: { q?: string; why: string }; improve: { q?: string; why: string } } }>();
-  const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string; audioRef?: string }[] }[]>([]);
+  const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string; audioRef?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [error, setError] = useState<string>();
 
@@ -93,7 +93,7 @@ export function App() {
     turns
       .filter((t) => t.attempts.length > 0)
       .map((t) => {
-        const attempts = t.attempts.map((a) => ({ stage: a.stage, transcript: a.transcript, score: a.evaluation?.score, grade: a.evaluation?.grade, audioRef: a.audioRef }));
+        const attempts = t.attempts.map((a) => ({ stage: a.stage, transcript: a.transcript, score: a.evaluation?.score, grade: a.evaluation?.grade, audioRef: a.audioRef, misconceptions: a.evaluation?.misconceptions }));
         const last = attempts[attempts.length - 1];
         return { id: t.id, parentId: t.parentTurnId, phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
       });
@@ -491,6 +491,12 @@ export function App() {
           {it.attempts.length > 1 && (
             <small>{a.stage === 'after_hint' ? '复读作答' : '首次作答'} · {a.score !== undefined ? `${a.score} 分` : '仅记录'}</small>
           )}
+          {a.misconceptions?.map((m, k) => (
+            <div key={k} style={{ marginTop: 6 }}>
+              <span className="tag amber" style={{ marginRight: 6 }}>{({ knowledge: '知识误区', asr: '转写误识', assumption: '前提假设' } as Record<string, string>)[m.kind ?? 'knowledge']}</span>
+              <p className="quote" style={{ marginTop: 4 }}>「{m.quote}」→ {m.clarification}</p>
+            </div>
+          ))}
         </div>
       ))}
     </div>
@@ -532,10 +538,16 @@ export function App() {
         const children = g.items.filter((it) => it.parentId);
         for (const it of mains) {
           L.push(`- **${it.question}**${it.score !== undefined ? `（${it.score} 分 · ${it.grade}）` : ''}`);
-          it.attempts.forEach((a) => a.transcript && L.push(`  - ${a.transcript}`));
+          it.attempts.forEach((a) => {
+            if (a.transcript) L.push(`  - ${a.transcript}`);
+            (a.misconceptions ?? []).forEach((m) => L.push(`    - ⚠ ${m.kind === 'asr' ? '转写误识' : m.kind === 'assumption' ? '前提假设' : '知识误区'}：「${m.quote}」→ ${m.clarification}`));
+          });
           for (const k of children.filter((c) => c.parentId === it.id)) {
             L.push(`  - 追问：${k.question}${k.score !== undefined ? `（${k.score} 分）` : ''}`);
-            k.attempts.forEach((a) => a.transcript && L.push(`    - ${a.transcript}`));
+            k.attempts.forEach((a) => {
+              if (a.transcript) L.push(`    - ${a.transcript}`);
+              (a.misconceptions ?? []).forEach((m) => L.push(`      - ⚠ ${m.kind === 'asr' ? '转写误识' : m.kind === 'assumption' ? '前提假设' : '知识误区'}：「${m.quote}」→ ${m.clarification}`));
+            });
           }
         }
       }

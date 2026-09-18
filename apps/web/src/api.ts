@@ -27,7 +27,7 @@ export interface InterviewDetail extends InterviewSummary {
   startedAt?: string;
   promptLocks: Record<string, { versionId: string; versionNo: number }>;
   outline?: { durationPlan?: { tier: string; budgetMinutes: number; phases: { phase: string; minutes: number; questionCount: number; focus: string[] }[] }; outline: { topic: string; mainQuestion: string }[] };
-  turns?: { id: string; phase: string; question: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; audioRef?: string; evaluation?: { score: number; grade?: string } }[] }[];
+  turns?: { id: string; phase: string; question: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; audioRef?: string; evaluation?: { score: number; grade?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] } }[] }[];
 }
 
 /** 录音回听地址（保留策略决定音频是否存在，不存在时播放器自然报错）。 */
