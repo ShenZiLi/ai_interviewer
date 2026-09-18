@@ -1,0 +1,10 @@
+.admin-grid{display:grid;grid-template-columns:210px minmax(0,1fr) 240px;gap:18px;align-items:start}
+.prompt-list{padding:14px}
+.prompt-list h3{padding:10px}
+.prompt-list button{display:block;width:100%;text-align:left;border:0;background:transparent;margin:5px 0;padding:11px 9px;font-size:12px}
+.prompt-list button small{margin-right:7px;color:inherit}
+.prompt-list button.active{background:var(--soft);color:var(--blue);font-weight:600}
+#prompt-editor{font-family:Consolas,"Microsoft YaHei",monospace;font-size:13px;line-height:1.9}
+@container(max-width:1150px){.admin-grid{grid-template-columns:190px minmax(0,1fr)}.admin-grid>.stack{grid-column:2}}
+@container(max-width:700px){.admin-grid{display:block}.admin-grid>.card,.admin-grid>.stack{margin-bottom:18px}.prompt-list{max-height:220px;overflow:auto}.prototype-bar .device-switch{flex-shrink:0}}
+@media(max-width:600px){.prototype-bar>span:first-child{font-size:0}.prototype-bar>span:first-child b{font-size:10px}.prototype-bar .device-switch button{padding:5px 6px;font-size:10px}}
