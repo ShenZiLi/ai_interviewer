@@ -83,6 +83,7 @@ export function App() {
       setReview([]);
       setCoaching(undefined);
       setTopics([]);
+      setOutlinePhases(undefined);
       setSelectedDirs([]);
       setDirs([]);
       setAdjustNote(undefined);
@@ -859,7 +860,7 @@ export function App() {
                       })}
                     </section>
                   )}
-                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined); setReview([]); setCoaching(undefined); setTopics([]); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
+                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
               )}
 
