@@ -1117,7 +1117,7 @@ export function App() {
                             <button onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>同环节再问一题</button>
                           )}
                           <button onClick={advance}>{phase === 'hr' ? '完成面试' : '下一环节 →'}</button>
-                          <button className="primary" onClick={goFinish} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
+                          <button className="primary" onClick={goFinish} disabled={finish.isPending} style={startedAt && Math.floor((clock - new Date(startedAt).getTime()) / 60000) >= parseInt(duration, 10) ? { background: '#b34545', borderColor: '#b34545' } : undefined}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
                         </div>
                       )}
                     </div>
