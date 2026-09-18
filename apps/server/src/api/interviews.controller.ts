@@ -10,7 +10,7 @@ const createSchema = z.object({
   durationTier: z.enum(['15m', '30m', '45m']).optional(),
 });
 const directionsSchema = z.object({ selectedDirections: z.array(z.string()).max(12).optional(), extra: z.string().max(500).optional() });
-const turnSchema = z.object({ phase: z.enum(['intro', 'tech', 'biz', 'hr']) });
+const turnSchema = z.object({ phase: z.enum(['intro', 'tech', 'biz', 'hr']), parentTurnId: z.string().optional() });
 const answerSchema = z.object({ transcript: z.string().min(1).max(10_000).optional(), audioRef: z.string().optional(), stage: z.enum(['first', 'after_hint']).optional() });
 const adjustSchema = z.object({ confirm: z.boolean().optional() });
 
@@ -57,8 +57,8 @@ export class InterviewsController {
 
   @Post(':id/turns')
   async newTurn(@Param('id') id: string, @Body() body: unknown) {
-    const { phase } = turnSchema.parse(body ?? { phase: 'tech' });
-    return { turn: await this.service.newTurn(id, phase) };
+    const { phase, parentTurnId } = turnSchema.parse(body ?? {});
+    return { turn: await this.service.newTurn(id, phase ?? 'tech', parentTurnId) };
   }
 
   /** 作答（api-spec 4.1）。陪练返回评价+追问；模拟仅记录。 */

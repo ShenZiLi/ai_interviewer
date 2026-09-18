@@ -33,6 +33,7 @@ export interface Turn {
   phase: 'intro' | 'tech' | 'biz' | 'hr';
   seqNo: number;
   question: string;
+  parentTurnId?: string;
   ttsRef?: string;
   attempts: Attempt[];
   createdAt: string;

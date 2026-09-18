@@ -156,17 +156,34 @@ export class InterviewService {
     return this.store.saveInterview(it);
   }
 
-  async newTurn(id: string, phase: InterviewRecord['turns'][number]['phase']): Promise<Turn> {
+  async newTurn(id: string, phase: InterviewRecord['turns'][number]['phase'], parentTurnId?: string): Promise<Turn> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['active']);
-    const q = (await this.compose.compose('P06', this.ctx(it, 'P06', { it, phase }))) as MainQuestion;
     const seqNo = it.turns.filter((t) => t.phase === phase).length + 1;
-    const audio = await this.voice.synthesize({ text: q.questionText });
+
+    let questionText: string | undefined;
+    let parentId: string | undefined;
+    if (parentTurnId) {
+      // 追问轮：取父轮最后一次作答里 P08 生成的追问文本
+      const parent = it.turns.find((t) => t.id === parentTurnId);
+      const hint = parent?.attempts[parent.attempts.length - 1]?.followUp as { questions?: { text: string }[] } | undefined;
+      const text = hint?.questions?.[0]?.text;
+      if (text) {
+        questionText = text;
+        parentId = parentTurnId;
+      }
+    }
+    if (!questionText) {
+      const q = (await this.compose.compose('P06', this.ctx(it, 'P06', { it, phase }))) as MainQuestion;
+      questionText = q.questionText;
+    }
+    const audio = await this.voice.synthesize({ text: questionText });
     const turn: Turn = {
       id: newId('turn'),
       phase,
       seqNo,
-      question: q.questionText,
+      question: questionText,
+      parentTurnId: parentId,
       ttsRef: audio.audioRef,
       attempts: [],
       createdAt: now(),

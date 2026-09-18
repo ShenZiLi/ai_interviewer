@@ -45,6 +45,7 @@ export function App() {
   const [recording, setRecording] = useState(false);
   const [revising, setRevising] = useState(false);
   const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number }[]>([]);
+  const [followUpCount, setFollowUpCount] = useState(0);
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
   const [error, setError] = useState<string>();
 
@@ -94,8 +95,22 @@ export function App() {
       setScoreHistory([]);
       setRevising(false);
       setRecording(false);
+      setFollowUpCount(0);
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase });
       setPage('room');
+    },
+  });
+
+  /** 追问：以当前轮为父轮，服务端取 P08 追问文本生成追问轮。 */
+  const askFollowUp = useMutation({
+    mutationFn: async () => {
+      const res = await run(api.newTurn(interviewId!, phase, turn!.id));
+      setDraft('');
+      setScoreHistory([]);
+      setRevising(false);
+      setRecording(false);
+      setFollowUpCount((c) => c + 1);
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase });
     },
   });
 
@@ -451,6 +466,9 @@ export function App() {
                           {mode === 'coach' && !scoreHistory.some((s) => s.stage === 'after_hint') && (
                             <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); mediaRef.current?.stop(); mediaRef.current = null; setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
                           )}
+                          {mode === 'coach' && turn.answered?.followup.length ? (
+                            <button onClick={() => askFollowUp.mutate()} disabled={askFollowUp.isPending || followUpCount >= 3}>{followUpCount >= 3 ? '追问已满' : '追问 →'}</button>
+                          ) : null}
                           <button onClick={advance}>{phase === 'hr' ? '完成面试' : '下一环节 →'}</button>
                           <button className="primary" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
                         </div>
