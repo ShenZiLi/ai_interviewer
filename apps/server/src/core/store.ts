@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 export const now = () => new Date().toISOString();
 
@@ -70,13 +72,40 @@ export interface InterviewRecord {
   updatedAt: string;
 }
 
-/** MVP 内存仓库（进程内，重启丢失；后续换 Prisma/Postgres）。 */
+/** MVP 内存仓库。设置 `DATA_FILE` 环境变量后启用 JSON 文件持久化（重启不丢）；未设置则纯内存（便于测试隔离）。 */
 export class InMemoryStore {
   private resumes = new Map<string, ResumeRecord>();
   private interviews = new Map<string, InterviewRecord>();
+  private readonly file?: string;
+
+  constructor() {
+    const f = process.env.DATA_FILE?.trim();
+    if (!f) return;
+    this.file = f;
+    if (existsSync(f)) {
+      try {
+        const data = JSON.parse(readFileSync(f, 'utf8')) as { resumes: ResumeRecord[]; interviews: InterviewRecord[] };
+        for (const r of data.resumes ?? []) this.resumes.set(r.id, r);
+        for (const i of data.interviews ?? []) this.interviews.set(i.id, i);
+      } catch {
+        /* 损坏的持久化文件忽略，按空库启动 */
+      }
+    }
+  }
+
+  private persist(): void {
+    if (!this.file) return;
+    try {
+      mkdirSync(dirname(this.file), { recursive: true });
+      writeFileSync(this.file, JSON.stringify({ resumes: [...this.resumes.values()], interviews: [...this.interviews.values()] }), 'utf8');
+    } catch {
+      /* 持久化失败不阻塞业务 */
+    }
+  }
 
   saveResume(r: ResumeRecord): ResumeRecord {
     this.resumes.set(r.id, r);
+    this.persist();
     return r;
   }
   getResume(id: string): ResumeRecord | undefined {
@@ -86,6 +115,7 @@ export class InMemoryStore {
   saveInterview(i: InterviewRecord): InterviewRecord {
     i.updatedAt = now();
     this.interviews.set(i.id, i);
+    this.persist();
     return i;
   }
   getInterview(id: string): InterviewRecord | undefined {
