@@ -193,6 +193,21 @@ async function main() {
     check('综合分随作答分化', a !== b, `${a} vs ${b}`);
   }
 
+  console.log('\n[6] 恢复进行中面试：续出新题，题序/进度延续');
+  {
+    const { id } = await readyInterview();
+    await req('POST', `/interviews/${id}/start`, {}, 201);
+    const t1 = (await req('POST', `/interviews/${id}/turns`, { phase: 'tech' }, 201)).turn;
+    await req('POST', `/interviews/${id}/turns/${t1.id}/answer`, { transcript: '第一题作答', stage: 'first' }, 201);
+    // 模拟页面刷新后恢复：detail 仍 active，同环节 newTurn 出新题
+    const det = await req('GET', `/interviews/${id}`, undefined, 200);
+    check('恢复时面试仍在进行中', det.interview.status === 'active');
+    const t2 = (await req('POST', `/interviews/${id}/turns`, { phase: 'tech' }, 201)).turn;
+    check('恢复后续出新题且不重复', t2.id !== t1.id && t2.question !== t1.question, `t1→t2`);
+    const turns = (await req('GET', `/interviews/${id}`, undefined, 200)).interview.turns;
+    check('已有轮次与进度保留', turns.length === 2 && turns[0].attempts.length === 1);
+  }
+
   console.log(`\n结果：${passed} 通过 / ${failed} 失败`);
   if (failed) {
     console.error(`失败项：${failures.join('、')}`);

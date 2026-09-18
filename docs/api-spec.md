@@ -121,8 +121,9 @@ Web 扫码回调 code 换登录态。
 ### 3.1 POST `/interviews`（鉴权）
 创建面试（草稿）。
 
-- 请求：`{ "resumeId", "targetRole", "isl"?|"jdText"? }`
+- 请求：`{ "resumeId", "targetRole", "level"?("junior"|"mid"|"senior"), "kind"?("coach"|"mock"), "durationTier"?("15m"|"30m"|"45m"), "keepAudio"?, "jdText"?（可选 JD 文本，注入 P02）, "style"?("professional"|"coaching"|"concise") }`
 - 200：`{ "interview": { "id", "status": "draft" } }`
+- 说明：`jdText` 持久化供岗位分析参考；`style` 只影响反馈文案口径，不改变评分标准（mock 下确定性地体现在 P07 文案）。
 
 ### 3.2 POST `/interviews/:id/analyze`（鉴权，属主）
 触发 P01+P02（简历理解 + 岗位分析）。
