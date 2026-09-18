@@ -190,15 +190,29 @@ export function App() {
     },
   });
 
+  /** 本环节计划题数（来自大纲；无计划时不提示）。 */
+  const plannedOf = (p: Phase) => outlinePhases?.find((x) => x.phase === p)?.questionCount;
+
+  /** 结束面试：本环节未答满计划题数时先确认，避免误提交过早报告。 */
+  const goFinish = () => {
+    const planned = plannedOf(phase);
+    const done = phaseProgress[phase] ?? 0;
+    if (planned && done < planned && !window.confirm(`本环节计划 ${planned} 题，目前已答 ${done}。确定结束面试生成报告吗？`)) return;
+    finish.mutate();
+  };
+
   /** 答完一题向前推进环节；自我介绍结束自动触发大纲调整(P05)。 */
   const advance = () => {
+    const planned = plannedOf(phase);
+    const done = phaseProgress[phase] ?? 0;
+    if (planned && done < planned && !window.confirm(`本环节计划 ${planned} 题，目前已答 ${done}。确定进入下一环节吗？`)) return;
     const idx = PHASES.indexOf(phase);
     if (phase === 'intro') {
       setAdjustNote('自我介绍后：已按新线索自动更新后续大纲。');
       api.adjustOutline(interviewId!, true).catch(() => setAdjustNote('自我介绍后：大纲自动更新（可选）。'));
     }
     const next = PHASES[idx + 1];
-    if (!next) { finish.mutate(); return; }
+    if (!next) { goFinish(); return; }
     setPhase(next);
     beginTurn.mutate();
   };
@@ -872,7 +886,7 @@ export function App() {
                             <button onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>同环节再问一题</button>
                           )}
                           <button onClick={advance}>{phase === 'hr' ? '完成面试' : '下一环节 →'}</button>
-                          <button className="primary" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
+                          <button className="primary" onClick={goFinish} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
                         </div>
                       )}
                     </div>
