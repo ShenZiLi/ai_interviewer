@@ -82,13 +82,20 @@ export class MockProvider implements Provider {
           contextUsed: ['简历项目：库存扣减'],
           confidence: 0.86,
         };
-      case 'P07':
+      case 'P07': {
+        // 按作答内容做确定性扰动，避免每题评分完全一致（模拟更真实的多题表现）。
+        const seed = seedOf((context as { transcript?: string })?.transcript);
+        const base = [3, 4, 3.5, 3, 3, 4, 4, 4];
+        const dims = base.map((v, i) => {
+          if (i === 1 || i === 3 || i === 4) return Math.min(4.5, Math.max(2.5, v + ((seed >> (i * 2)) % 2 ? 0.5 : -0.5)));
+          return v;
+        });
         return {
           taskCode: 'P07',
           overall: '切题但深度不足，未说清多实例边界。',
           grade: 'B',
           score: 68,
-          dims: buildDims([3, 4, 3.5, 3, 3, 4, 4, 4]).map((d) => ({ ...d, evidence: ['引用回答片段'] })),
+          dims: buildDims(dims).map((d) => ({ ...d, evidence: ['引用回答片段'] })),
           strengths: ['先识别了问题并给出思路'],
           weaknesses: ['缺少适用前提与失败处理'],
           suggestions: [{ title: '补充部署边界', body: '先说明多实例，再比较分布式锁与数据库条件更新。' }],
@@ -97,6 +104,7 @@ export class MockProvider implements Provider {
           confidence: 0.79,
           flags: [],
         };
+      }
       case 'P08':
         return {
           shouldAsk: true,
@@ -213,6 +221,13 @@ function lowestDimActions(scores: number[]): { area: string; suggestion: string;
         priority: scores[i] <= 3 ? 'high' : 'mid',
       };
     });
+}
+
+/** 由文本派生一个确定性种子，用于让 Mock P07 的评分随作答内容轻微变化。 */
+function seedOf(text?: string): number {
+  let h = 0;
+  for (const ch of text ?? '') h = (h * 31 + (ch.codePointAt(0) ?? 0)) & 0xffff;
+  return h;
 }
 
 /** Mock 语音网关：ASR/TTS 返回占位，保证链路可跑。 */

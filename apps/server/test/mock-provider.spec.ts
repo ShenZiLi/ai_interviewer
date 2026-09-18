@@ -48,3 +48,17 @@ describe('MockProvider P10 整场报告与逐题八维自洽', () => {
     expect(report.dimensionReport.length).toBe(DIMS.length);
   });
 });
+
+describe('MockProvider P07 随作答内容确定性变化', () => {
+  it('不同作答内容给出不同维度分，且同文本结果确定', async () => {
+    const p = new MockProvider();
+    const a = (await p.completeTask({ task: 'P07', context: { transcript: '我会考虑分布式锁并做好幂等。' } })) as { dims: { dim: string; score: number }[] };
+    const b = (await p.completeTask({ task: 'P07', context: { transcript: '先给结论再给约束。' } })) as { dims: { dim: string; score: number }[] };
+    const a2 = (await p.completeTask({ task: 'P07', context: { transcript: '我会考虑分布式锁并做好幂等。' } })) as { dims: { dim: string; score: number }[] };
+    // 同文本 → 确定（等值）
+    expect(a.dims.map((d) => d.score)).toEqual(a2.dims.map((d) => d.score));
+    // 不同文本 → 至少有一个维度分不同（体现个性化）
+    const same = a.dims.every((d, i) => d.score === b.dims[i]?.score);
+    expect(same).toBe(false);
+  });
+});
