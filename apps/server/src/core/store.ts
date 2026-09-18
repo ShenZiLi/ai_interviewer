@@ -27,6 +27,8 @@ export interface Attempt {
   transcript: string;
   evaluation?: Record<string, unknown>;
   followUp?: Record<string, unknown>;
+  /** 用户录音的音频引用；会话结束按保留策略（默认即删）清理。 */
+  audioRef?: string;
   createdAt: string;
 }
 
@@ -72,10 +74,18 @@ export interface InterviewRecord {
   updatedAt: string;
 }
 
+/** 上传的录音二进制元数据（不随 JSON 持久化，按保留策略生命周期清理）。 */
+export interface StoredAudio {
+  buf: Buffer;
+  mime: string;
+}
+
 /** MVP 内存仓库。设置 `DATA_FILE` 环境变量后启用 JSON 文件持久化（重启不丢）；未设置则纯内存（便于测试隔离）。 */
 export class InMemoryStore {
   private resumes = new Map<string, ResumeRecord>();
   private interviews = new Map<string, InterviewRecord>();
+  /** 音频为敏感且大体积数据，仅内存与保留策略管控，不持久化。 */
+  private readonly audios = new Map<string, StoredAudio>();
   private readonly file?: string;
 
   constructor() {
@@ -128,5 +138,16 @@ export class InMemoryStore {
     const existed = this.interviews.delete(id);
     if (existed) this.persist();
     return existed;
+  }
+
+  /* ---------- 音频（不持久化，按保留策略清理） ---------- */
+  saveAudio(ref: string, audio: StoredAudio): void {
+    this.audios.set(ref, audio);
+  }
+  getAudio(ref: string): StoredAudio | undefined {
+    return this.audios.get(ref);
+  }
+  deleteAudio(ref: string): boolean {
+    return this.audios.delete(ref);
   }
 }

@@ -219,14 +219,14 @@ export class InterviewService {
     if (it.kind === 'mock') {
       // 模拟：不向用户返回即时评价，但静默评估存档，供「结束后统一复盘」基于真实作答生成整场报告。
       const ev = normalizeEvaluation((await this.compose.compose('P07', this.ctx(it, 'P07', { it, turn, transcript }))) as Evaluation);
-      turn.attempts.push({ id: newId('attempt'), stage, transcript, evaluation: ev, createdAt: now() });
+      turn.attempts.push({ id: newId('attempt'), stage, transcript, audioRef: input.audioRef, evaluation: ev, createdAt: now() });
       this.store.saveInterview(it);
       return { recorded: true } as const;
     }
 
     const ev = normalizeEvaluation((await this.compose.compose('P07', this.ctx(it, 'P07', { it, turn, transcript }))) as Evaluation);
     const follow = (await this.compose.compose('P08', this.ctx(it, 'P08', { it, turn, evaluation: ev }))) as FollowUpDecision;
-    turn.attempts.push({ id: newId('attempt'), stage, transcript, evaluation: ev, followUp: follow, createdAt: now() });
+    turn.attempts.push({ id: newId('attempt'), stage, transcript, audioRef: input.audioRef, evaluation: ev, followUp: follow, createdAt: now() });
     this.store.saveInterview(it);
     return { evaluation: ev, next: follow, transcript } as const;
   }
@@ -265,14 +265,27 @@ export class InterviewService {
     it.report = report;
     it.status = 'finished';
     this.store.saveInterview(it);
+    // 录音保留策略：默认会话结束即删；用户显式选择 keepAudio 才保留。
+    if (!it.keepAudio) this.deleteSessionAudio(it);
     return report;
+  }
+
+  /** 清理本场全部录音引用（按 ui 保留策略使用；keepAudio 时跳过）。 */
+  private deleteSessionAudio(it: InterviewRecord): void {
+    for (const t of it.turns) {
+      for (const a of t.attempts) {
+        if (a.audioRef) this.store.deleteAudio(a.audioRef);
+      }
+    }
   }
 
   get(id: string): InterviewRecord {
     return this.mustGet(id);
   }
-  /** 删除一场面试记录（任意状态）。 */
+  /** 删除一场面试记录（任意状态），并按其保留策略处置录音。 */
   remove(id: string): boolean {
+    const it = this.mustGet(id);
+    if (!it.keepAudio) this.deleteSessionAudio(it);
     if (!this.store.deleteInterview(id)) throw new NotFoundException('面试不存在');
     return true;
   }

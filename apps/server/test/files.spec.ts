@@ -63,3 +63,63 @@ describe('音频上传闭环 (e2e)', () => {
     await request(app.getHttpServer()).get('/files/audio/audio:nope').expect(404);
   });
 });
+
+/** 便捷：走完一个可作答/可结束的教练场（自选是否保留录音），返回 interviewId 与首个阶段 turnId。 */
+async function setupInterview(app: NestFastifyApplication, keepAudio?: boolean) {
+  const resume = await request(app.getHttpServer()).post('/resumes').send({ text: '三年 Java 后端。' }).expect(201);
+  const created = await request(app.getHttpServer())
+    .post('/interviews')
+    .send({ resumeId: resume.body.resume.id, targetRole: 'Java 后端', level: 'mid', kind: 'coach', keepAudio })
+    .expect(201);
+  const interviewId = created.body.interview.id;
+  await request(app.getHttpServer()).post(`/interviews/${interviewId}/analyze`).expect(201);
+  await request(app.getHttpServer()).post(`/interviews/${interviewId}/directions`).send({}).expect(201);
+  await request(app.getHttpServer()).post(`/interviews/${interviewId}/outline`).expect(201);
+  await request(app.getHttpServer()).post(`/interviews/${interviewId}/start`).expect(201);
+  const t = await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns`).send({ phase: 'tech' }).expect(201);
+  return { interviewId, turnId: t.body.turn.id as string };
+}
+
+/** 录音保留策略：默认 session 即删，显式 keepAudio 才保留（api-spec 4.4）。 */
+describe('录音保留策略 (e2e)', () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    const m = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = m.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+  afterAll(() => app.close());
+
+  const uploadAudio = (name: string) =>
+    request(app.getHttpServer()).post('/files/audio').send({ data: Buffer.from(name).toString('base64'), mime: 'audio/webm' });
+
+  it('默认在会话结束时删除本场录音', async () => {
+    const { interviewId, turnId } = await setupInterview(app);
+    const up = await uploadAudio('default-discard').expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${turnId}/answer`).send({ audioRef: up.body.ref }).expect(201);
+    // 结束前可回取
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(200);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/finish`).expect(201);
+    // 结束后默认删除 → 404
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(404);
+  });
+
+  it('显式 keepAudio 时会话结束保留录音', async () => {
+    const { interviewId, turnId } = await setupInterview(app, true);
+    const up = await uploadAudio('keep-retain').expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${turnId}/answer`).send({ audioRef: up.body.ref }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/finish`).expect(201);
+    // 结束后仍可回取
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(200);
+  });
+
+  it('删除面试时一并清理未保留的录音', async () => {
+    const { interviewId, turnId } = await setupInterview(app);
+    const up = await uploadAudio('delete-cleanup').expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${turnId}/answer`).send({ audioRef: up.body.ref }).expect(201);
+    await request(app.getHttpServer()).delete(`/interviews/${interviewId}`).expect(200);
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(404);
+  });
+});
