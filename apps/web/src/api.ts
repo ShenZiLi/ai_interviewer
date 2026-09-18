@@ -37,15 +37,23 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return (await res.json()) as T;
 }
 
+export type AnswerResult =
+  | { recorded: true }
+  | {
+      transcript: string;
+      evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[]; strengths?: string[]; weaknesses?: string[]; suggestions?: { title: string; body: string }[] };
+      next: { shouldAsk: boolean; questions: { text: string }[]; nextStep: string };
+    };
+
 export const api = {
   createResume: (text: string, title?: string) =>
     req<{ resume: { id: string; status: string; analysis: { summary: string } } }>('POST', '/resumes', { text, title }),
-  createInterview: (resumeId: string) =>
+  createInterview: (resumeId: string, kind: 'coach' | 'mock' = 'coach') =>
     req<{ interview: { id: string; status: string } }>('POST', '/interviews', {
       resumeId,
       targetRole: 'Java 后端工程师',
       level: 'mid',
-      kind: 'coach',
+      kind,
       durationTier: '30m',
     }),
   analyze: (id: string) => req<{ position: { role: string; seniority: string; focusAreas: string[] } }>('POST', `/interviews/${id}/analyze`),
@@ -58,11 +66,7 @@ export const api = {
     turnId: string,
     payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' },
   ) =>
-    req<{
-      transcript: string;
-      evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[]; strengths?: string[]; weaknesses?: string[]; suggestions?: { title: string; body: string }[] };
-      next: { shouldAsk: boolean; questions: { text: string }[]; nextStep: string };
-    }>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript: payload.transcript, audioRef: payload.audioRef, stage: payload.stage ?? 'first' }),
+    req<AnswerResult>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript: payload.transcript, audioRef: payload.audioRef, stage: payload.stage ?? 'first' }),
   finish: (id: string) =>
     req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
   listInterviews: () => req<{ items: InterviewSummary[] }>('GET', '/interviews'),

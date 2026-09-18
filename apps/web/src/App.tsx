@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
-import { api } from './api';
+import { api, type AnswerResult } from './api';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -19,7 +19,7 @@ const stages = ['自我介绍', '技术问题', '业务问题', 'HR 问题'];
 interface RoomTurn {
   id: string;
   question: string;
-  answered?: { transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[] };
+  answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[] };
 }
 
 export function App() {
@@ -57,7 +57,7 @@ export function App() {
   const bootstrap = useMutation({
     mutationFn: async () => {
       if (!resumeId) throw new Error('请先导入简历');
-      const interview = await run(api.createInterview(resumeId));
+      const interview = await run(api.createInterview(resumeId, mode));
       await run(api.analyze(interview.interview.id));
       const d = await run(api.directions(interview.interview.id));
       setDirs(d.recommendedDirections.recommendedDirections);
@@ -109,20 +109,35 @@ export function App() {
       const stage = payload.stage ?? (revising ? 'after_hint' : 'first');
       const transcript = payload.transcript ?? draft;
       const answered = await run(api.answer(interviewId!, turn!.id, payload.audioRef ? { audioRef: payload.audioRef, stage } : { transcript, stage }));
-      setScoreHistory((h) => [...h, { stage, score: answered.evaluation.score }]);
+      setScoreHistory((h) => [...h, { stage, score: 'evaluation' in answered && answered.evaluation ? answered.evaluation.score : 0 }]);
       setRevising(false);
+      if ('recorded' in answered && answered.recorded) {
+        setTurn({
+          ...turn!,
+          answered: {
+            recorded: true,
+            transcript: transcript || '(音频作答)',
+            score: 0,
+            grade: '—',
+            overall: '模拟模式：本场仅记录回答，整场结束后统一评价。',
+            dims: [], strengths: [], weaknesses: [], suggestion: '', followup: [],
+          },
+        });
+        return;
+      }
+      const coach = answered as Extract<AnswerResult, { evaluation: { score: number } }>;
       setTurn({
         ...turn!,
         answered: {
-          transcript: answered.transcript || transcript || '(音频作答)',
-          score: answered.evaluation.score,
-          grade: answered.evaluation.grade,
-          overall: answered.evaluation.overall,
-          dims: answered.evaluation.dims,
-          strengths: answered.evaluation.strengths ?? [],
-          weaknesses: answered.evaluation.weaknesses ?? [],
-          suggestion: answered.evaluation.suggestions?.[0]?.body ?? '',
-          followup: answered.next.questions.map((q) => q.text),
+          transcript: coach.transcript || transcript || '(音频作答)',
+          score: coach.evaluation.score,
+          grade: coach.evaluation.grade,
+          overall: coach.evaluation.overall,
+          dims: coach.evaluation.dims,
+          strengths: coach.evaluation.strengths ?? [],
+          weaknesses: coach.evaluation.weaknesses ?? [],
+          suggestion: coach.evaluation.suggestions?.[0]?.body ?? '',
+          followup: coach.next.questions.map((q) => q.text),
         },
       });
     },
@@ -408,18 +423,27 @@ export function App() {
                       <div className="empty"><div className="empty-icon">◌</div>回答结束后，<br />在这里查看评分与优化建议。</div>
                     ) : (
                       <>
-                        <div className="row between"><h3>本轮反馈</h3><span className="tag blue">陪练</span></div>
-                        {scoreHistory.length > 1 ? (
-                          <p className="subtitle">首次 {scoreHistory[0].score} 分 → 复发 {scoreHistory[scoreHistory.length - 1].score} 分</p>
-                        ) : null}
-                        <div className="score">{turn.answered.score}<small> / 100 · {turn.answered.grade}</small></div>
-                        <p className="subtitle">{turn.answered.overall}</p>
-                        {turn.answered.dims.map((d) => (
-                          <div className="score-row" key={d.dim}><span>{d.dim}</span><span className="bar"><i style={{ width: `${d.displayScore ?? 0}%` }} /></span><span>{d.displayScore ?? '—'}</span></div>
-                        ))}
-                        <div className="feedback-block"><h3>做得好的地方</h3><p>{turn.answered.strengths.join('；') || '—'}</p></div>
-                        <div className="feedback-block"><h3>还缺少什么</h3><p>{turn.answered.weaknesses.join('；') || turn.answered.suggestion}</p></div>
-                        {turn.answered.followup.length > 0 && <div className="feedback-block"><h3>挑香追问</h3><p>{turn.answered.followup.join('；')}</p></div>}
+                        <div className="row between"><h3>本轮反馈</h3><span className="tag blue">{mode === 'mock' ? '模拟' : '陪练'}</span></div>
+                        {turn.answered.recorded ? (
+                          <div className="empty" style={{ padding: '16px 0' }}>
+                            <div className="empty-icon">◎</div>
+                            模拟面试进行中<br />本场结束后统一展示评价。
+                          </div>
+                        ) : (
+                          <>
+                            {scoreHistory.length > 1 ? (
+                              <p className="subtitle">首次 {scoreHistory[0].score} 分 → 复发 {scoreHistory[scoreHistory.length - 1].score} 分</p>
+                            ) : null}
+                            <div className="score">{turn.answered.score}<small> / 100 · {turn.answered.grade}</small></div>
+                            <p className="subtitle">{turn.answered.overall}</p>
+                            {turn.answered.dims.map((d) => (
+                              <div className="score-row" key={d.dim}><span>{d.dim}</span><span className="bar"><i style={{ width: `${d.displayScore ?? 0}%` }} /></span><span>{d.displayScore ?? '—'}</span></div>
+                            ))}
+                            <div className="feedback-block"><h3>做得好的地方</h3><p>{turn.answered.strengths.join('；') || '—'}</p></div>
+                            <div className="feedback-block"><h3>还缺少什么</h3><p>{turn.answered.weaknesses.join('；') || turn.answered.suggestion}</p></div>
+                            {turn.answered.followup.length > 0 && <div className="feedback-block"><h3>挑香追问</h3><p>{turn.answered.followup.join('；')}</p></div>}
+                          </>
+                        )}
                       </>
                     )}
                   </aside>
