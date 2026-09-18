@@ -116,6 +116,32 @@ export function App() {
   const active = page;
   const breadcrumb = `首页 / ${titles[active]}`;
 
+  // ---- 工作台：历史报告 ----
+  const histQuery = useQuery({ queryKey: ['interviews'], queryFn: api.listInterviews, enabled: page === 'home' });
+  const history = histQuery.data?.items ?? [];
+  const finCount = history.filter((h) => h.status === 'finished').length;
+  const avgFinished = (() => {
+    const scores = history.filter((h) => h.status === 'finished' && h.report).map((h) => h.report!.overview.avgScore);
+    return scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+  })();
+  const openHistory = useMutation({
+    mutationFn: async (id: string) => {
+      const detail = await run(api.getInterview(id));
+      const r = detail.interview.report;
+      if (!r) throw new Error('该场尚无报告');
+      setReport({
+        avgScore: r.overview.avgScore,
+        grade: gradeOf(r.overview.avgScore),
+        completed: r.overview.completedAnswers,
+        coverage: `${r.overview.directionCoverage.covered}/${r.overview.directionCoverage.planned}`,
+        dims: (r.dimensionReport ?? []).map((d) => ({ dim: d.dim, displayScore: Math.round(d.overallScore * 20) })),
+        actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}`),
+      });
+      setPage('report');
+    },
+    onSuccess: () => histQuery.refetch(),
+  });
+
   // ---- 管理员提示词管理 ----
   const [selId, setSelId] = useState<string>();
   const [draftText, setDraftText] = useState('');
@@ -177,10 +203,30 @@ export function App() {
                     <div className="hero-art" aria-hidden>{[0, 1, 2, 3].map((i) => <i key={i} />)}</div>
                   </section>
                   <div className="grid3 section-title">
-                    <section className="card"><small>已练习场次</small><div className="metric">12<span>场</span></div></section>
-                    <section className="card"><small>平均表现</small><div className="metric">B+<span>评级</span></div></section>
-                    <section className="card"><small>连续训练</small><div className="metric">5<span>天</span></div></section>
+                    <section className="card"><small>已练习场次</small><div className="metric">{history.length}<span>场</span></div></section>
+                    <section className="card"><small>已完成</small><div className="metric">{finCount}<span>场</span></div></section>
+                    <section className="card"><small>平均表现</small><div className="metric">{avgFinished ? `${avgFinished}分` : '—'}<span>{avgFinished ? gradeOf(avgFinished) : '暂无'}</span></div></section>
                   </div>
+
+                  {history.length > 0 && (
+                    <section className="card section-title">
+                      <h2>历史场次</h2>
+                      {history.map((h) => (
+                        <div className="list-row" key={h.id}>
+                          <div>
+                            <b>{h.targetRole} · {h.level === 'mid' ? '中级' : h.level === 'junior' ? '初级' : '高级'}</b>
+                            <p>{h.kind === 'coach' ? '陪练' : '模拟'} · {h.status === 'finished' ? `报告 ${h.report?.overview.avgScore} 分 · 完成 ${h.report?.overview.completedAnswers} 题` : h.status === 'active' ? '进行中' : '草稿'} · {new Date(h.updatedAt).toLocaleString()}</p>
+                          </div>
+                          {h.status === 'finished' ? (
+                            <button onClick={() => openHistory.mutate(h.id)} disabled={openHistory.isPending}>查看报告</button>
+                          ) : (
+                            <span className="tag">{h.status}</span>
+                          )}
+                        </div>
+                      ))}
+                    </section>
+                  )}
+
                   <div className="actions"><button className="primary" onClick={() => setPage('resume')}>开始新的面试 →</button></div>
                 </>
               )}

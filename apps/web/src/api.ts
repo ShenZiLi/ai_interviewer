@@ -1,5 +1,29 @@
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:3000';
 
+export type InterviewStatus = 'draft' | 'active' | 'finished';
+
+export interface InterviewSummary {
+  id: string;
+  kind: 'coach' | 'mock';
+  level: 'junior' | 'mid' | 'senior';
+  status: InterviewStatus;
+  targetRole: string;
+  durationTier: string;
+  updatedAt: string;
+  report?: InterviewReport;
+}
+
+export interface InterviewReport {
+  overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } };
+  dimensionReport?: { dim: string; overallScore: number }[];
+  actionPlan?: { area: string; suggestion: string; priority: string }[];
+}
+
+export interface InterviewDetail extends InterviewSummary {
+  directions: string[];
+  promptLocks: Record<string, { versionId: string; versionNo: number }>;
+}
+
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method,
@@ -40,6 +64,8 @@ export const api = {
     }>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript, stage: 'first' }),
   finish: (id: string) =>
     req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
+  listInterviews: () => req<{ items: InterviewSummary[] }>('GET', '/interviews'),
+  getInterview: (id: string) => req<{ interview: InterviewDetail }>('GET', `/interviews/${id}`),
   /* ---------- 管理员提示词 ---------- */
   listTemplates: () => req<{ items: { id: string; taskCode: string; name: string; description: string; basePrompt: string }[] }>('GET', '/admin/templates'),
   listVersions: (id: string) =>
