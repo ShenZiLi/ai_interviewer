@@ -1082,7 +1082,7 @@ export function App() {
                             <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); stopRecording(); reanswerStartRef.current = Date.now(); setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
                           )}
                           {mode === 'coach' && turn.answered?.followup.length ? (
-                            <button onClick={() => askFollowUp.mutate()} disabled={askFollowUp.isPending || followUpCount >= 3}>{followUpCount >= 3 ? '追问已满' : '追问 →'}</button>
+                            <button onClick={() => askFollowUp.mutate()} disabled={askFollowUp.isPending || followUpCount >= 3}>{followUpCount >= 3 ? '追问已满（3/3）' : followUpCount > 0 ? `再追问（${followUpCount}/3）` : '追问 →'}</button>
                           ) : null}
                           {phase !== 'intro' && (
                             <button onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>同环节再问一题</button>
