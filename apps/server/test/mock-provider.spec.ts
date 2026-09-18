@@ -69,4 +69,12 @@ describe('MockProvider P07 随作答内容确定性变化', () => {
     expect(sameTopic.overview.completedAnswers).toBe(3);
     expect(sameTopic.overview.directionCoverage).toEqual({ covered: 2, planned: 2 });
   });
+
+  it('整场时长以开考至今计并钳制在档位预算内', async () => {
+    const p = new MockProvider();
+    const longAgo = new Date(Date.UTC(2020, 0, 1)).toISOString();
+    const r = (await p.completeTask({ task: 'P10', context: { it: { kind: 'coach', durationTier: '30m', startedAt: longAgo } } })) as { overview: { durationUsedMinutes: number } };
+    expect(r.overview.durationUsedMinutes).toBeLessThanOrEqual(30);
+    expect(r.overview.durationUsedMinutes).toBeGreaterThan(0);
+  });
 });

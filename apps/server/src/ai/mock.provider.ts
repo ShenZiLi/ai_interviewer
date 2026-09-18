@@ -168,7 +168,15 @@ export class MockProvider implements Provider {
         }
         answeredTopics.delete('');
         const covered = Math.min(answeredTopics.size, planned);
-        const durationUsedMinutes = { '15m': 14, '30m': 26, '45m': 40 }[it?.durationTier ?? '30m'] ?? 26;
+        const durationUsedMinutes = (() => {
+        // 实际用时 = 开考至今（有 had startedAt），否则退回档位估算。
+        const budget = { '15m': 15, '30m': 30, '45m': 45 }[it?.durationTier ?? '30m'] ?? 30;
+        if (it?.startedAt) {
+          const elapsed = Math.max(1, Math.round((Date.now() - new Date(it.startedAt).getTime()) / 60000));
+          return Math.min(elapsed, budget);
+        }
+        return Math.round(budget * 0.87); // 无起始时间时按档位约 87% 估算
+      })();
         return {
           taskCode: 'P10',
           overview: { mode, directionCoverage: { covered, planned }, durationUsedMinutes, completedAnswers: measurements.length, avgScore },
@@ -196,6 +204,7 @@ const DIMS_SAMPLE: { dim: (typeof DIMS)[number]; overallScore: number; trend: 'u
 interface P10Context {
   kind?: 'coach' | 'mock';
   durationTier?: string;
+  startedAt?: string;
   outline?: { outline?: { topic: string; mainQuestion: string }[] };
   turns?: { topic?: string; attempts?: { evaluation?: { dims?: { dim: string; score: number }[] } }[] }[];
 }
