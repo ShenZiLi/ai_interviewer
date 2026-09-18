@@ -1295,9 +1295,12 @@ export function App() {
                         <h3 style={{ marginTop: 20 }}>版本时间线</h3>
                         {selectedVersions.map((v) => (
                           <div className="list-row" key={v.id}>
-                            <div className="row">{`v${v.versionNo}`}
-                              <span className="tag">{v.status}</span>
-                              {v.basedOnId && <small>回滚自 {v.id.slice(0, 8)}</small>}
+                            <div>
+                              <div className="row">{`v${v.versionNo}`}
+                                <span className="tag">{v.status}</span>
+                                {v.basedOnId && <small>回滚自 {v.id.slice(0, 8)}</small>}
+                              </div>
+                              {v.testResult?.note && <small className="muted" style={{ display: 'block', marginTop: 6 }}>{v.testResult.note}</small>}
                             </div>
                             {v.status === 'published' && <button onClick={() => verAct.mutate({ action: 'rollback', targetId: v.id })} disabled={verAct.isPending}>回滚到此</button>}
                           </div>

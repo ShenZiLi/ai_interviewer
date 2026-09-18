@@ -111,7 +111,7 @@ export const api = {
   /* ---------- 管理员提示词 ---------- */
   listTemplates: () => req<{ items: { id: string; taskCode: string; name: string; description: string; basePrompt: string; variables: string[] }[] }>('GET', '/admin/templates'),
   listVersions: (id: string) =>
-    req<{ items: { id: string; versionNo: number; status: 'draft' | 'tested' | 'published' | 'rolled_back'; content: string; basedOnId?: string; createdAt: string }[] }>('GET', `/admin/templates/${id}/versions`),
+    req<{ items: { id: string; versionNo: number; status: 'draft' | 'tested' | 'published' | 'rolled_back'; content: string; testResult?: { passed: boolean; note: string }; basedOnId?: string; createdAt: string }[] }>('GET', `/admin/templates/${id}/versions`),
   updateDraft: (id: string, basePrompt: string) =>
     req<{ version: { id: string; status: 'draft' | 'tested' | 'published' | 'rolled_back' } }>('PATCH', `/admin/templates/${id}`, { basePrompt }),
   deleteTemplate: (id: string) => req<{ ok: boolean }>('DELETE', `/admin/templates/${id}`),
