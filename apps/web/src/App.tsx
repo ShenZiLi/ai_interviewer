@@ -48,18 +48,19 @@ export function App() {
   const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number; dims: { dim: string; displayScore?: number }[]; grade?: string }[]>([]);
   const [followUpCount, setFollowUpCount] = useState(0);
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
-  const [review, setReview] = useState<{ phase: string; question: string; transcript: string; score?: number; grade?: string }[]>([]);
+  const [review, setReview] = useState<{ phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
   const [error, setError] = useState<string>();
 
   const run = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => { setError(String((e as Error)?.message ?? e)); throw e; });
 
-  /** 从面试 turns 汇总「回答转写回顾」：每题取最后一次作答（转写+得分）。 */
+  /** 从面试 turns 汇总「回答转写回顾」：逐题保留各次作答（首次/复发并列，不以提示后最高分计入）。 */
   const buildReview = (turns: NonNullable<InterviewDetail['turns']>) =>
     turns
       .filter((t) => t.attempts.length > 0)
       .map((t) => {
-        const last = t.attempts[t.attempts.length - 1];
-        return { phase: t.phase, question: t.question, transcript: last.transcript, score: last.evaluation?.score, grade: last.evaluation?.grade };
+        const attempts = t.attempts.map((a) => ({ stage: a.stage, transcript: a.transcript, score: a.evaluation?.score, grade: a.evaluation?.grade }));
+        const last = attempts[attempts.length - 1];
+        return { phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
       });
 
   const parseResume = useMutation({
@@ -652,7 +653,14 @@ export function App() {
                                 <b style={{ minWidth: 0 }}>{it.question}</b>
                                 {it.score !== undefined ? <span className="tag">{it.score}<small> /100 · {it.grade}</small></span> : <span className="tag">仅记录</span>}
                               </div>
-                              {it.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap' }}>{it.transcript}</p>}
+                              {it.attempts.map((a, j) => (
+                                <div key={j} style={{ marginTop: 6 }}>
+                                  {a.transcript && <p className="muted" style={{ whiteSpace: 'pre-wrap', marginBottom: 2 }}>{a.transcript}</p>}
+                                  {it.attempts.length > 1 && (
+                                    <small>{a.stage === 'after_hint' ? '复读作答' : '首次作答'} · {a.score !== undefined ? `${a.score} 分` : '仅记录'}</small>
+                                  )}
+                                </div>
+                              ))}
                             </div>
                           ))}
                         </div>
