@@ -1,4 +1,4 @@
-import { DIMS, gradeOf, overallScore, SELF_CONSISTENT_TOLERANCE, toDisplay, WEIGHTS, type Evaluation, type SessionReport } from '@ai-interviewer/contracts';
+import { DIMS, gradeOf, SELF_CONSISTENT_TOLERANCE, toDisplay, WEIGHTS, type Evaluation, type SessionReport } from '@ai-interviewer/contracts';
 
 /**
  * 评分业务规则 guard（对齐 docs/output-schemas.md §0）：
@@ -8,11 +8,10 @@ import { DIMS, gradeOf, overallScore, SELF_CONSISTENT_TOLERANCE, toDisplay, WEIG
  * 返回标准化后的评价副本（不原地改）。
  */
 export function normalizeEvaluation(input: Evaluation): Evaluation {
-  const ordered: number[] = DIMS.map((dim) => {
-    const found = input.dims.find((d) => d.dim === dim);
-    return found ? found.score : 0;
-  });
-  const weighted = overallScore(ordered);
+  // 只统计被考察到的维度（未考察项不计零分，避免缺维拖低整体分）。
+  const assessed = input.dims.filter((d): d is (typeof d & { score: number }) => DIMS.includes(d.dim) && typeof d.score === 'number');
+  const weightSum = assessed.reduce((s, d) => s + WEIGHTS[d.dim], 0);
+  const weighted = weightSum > 0 ? Math.round((assessed.reduce((s, d) => s + WEIGHTS[d.dim] * d.score, 0) / weightSum) * 200) / 10 : 0;
 
   const dims = input.dims.map((d) => ({
     ...d,

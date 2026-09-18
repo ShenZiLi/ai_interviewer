@@ -31,12 +31,25 @@ describe('normalizeEvaluation 评分业务规则', () => {
     expect(ev.flags).toContain('self_inconsistent');
   });
 
-  it('缺维度按 0 计，不影响归一不抛错', () => {
+  it('未考察维度不计零分：按被考察维度重加权（单维 4 → 80）', () => {
     const ev = normalizeEvaluation({
       ...base(60),
       dims: [{ dim: '专业准确性', score: 4 }],
     });
-    expect(ev.score).toBeGreaterThan(0);
+    expect(ev.score).toBe(80); // 仅 专业准确性(0.2, 4)：4/0.2×0.2×20 = 80，不因缺维被拉低
+    expect(ev.flags).toContain('self_inconsistent'); // 输入 60 与 80 不一致 → 以加权为准
+  });
+
+  it('多被考察维度按权重归一聚合（未考察项不占分母）', () => {
+    const ev = normalizeEvaluation({
+      ...base(60),
+      dims: [
+        { dim: '专业准确性', score: 5 },
+        { dim: '表达与结构', score: 3 },
+      ],
+    });
+    // Σ(w·d)/Σw = (0.2·5 + 0.08·3)/(0.28) = 4.4286 → ×20 ≈ 88.6
+    expect(ev.score).toBe(88.6);
   });
 });
 
