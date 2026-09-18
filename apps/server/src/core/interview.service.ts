@@ -24,6 +24,8 @@ export interface CreateInterviewInput {
   targetRole: string;
   /** 可选 JD 文本（api-spec 3.1 的 jdText），供岗位分析参考。 */
   jdText?: string;
+  /** 面试风格（professional/coaching/concise）。 */
+  style?: string;
   level: 'junior' | 'mid' | 'senior';
   kind?: 'coach' | 'mock';
   durationTier?: '15m' | '30m' | '45m';
@@ -79,6 +81,7 @@ export class InterviewService {
       resumeId: input.resumeId,
       targetRole: input.targetRole,
       jdText: input.jdText,
+      style: input.style,
       level: input.level,
       kind: input.kind ?? 'coach',
       durationTier: input.durationTier ?? '30m',

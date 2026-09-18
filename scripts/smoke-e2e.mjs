@@ -172,6 +172,10 @@ async function main() {
     check('可选 JD 文本持久化到面试详情', jdDetail.interview.jdText === '要求熟悉高并发与分布式事务');
     await req('POST', `/interviews/${withJd.interview.id}/directions`, { extra: '更看重原理深度' }, 201);
     check('补充诉求 extra 被方向接口接受', true);
+
+    const styled = await req('POST', '/interviews', { resumeId: r0.resume.id, targetRole: 'Java 后端', level: 'mid', kind: 'coach', style: 'concise' }, 201);
+    const stDetail = await req('GET', `/interviews/${styled.interview.id}`, undefined, 200);
+    check('面试风格持久化到面试详情', stDetail.interview.style === 'concise');
   }
 
   console.log('\n[5] 趋势数据源：不同作答 → 整场综合分不同');

@@ -99,6 +99,20 @@ describe('MockProvider P07 随作答内容确定性变化', () => {
     expect(ra.dimensionReport.some((d, i) => d.overallScore !== rb.dimensionReport[i]?.overallScore)).toBe(true);
   });
 
+  it('P07 反馈文案随面试风格变化，评分不变', async () => {
+    const p = new MockProvider();
+    const mk = async (style?: string) =>
+      (await p.completeTask({ task: 'P07', context: { transcript: '我会考虑分布式锁并做好幂等。', it: style ? { style } : undefined } })) as { overall: string; score: number };
+    const concise = await mk('concise');
+    const coaching = await mk('coaching');
+    const pro = await mk('professional');
+    expect(concise.overall).not.toBe(coaching.overall);
+    expect(coaching.overall).not.toBe(pro.overall);
+    // 风格只改文案口径，评分/量表保持一致
+    expect(concise.score).toBe(coaching.score);
+    expect(coaching.score).toBe(pro.score);
+  });
+
   it('P06 主问题按阶段与同阶段序号轮转（避免全场同一题）', async () => {
     const p = new MockProvider();
     const ask = async (phase: string, turns: { phase: string }[]) =>

@@ -9,6 +9,12 @@ import { durLabel } from './lib/durations';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
+/** 面试风格预设：只影响反馈文案口径，不改变评分标准。 */
+const STYLES: { id: 'professional' | 'coaching' | 'concise'; name: string; desc: string }[] = [
+  { id: 'professional', name: '严谨专业', desc: '点评聚焦前提与失败处理，追问犀利' },
+  { id: 'coaching', name: '循循善诱', desc: '多给提示与鼓励，追问渐进' },
+  { id: 'concise', name: '简洁高效', desc: '反馈简短，直击要点' },
+];
 const nav: { k: NavKey; icon: string; label: string }[] = [
   { k: 'home', icon: '⌂', label: '工作台' },
   { k: 'resume', icon: '▤', label: '我的简历' },
@@ -48,6 +54,9 @@ export function App() {
   const [duration, setDuration] = useState<'15m' | '30m' | '45m'>('30m');
   const [keepAudio, setKeepAudio] = useState(false);
   const [extra, setExtra] = useState('');
+  /** 面试风格：设置页存默认（localStorage），准备页本场可调整。 */
+  const [style, setStyle] = useState<'professional' | 'coaching' | 'concise'>(() => (localStorage.getItem('style') as 'professional' | 'coaching' | 'concise') || 'professional');
+  const setStyleAndSave = (s: 'professional' | 'coaching' | 'concise') => { setStyle(s); localStorage.setItem('style', s); };
   const [resumeId, setResumeId] = useState<string>();
   const [analysis, setAnalysis] = useState<string>();
   const [structured, setStructured] = useState<{ candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] }>();
@@ -156,6 +165,7 @@ export function App() {
         role,
         level: ({ 初级: 'junior', 中级: 'mid', 高级: 'senior' } as Record<string, 'junior' | 'mid' | 'senior'>)[level],
         durationTier: duration,
+        style,
       }));
       await run(api.analyze(interview.interview.id));
       const d = await run(api.directions(interview.interview.id, undefined, extra || undefined));
@@ -869,6 +879,12 @@ export function App() {
                               <button key={m} aria-pressed={duration === m} onClick={() => setDuration(m as typeof duration)}>{t}练习<small>{m} 分钟</small></button>
                             ))}
                           </div>
+                          <h3 style={{ marginTop: 18 }}>面试风格（本场）</h3>
+                          <div className="choice">
+                            {STYLES.map((s) => (
+                              <button key={s.id} aria-pressed={style === s.id} onClick={() => setStyleAndSave(s.id)}>{s.name}<small>{s.desc}</small></button>
+                            ))}
+                          </div>
                           <label className="row" style={{ marginTop: 18, fontSize: 12 }}>
                             <input type="checkbox" checked={keepAudio} onChange={(e) => setKeepAudio(e.target.checked)} />保留本场录音，方便回听
                           </label>
@@ -1250,6 +1266,7 @@ export function App() {
               )}
 
               {active === 'settings' && (
+                <>
                 <div className="grid2">
                   <section className="card"><h2>模型配置</h2>
                     <div className="choice" style={{ marginBottom: 4 }}>
@@ -1283,6 +1300,17 @@ export function App() {
                     <div className="setting-row"><div><b>回答录音</b><p>每场开始前，由你选择是否保留</p></div>{keepAudio ? <span className="tag green">本场保留</span> : <span className="tag">仅转写</span>}</div>
                   </section>
                 </div>
+                <section className="card" style={{ marginTop: 20 }}>
+                  <h2>面试风格（默认）</h2>
+                  <p className="subtitle">作为新场次的默认风格，准备页可对单场调整；只影响反馈文案口径，不改变评分标准。</p>
+                  <div className="choice" style={{ marginTop: 14 }}>
+                    {STYLES.map((s) => (
+                      <button key={s.id} aria-pressed={style === s.id} onClick={() => setStyleAndSave(s.id)}>{s.name}<small>{s.desc}</small></button>
+                    ))}
+                  </div>
+                  <p className="muted" style={{ marginTop: 10 }}>当前默认：{STYLES.find((s) => s.id === style)?.name}</p>
+                </section>
+                </>
               )}
             </div>
           </div>

@@ -60,6 +60,8 @@ export interface InterviewRecord {
   targetRole: string;
   /** 用户可选提供的目标岗位 JD（候选文本），供 P02 岗位分析参考。 */
   jdText?: string;
+  /** 面试风格（professional/coaching/concise），注入反馈与追问语境。 */
+  style?: string;
   level: 'junior' | 'mid' | 'senior';
   kind: 'coach' | 'mock';
   durationTier: '15m' | '30m' | '45m';

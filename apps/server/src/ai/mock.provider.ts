@@ -100,15 +100,22 @@ export class MockProvider implements Provider {
           Math.min(4.5, Math.max(2.5, v + ((seed >> i) & 1 ? 0.5 : -0.5))),
         );
         const score = overallScore(vals);
+        // 面试风格只影响反馈文案口径（评分/量表不变），使风格选项在 mock 下可见且确定性。
+        const style = styleOf(context);
+        const wording = style === 'concise'
+          ? { overall: '切题但深度不足。', coachingNote: '先讲约束，再给方案。', suggestionBody: '补上部署边界与失败处理。' }
+          : style === 'coaching'
+            ? { overall: '整体思路不错，可以从部署边界切入再展开，把前提说清。', coachingNote: '从你熟悉的场景切入，再抽象成一般结论。', suggestionBody: '先说明多实例，再比较分布式锁与数据库条件更新。' }
+            : { overall: '切题但深度不足，未说清多实例边界。', coachingNote: '建议先讲约束再讲方案。', suggestionBody: '先说明多实例，再比较分布式锁与数据库条件更新。' };
         return {
           taskCode: 'P07',
-          overall: '切题但深度不足，未说清多实例边界。',
+          overall: wording.overall,
           grade: gradeOf(score),
           score,
           dims: buildDims(vals).map((d) => ({ ...d, evidence: ['引用回答片段'] })),
           strengths: ['先识别了问题并给出思路'],
           weaknesses: ['缺少适用前提与失败处理'],
-          suggestions: [{ title: '补充部署边界', body: '先说明多实例，再比较分布式锁与数据库条件更新。' }],
+          suggestions: [{ title: '补充部署边界', body: wording.suggestionBody }],
           misconceptions: [{ quote: '本地锁能覆盖多实例', clarification: '本地锁仅单进程内有效', kind: 'knowledge' }],
           followUpHint: { recommended: true, reason: '可追问边界条件' },
           confidence: 0.79,
@@ -128,7 +135,7 @@ export class MockProvider implements Provider {
         return {
           modelAnswer: { summary: '按“背景→约束→方案→失败处理”作答', structure: [{ point: '明确部署边界', explanation: '多实例下本地锁无效' }] },
           optimization: [{ userPoint: '直接给 synchronized', improved: '先说部署与并发量，再选方案', why: '体现方案取舍' }],
-          coachingNote: '建议先讲约束再讲方案。',
+          coachingNote: styleOf(context) === 'concise' ? '先讲约束，再给方案。' : styleOf(context) === 'coaching' ? '从你熟悉的场景切入，再抽象成一般结论。' : '建议先讲约束再讲方案。',
           practicePrompt: '可重答一次练习。',
           confidence: 0.74,
         };
@@ -253,6 +260,11 @@ const QUESTIONS_BY_PHASE: Record<string, MockQuestion[]> = {
     { text: '你如何理解团队协作中的分歧处理？', topic: '协作', difficulty: 'begin', targetAspect: '沟通与反思' },
   ],
 };
+
+/** 从 compose 上下文提取面试风格（professional/coaching/concise），仅影响反馈文案口径。 */
+function styleOf(context: unknown): string {
+  return ((context as { it?: { style?: string } })?.it?.style) ?? 'professional';
+}
 
 /** P10 需要的面试上下文（取 ctx 中完整 it 的一个子集）。 */
 interface P10Context {

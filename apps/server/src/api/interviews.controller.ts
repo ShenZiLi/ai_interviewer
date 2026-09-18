@@ -6,6 +6,7 @@ const createSchema = z.object({
   resumeId: z.string(),
   targetRole: z.string().min(1),
   jdText: z.string().max(2000).optional(),
+  style: z.enum(['professional', 'coaching', 'concise']).optional(),
   level: z.enum(['junior', 'mid', 'senior']).default('mid'),
   kind: z.enum(['coach', 'mock']).optional(),
   durationTier: z.enum(['15m', '30m', '45m']).optional(),
