@@ -238,7 +238,9 @@ P10 整场报告生成（模拟模式承载统一评价）。
 ### 6.1 CRUD `/admin/templates`
 - `GET/POST /admin/templates`：列表/新建模板（`taskCode` P01—P10 唯一，冲突返回 `CONFLICT_STATE`/400）。
 - `GET/PATCH /admin/templates/:id`：读取/编辑**草稿**。
-- 请求体核心：`{ "taskCode", "name", "description", "basePrompt", "variables": ["userId","jdText",…] }`
+- `DELETE /admin/templates/:id`：删除模板并**级联清除其全部版本**（含已发布）；已开始面试的锁定快照取不到时回落默认提示词。
+- 请求体核心：`{ "taskCode", "name", "description", "basePrompt", "variables": ["text", "resume", …] }`
+- `variables` 为该任务实际注入 compose 的上下文变量（MVP 已落地，随任务固定）：P01 `[text]`、P02 `[resume, targetRole]`、P03 `[position, selected]`、P04/P05 `[it]`、P06 `[it, phase]`、P07 `[it, turn, transcript]`、P08 `[it, turn, evaluation]`、P09 `[it, turn, transcript]`、P10 `[it]`。
 
 ### 6.2 版本生命周期 `/admin/templates/:id/versions`
 - `POST {action: "test"}`：运行示例测试（非空草稿 + 顺序检查），返回 `testResult`。
