@@ -64,12 +64,12 @@ describe('音频上传闭环 (e2e)', () => {
   });
 });
 
-/** 便捷：走完一个可作答/可结束的教练场（自选是否保留录音），返回 interviewId 与首个阶段 turnId。 */
-async function setupInterview(app: NestFastifyApplication, keepAudio?: boolean) {
+/** 便捷：走完一个可作答/可结束的面试（自选是否保留录音、模式），返回 interviewId 与首个阶段 turnId。 */
+async function setupInterview(app: NestFastifyApplication, keepAudio?: boolean, kind: 'coach' | 'mock' = 'coach') {
   const resume = await request(app.getHttpServer()).post('/resumes').send({ text: '三年 Java 后端。' }).expect(201);
   const created = await request(app.getHttpServer())
     .post('/interviews')
-    .send({ resumeId: resume.body.resume.id, targetRole: 'Java 后端', level: 'mid', kind: 'coach', keepAudio })
+    .send({ resumeId: resume.body.resume.id, targetRole: 'Java 后端', level: 'mid', kind, keepAudio })
     .expect(201);
   const interviewId = created.body.interview.id;
   await request(app.getHttpServer()).post(`/interviews/${interviewId}/analyze`).expect(201);
@@ -113,6 +113,14 @@ describe('录音保留策略 (e2e)', () => {
     await request(app.getHttpServer()).post(`/interviews/${interviewId}/finish`).expect(201);
     // 结束后仍可回取
     await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(200);
+  });
+
+  it('模拟模式默认也会话结束删除录音', async () => {
+    const { interviewId, turnId } = await setupInterview(app, false, 'mock');
+    const up = await uploadAudio('mock-discard').expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${turnId}/answer`).send({ audioRef: up.body.ref }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/finish`).expect(201);
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(404);
   });
 
   it('删除面试时一并清理未保留的录音', async () => {
