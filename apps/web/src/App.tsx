@@ -448,7 +448,7 @@ export function App() {
                         </div>
                       ) : (
                         <div className="actions" style={{ marginTop: 10 }}>
-                          {!scoreHistory.some((s) => s.stage === 'after_hint') && (
+                          {mode === 'coach' && !scoreHistory.some((s) => s.stage === 'after_hint') && (
                             <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); mediaRef.current?.stop(); mediaRef.current = null; setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
                           )}
                           <button onClick={advance}>{phase === 'hr' ? '完成面试' : '下一环节 →'}</button>
