@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { gradeOf } from '@ai-interviewer/contracts';
 import { api } from './api';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings';
@@ -35,6 +36,7 @@ export function App() {
   const [topics, setTopics] = useState<string[]>([]);
   const [turn, setTurn] = useState<RoomTurn>();
   const [draft, setDraft] = useState('');
+  const [recording, setRecording] = useState(false);
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
   const [error, setError] = useState<string>();
 
@@ -75,6 +77,7 @@ export function App() {
 
   const submitAnswer = useMutation({
     mutationFn: async () => {
+      setRecording(false);
       const res = await run(api.answer(interviewId!, turn!.id, draft));
       setTurn({
         ...turn!,
@@ -99,7 +102,7 @@ export function App() {
       const evScore = (turn?.answered?.score ?? 0);
       setReport({
         avgScore: res.report.overview.avgScore,
-        grade: evScore >= 90 ? 'A+' : evScore >= 80 ? 'A' : evScore >= 70 ? 'B+' : evScore >= 60 ? 'B' : 'C',
+        grade: gradeOf(evScore),
         completed: res.report.overview.completedAnswers,
         coverage: `${res.report.overview.directionCoverage.covered}/${res.report.overview.directionCoverage.planned}`,
         dims: turn?.answered?.dims ?? [],
@@ -245,19 +248,34 @@ export function App() {
                     <h2 className="question">{turn?.question ?? '点击开始，面试官将提出第一题。'}</h2>
                     <div className="question-context">先完整表达你的思路，再提交获得反馈。</div>
                     <div className="answer">
-                      <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="输出你的回答…" disabled={!!turn?.answered} />
-                      <div className="actions" style={{ marginTop: 10 }}>
-                        {!turn?.answered ? (
-                          <button className="primary" onClick={() => submitAnswer.mutate()} disabled={submitAnswer.isPending || !turn}>
-                            {submitAnswer.isPending ? '提交并评价…' : '回答完成，提交 →'}
+                      {!turn?.answered && (
+                        <div className={recording ? 'voice recording' : 'voice'}>
+                          <div className="wave" aria-hidden>{Array.from({ length: 9 }).map((_, i) => <i key={i} />)}</div>
+                          {!recording ? (
+                            <button className="primary" onClick={() => { setRecording(true); if (!draft) setDraft('（录音演示）我会结合部署边界，比较分布式锁与数据库条件更新的取舍。'); }} disabled={!turn}>
+                              ● 开始回答（演示）
+                            </button>
+                          ) : (
+                            <button className="primary" onClick={() => submitAnswer.mutate()} disabled={submitAnswer.isPending}>
+                              {submitAnswer.isPending ? '转写并评价…' : '■ 回答完成'}
+                            </button>
+                          )}
+                          <p>{recording ? '演示录音中 · 可同时编辑下方文本' : '手动开始 · 手动提交 · 留出思考时间'}</p>
+                        </div>
+                      )}
+                      <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="亦可直接输入你的回答…" disabled={!!turn?.answered || submitAnswer.isPending} />
+                      {!turn?.answered ? (
+                        <div className="actions" style={{ marginTop: 10 }}>
+                          <button className="ghost" onClick={() => submitAnswer.mutate()} disabled={submitAnswer.isPending || !turn}>
+                            {submitAnswer.isPending ? '转写并评价…' : '提交（文本）'}
                           </button>
-                        ) : (
-                          <>
-                            <button onClick={() => beginTurn.mutate()}>下一题</button>
-                            <button className="primary" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
-                          </>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="actions" style={{ marginTop: 10 }}>
+                          <button onClick={() => beginTurn.mutate()}>下一题</button>
+                          <button className="primary" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
+                        </div>
+                      )}
                     </div>
                   </section>
                   <aside className="card feedback">
