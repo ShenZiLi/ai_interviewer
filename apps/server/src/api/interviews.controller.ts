@@ -11,7 +11,7 @@ const createSchema = z.object({
 });
 const directionsSchema = z.object({ selectedDirections: z.array(z.string()).max(12).optional(), extra: z.string().max(500).optional() });
 const turnSchema = z.object({ phase: z.enum(['intro', 'tech', 'biz', 'hr']) });
-const answerSchema = z.object({ transcript: z.string().min(1).max(10_000), audioRef: z.string().optional(), stage: z.enum(['first', 'after_hint']).optional() });
+const answerSchema = z.object({ transcript: z.string().min(1).max(10_000).optional(), audioRef: z.string().optional(), stage: z.enum(['first', 'after_hint']).optional() });
 const adjustSchema = z.object({ confirm: z.boolean().optional() });
 
 @Controller('interviews')
@@ -65,7 +65,7 @@ export class InterviewsController {
   @Post(':id/turns/:turnId/answer')
   async answer(@Param('id') id: string, @Param('turnId') turnId: string, @Body() body: unknown) {
     const input = answerSchema.parse(body);
-    return this.service.answer({ interviewId: id, turnId, transcript: input.transcript, stage: input.stage });
+    return this.service.answer({ interviewId: id, turnId, transcript: input.transcript, audioRef: input.audioRef, stage: input.stage });
   }
 
   @Post(':id/outline/adjust')

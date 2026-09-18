@@ -12,6 +12,7 @@ import {
   TASK_CODES,
 } from '@ai-interviewer/contracts';
 import { ComposeService } from '../ai/compose.service.js';
+import { MockVoiceGateway } from '../ai/mock.provider.js';
 import { PromptService } from '../admin/prompt.service.js';
 import { normalizeEvaluation } from './evaluation.guard.js';
 import { InMemoryStore, newId, now, type InterviewRecord, type Turn } from './store.js';
@@ -27,7 +28,8 @@ export interface CreateInterviewInput {
 export interface AnswerInput {
   interviewId: string;
   turnId: string;
-  transcript: string;
+  transcript?: string;
+  audioRef?: string;
   stage?: 'first' | 'after_hint';
 }
 
@@ -38,6 +40,7 @@ export class InterviewService {
     @Inject(InMemoryStore) private readonly store: InMemoryStore,
     @Inject(ComposeService) private readonly compose: ComposeService,
     @Inject(PromptService) private readonly prompts: PromptService,
+    @Inject(MockVoiceGateway) private readonly voice: MockVoiceGateway,
   ) {}
 
   /* ---------- 简历 ---------- */
@@ -142,11 +145,13 @@ export class InterviewService {
     this.assertStatus(it, ['active']);
     const q = (await this.compose.compose('P06', { it, phase })) as MainQuestion;
     const seqNo = it.turns.filter((t) => t.phase === phase).length + 1;
+    const audio = await this.voice.synthesize({ text: q.questionText });
     const turn: Turn = {
       id: newId('turn'),
       phase,
       seqNo,
       question: q.questionText,
+      ttsRef: audio.audioRef,
       attempts: [],
       createdAt: now(),
     };
@@ -162,16 +167,24 @@ export class InterviewService {
     if (!turn) throw new NotFoundException('作答轮不存在');
     const stage = input.stage ?? 'first';
 
+    // 语音链路：提供 audioRef 时走 ASR 转写；无音频时直接用转录文本。
+    let transcript = input.transcript ?? '';
+    if (input.audioRef) {
+      const asr = await this.voice.transcribe({ audioRef: input.audioRef });
+      if (!transcript) transcript = asr.text;
+    }
+    if (!transcript.trim()) throw new ConflictException('需要转写文本或音频');
+
     if (it.kind === 'mock') {
       // 模拟：仅记录，不即时反馈
-      turn.attempts.push({ id: newId('attempt'), stage, transcript: input.transcript, createdAt: now() });
+      turn.attempts.push({ id: newId('attempt'), stage, transcript, createdAt: now() });
       this.store.saveInterview(it);
       return { recorded: true } as const;
     }
 
-    const ev = normalizeEvaluation((await this.compose.compose('P07', { it, turn, transcript: input.transcript })) as Evaluation);
+    const ev = normalizeEvaluation((await this.compose.compose('P07', { it, turn, transcript })) as Evaluation);
     const follow = (await this.compose.compose('P08', { it, turn, evaluation: ev })) as FollowUpDecision;
-    turn.attempts.push({ id: newId('attempt'), stage, transcript: input.transcript, evaluation: ev, followUp: follow, createdAt: now() });
+    turn.attempts.push({ id: newId('attempt'), stage, transcript, evaluation: ev, followUp: follow, createdAt: now() });
     this.store.saveInterview(it);
     return { evaluation: ev, next: follow } as const;
   }
