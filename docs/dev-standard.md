@@ -62,13 +62,18 @@
 
 登录（微信/账号）、跨端、真实持久化与录音长期保留、管理员后台的真实 LLM 测试、端到端实时通道、简历多版本/OCR。
 
-## 6. 待决策（进入实现前）
+## 6. 技术栈（已确认 2026-09-18）
 
-- **应用技术栈**：后端（如 Spring Boot / Node/TypeScript）、前端（如 React / Vue）、数据库（如 PostgreSQL / SQLite 起步）、CI 与 lint 工具。
+- **Monorepo**：pnpm workspaces；`apps/web` + `apps/server` + `packages/contracts`。
+- **后端**：NestJS + `@nestjs/platform-fastify`（结构化 + 快）。
+- **契约 / 校验**：`packages/contracts` 用 **zod** 定义端点 DTO 与 P01—P10 输出；`zod-to-json-schema` 生成 `schemas/*.json`；运行时 zod 校验 `compose` 输出，前后端共享同一份契约。
+- **数据库**：PostgreSQL + Prisma（迁移/枚举友好）；M1 先做最小持久化。
+- **前端**：Vite + React + TypeScript + TanStack Query。
+- **测试**：Vitest + Supertest（REST 契约）；后续 Playwright 冒烟。
+- **工程**：ESLint + Prettier；Node 20+；脚本走 `pnpm`。
 
 ## 7. 推进顺序建议
 
-1. 确认技术栈（§6）。
-2. 建立仓库骨架与 `schemas/` 契约文件。
-3. 按 M1 验收条件分阶段实现，每阶段本地提交。
-4. M1 全绿后进入 M2（登录、持久化、小程序端）。
+1. 建立 monorepo 骨架与 `packages/contracts` 契约（zod schema 先行）。
+2. 按 M1 验收条件分阶段实现，每阶段本地提交。
+3. M1 全绿后进入 M2（登录、持久化、小程序端）。
