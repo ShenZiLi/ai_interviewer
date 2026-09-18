@@ -206,6 +206,7 @@ P10 整场报告生成（模拟模式承载统一评价）。
 - 字段：`file`（mp3/aac/wav/pcm）、`retention?`（request|session|forever，默认 session）
 - 200：`{ "ref": "…", "mime", "durationMs"? }`
 - 错误：`INVALID_REQUEST`、`RATE_LIMITED`
+- **MVP 落地**：接口为 base64 JSON（`{ data, mime }`），返回 `{ ref, mime, bytes }`；保留策略在**面试创建时**由 `keepAudio` 决定（默认会话结束即删；显式 `keepAudio` 保留；删除面试即弃并清理；未附着的孤立音频在新面试创建时清扫）。
 
 ### 4.3 GET `/files/audio/:ref`
 - 200：音频流（TTS 结果或已持久化录音；受鉴权，未保留回收略）。
