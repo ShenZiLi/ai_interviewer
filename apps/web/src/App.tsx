@@ -285,6 +285,9 @@ export function App() {
       const detail = await run(api.getInterview(id));
       const r = detail.interview.report;
       if (!r) throw new Error('该场尚无报告');
+      // 历史报告以其本场的岗位/级别为准，避免显示当前表单的旧值。
+      setRole(detail.interview.targetRole);
+      setLevel(detail.interview.level === 'senior' ? '高级' : detail.interview.level === 'junior' ? '初级' : '中级');
       setReview(buildReview(detail.interview.turns ?? []));
       setReport({
         avgScore: r.overview.avgScore,
