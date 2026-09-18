@@ -187,11 +187,14 @@ export class MockProvider implements Provider {
         }
         return Math.round(budget * 0.87); // 无起始时间时按档位约 87% 估算
       })();
+        const hl = pickHighlights(it);
         return {
           taskCode: 'P10',
           overview: { mode, directionCoverage: { covered, planned }, durationUsedMinutes, completedAnswers: measurements.length, avgScore },
           dimensionReport: DIMS.map((dim, i) => ({ dim, overallScore: scores[i]!, trend: 'flat' })),
-          highlight: { bestAnswer: { turnRef: 'turn:1', why: '整体结构清晰' }, improvementStart: { turnRef: 'turn:1', why: '可补充前提与失败处理' } },
+          highlight: hl
+            ? { bestAnswer: hl.best, improvementStart: hl.worst }
+            : { bestAnswer: { turnRef: 'turn:1', why: '整体结构清晰' }, improvementStart: { turnRef: 'turn:1', why: '可补充前提与失败处理' } },
           actionPlan: lowestDimActions(scores),
           confidence: 0.83,
         };
@@ -257,7 +260,25 @@ interface P10Context {
   durationTier?: string;
   startedAt?: string;
   outline?: { outline?: { topic: string; mainQuestion: string }[] };
-  turns?: { topic?: string; attempts?: { evaluation?: { dims?: { dim: string; score: number }[] } }[] }[];
+  turns?: { id?: string; topic?: string; attempts?: { evaluation?: { score?: number; dims?: { dim: string; score: number }[] } }[] }[];
+}
+
+/** 依据各轮末次作答的整体分，选出本场最佳与最需改进的轮次（用真实轮 id，供报告高亮）。 */
+function pickHighlights(it?: P10Context): { best: { turnRef: string; why: string }; worst: { turnRef: string; why: string } } | undefined {
+  let best: { id: string; score: number } | undefined;
+  let worst: { id: string; score: number } | undefined;
+  for (const t of it?.turns ?? []) {
+    const last = t.attempts?.[t.attempts.length - 1];
+    const s = last?.evaluation?.score;
+    if (typeof s !== 'number' || !t.id) continue;
+    if (!best || s > best.score) best = { id: t.id, score: s };
+    if (!worst || s < worst.score) worst = { id: t.id, score: s };
+  }
+  if (!best || !worst) return undefined;
+  return {
+    best: { turnRef: best.id, why: `本场最高分 ${best.score} 分` },
+    worst: { turnRef: worst.id, why: `本场最低分 ${worst.score} 分，优先打磨` },
+  };
 }
 
 /** 收集各轮末次作答（P07）的八维实测分（0–5）。 */

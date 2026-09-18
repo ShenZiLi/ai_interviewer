@@ -69,7 +69,7 @@ export function App() {
   const [followUpCount, setFollowUpCount] = useState(0);
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
-  const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
+  const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[]; highlight?: { best: { q?: string; why: string }; improve: { q?: string; why: string } } }>();
   const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [error, setError] = useState<string>();
@@ -85,6 +85,15 @@ export function App() {
         const last = attempts[attempts.length - 1];
         return { id: t.id, parentId: t.parentTurnId, phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
       });
+
+  /** 把 P10 高亮的 turnRef 解析为题目文本（未命中时仅保留说明文字）。 */
+  const resolveHighlight = (r: InterviewReport, turns: NonNullable<InterviewDetail['turns']>) =>
+    r.highlight
+      ? {
+          best: { q: turns.find((t) => t.id === r.highlight!.bestAnswer.turnRef)?.question, why: r.highlight.bestAnswer.why },
+          improve: { q: turns.find((t) => t.id === r.highlight!.improvementStart.turnRef)?.question, why: r.highlight.improvementStart.why },
+        }
+      : undefined;
 
   /** 抓取本场之前最近一场已完成面试的报告（用于横向对比；无上一场则返回 undefined）。 */
   const fetchPrevReport = async (curId: string): Promise<InterviewReport | undefined> => {
@@ -415,6 +424,7 @@ export function App() {
         usedMinutes: res.report.overview.durationUsedMinutes,
         dims,
         actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}`),
+        highlight: resolveHighlight(res.report, detail.interview.turns ?? []),
       });
       const prev = await fetchPrevReport(interviewId!);
       setTrend(prev ? buildTrend(prev, res.report.overview.avgScore, dims) : undefined);
@@ -477,6 +487,12 @@ export function App() {
       L.push(`## vs 上一场`);
       L.push(`- 综合表现：${trend.avgDelta >= 0 ? '▲ +' : '▼ '}${Math.abs(trend.avgDelta)}`);
       trend.dims.forEach((d) => L.push(`- ${d.dim}：${d.delta >= 0 ? '▲ +' : '▼ '}${Math.abs(d.delta)}`));
+    }
+    if (report.highlight) {
+      L.push('');
+      L.push(`## 本场最佳 & 最需改进`);
+      L.push(`- 最佳作答：${report.highlight.best.q ?? '—'}（${report.highlight.best.why}）`);
+      L.push(`- 最需改进：${report.highlight.improve.q ?? '—'}（${report.highlight.improve.why}）`);
     }
     L.push('');
     L.push(`## 行动建议`);
@@ -544,6 +560,7 @@ export function App() {
         usedMinutes: r.overview.durationUsedMinutes,
         dims,
         actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}`),
+        highlight: resolveHighlight(r, detail.interview.turns ?? []),
       });
       const prev = await fetchPrevReport(id);
       setTrend(prev ? buildTrend(prev, r.overview.avgScore, dims) : undefined);
@@ -1067,6 +1084,23 @@ export function App() {
                       </div>
                     )}
                   </section>
+                  {report.highlight && (
+                    <section className="card section-title">
+                      <div className="row between"><h2>本场最佳 & 最需改进</h2><span className="tag amber">报告高亮</span></div>
+                      <div className="highlight-grid">
+                        <div className="highlight-item">
+                          <span className="tag green">最佳作答</span>
+                          {report.highlight.best.q && <b style={{ marginTop: 8 }}>{report.highlight.best.q}</b>}
+                          <p className="muted" style={{ marginBottom: 0 }}>{report.highlight.best.why}</p>
+                        </div>
+                        <div className="highlight-item">
+                          <span className="tag amber">最需改进</span>
+                          {report.highlight.improve.q && <b style={{ marginTop: 8 }}>{report.highlight.improve.q}</b>}
+                          <p className="muted" style={{ marginBottom: 0 }}>{report.highlight.improve.why}</p>
+                        </div>
+                      </div>
+                    </section>
+                  )}
                   <div className="grid2 section-title">
                     <section className="card"><h2>下一个题，专注这 {report.actions.length} 件事</h2>
                       {report.actions.map((a, i) => <div className="list-row" key={i}><div className="row"><span className="step-number">0{i + 1}</span><div><b>{a}</b></div></div></div>)}
