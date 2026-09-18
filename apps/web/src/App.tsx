@@ -1151,6 +1151,7 @@ export function App() {
                             ) : null}
                             <div className="score">{turn.answered.score}<small> / 100 · {turn.answered.grade}</small></div>
                             <p className="subtitle">{turn.answered.overall}</p>
+                            {turn.answered.transcript && <p className="quote" style={{ marginTop: 8 }}>作答转写：「{turn.answered.transcript}」</p>}
                             {scoreHistory.length < 2 && turn.answered.dims.map((d) => (
                               <div className="score-row" key={d.dim}><span>{d.dim}</span><span className="bar"><i style={{ width: `${d.displayScore ?? 0}%` }} /></span><span>{d.displayScore ?? '—'}</span></div>
                             ))}
