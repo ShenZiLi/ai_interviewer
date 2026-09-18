@@ -633,8 +633,9 @@ export function App() {
   const [testResult, setTestResult] = useState<{ ok: boolean; latencyMs: number; error?: string }>();
   const testModel = useMutation({
     mutationFn: async () => {
-      // 测试当前选中的配置（custom 用表单候选，不切换运行态）
-      const r = await api.testModel({ mode: cfgMode.mode, baseUrl: cfgMode.baseUrl, model: cfgMode.model, apiKey: cfgMode.apiKey || undefined });
+      // 测试当前选中的配置（custom 用表单候选，不切换运行态）；失败经 run 上浮可读错误。
+      setTestResult(undefined);
+      const r = await run(api.testModel({ mode: cfgMode.mode, baseUrl: cfgMode.baseUrl, model: cfgMode.model, apiKey: cfgMode.apiKey || undefined }));
       setTestResult(r);
       return r;
     },
@@ -1160,6 +1161,13 @@ export function App() {
       setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined);
       setOutlineQuestions(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
+              )}
+
+              {active === 'report' && !report && (
+                <section className="card">
+                  <div className="empty"><div className="empty-icon">◎</div>还没有复盘报告。<br />完成一场面试后，整场八维报告会出现在这里；<br />也可以从「工作台」打开历史场次的报告。</div>
+                  <div className="actions"><button className="primary" onClick={() => setPage('home')}>回工作台 →</button></div>
+                </section>
               )}
 
               {active === 'admin' && (
