@@ -6,7 +6,10 @@ export const LLM_PROVIDER = Symbol('LLM_PROVIDER');
 
 /** compose 输出校验失败（含重试后仍失败）。 */
 export class ComposeValidationError extends Error {
-  constructor(task: TaskCode, cause: unknown) {
+  constructor(
+    public readonly task: TaskCode,
+    cause: unknown,
+  ) {
     super(`任务 ${task} 输出未通过契约校验`);
     this.name = 'ComposeValidationError';
     this.cause = cause;
