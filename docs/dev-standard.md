@@ -62,6 +62,26 @@
 
 登录（微信/账号）、跨端、真实持久化与录音长期保留、管理员后台的真实 LLM 测试、端到端实时通道、简历多版本/OCR。
 
+### 5.3 M1 验收核对（当前状态）
+
+> 现状盘点（持续更新）：Mock 文本供应商默认跑通全链路；接入真实文本模型可用 `settings` 运行期热切换或 `.env`。
+> 验证命令：`pnpm -r run typecheck` 与 `pnpm -r run test`（全仓当前 71 测试全绿：contracts 15 / web 1 / server 55）。
+
+| # | 验收项 | 通过证据 |
+|---|---|---|
+| AC1 | 简历导入/解析 | `interview-flow.spec`「创建简历并解析 (P01)」+ P01 Schema |
+| AC2 | 岗位+方向→大纲 | `interview-flow.spec` AC2；`outline()` 时长超预算返回 409 守卫 |
+| AC3 | 自我介绍后大纲调整（模式隔离） | `interview-flow.spec`「大纲调整模式隔离」：模拟未确认自动应用、陪练未确认不应用、确认后应用 |
+| AC4 | 主问题+作答评价 | `interview-flow.spec` AC4：P07 返回八维、P08 追问；`normalizeEvaluation` 保证 `score` 与加权自洽 |
+| AC5 | 追问与整场报告 | `interview-flow.spec`「追问链」+ AC6 P10；`normalizeSessionReport` 整场归一 |
+| AC6 | 契约校验/重试 | `compose.service.spec`：首次合法/重试成功/重试失败抛 ComposeValidationError；`http.provider.spec` 各任务 |
+| AC7 | 模式隔离 | `interview-flow.spec`「模式隔离」「模拟模式静默评估」+`evaluation.guard.spec` |
+| AC8 | 测试与提交 | 各提交遵循 Conventional Commits；全天 `typecheck`+`test` 全绿 |
+
+### 5.4 M1 范围外确认
+
+login/DB/持久化重启与否、录音长期保留、管理员真实 LLM 测试、端到端实时通道、简历多版本/OCR 属范围外（M2）。已超出 MVP 额外交付：设置页运行期切换文本供应商（[api-spec §5.1](api-spec.md)）、进行中面试一键继续、整场八维归一、「保留录音」偏好持久化、回答转写回顾按环节分组。
+
 ## 6. 技术栈（已确认 2026-09-18）
 
 - **Monorepo**：pnpm workspaces；`apps/web` + `apps/server` + `packages/contracts`。
