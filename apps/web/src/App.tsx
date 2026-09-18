@@ -339,6 +339,46 @@ export function App() {
   );
   const breadcrumb = `首页 / ${titles[active]}`;
 
+  /** 把当前复盘报告导出为 Markdown（含维度、行动项、逐题转写）。 */
+  const exportReport = () => {
+    if (!report) return;
+    const L: string[] = [];
+    L.push(`# 复盘报告 · ${role}（${level}）`);
+    L.push(`综合表现：${report.avgScore} / 100 · ${report.grade}`);
+    L.push(`作答 ${report.completed} 题 · 方向覆盖 ${report.coverage}`);
+    L.push('');
+    L.push(`## 八维表现`);
+    report.dims.forEach((d) => L.push(`- ${d.dim}：${d.displayScore ?? '—'}`));
+    L.push('');
+    L.push(`## 行动建议`);
+    report.actions.forEach((a, i) => L.push(`${i + 1}. ${a}`));
+    if (review.length) {
+      L.push('');
+      L.push(`## 回答转写`);
+      for (const g of reviewGroups) {
+        L.push('');
+        L.push(`### ${phaseLabel[g.phase] ?? g.phase}`);
+        const mains = g.items.filter((it) => !it.parentId);
+        const children = g.items.filter((it) => it.parentId);
+        for (const it of mains) {
+          L.push(`- **${it.question}**${it.score !== undefined ? `（${it.score} 分 · ${it.grade}）` : ''}`);
+          it.attempts.forEach((a) => a.transcript && L.push(`  - ${a.transcript}`));
+          for (const k of children.filter((c) => c.parentId === it.id)) {
+            L.push(`  - 追问：${k.question}${k.score !== undefined ? `（${k.score} 分）` : ''}`);
+            k.attempts.forEach((a) => a.transcript && L.push(`    - ${a.transcript}`));
+          }
+        }
+      }
+    }
+    const blob = new Blob([L.join('\n')], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai_interviewer-report-${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ---- 工作台：历史报告 ----
   const histQuery = useQuery({ queryKey: ['interviews'], queryFn: api.listInterviews, enabled: page === 'home' });
   const history = histQuery.data?.items ?? [];
@@ -797,7 +837,7 @@ export function App() {
                       })}
                     </section>
                   )}
-                  <div className="actions"><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined); setReview([]); setCoaching(undefined); setTopics([]); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
+                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined); setReview([]); setCoaching(undefined); setTopics([]); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
               )}
 
