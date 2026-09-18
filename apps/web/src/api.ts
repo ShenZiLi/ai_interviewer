@@ -40,4 +40,12 @@ export const api = {
     }>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript, stage: 'first' }),
   finish: (id: string) =>
     req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
+  /* ---------- 管理员提示词 ---------- */
+  listTemplates: () => req<{ items: { id: string; taskCode: string; name: string; description: string; basePrompt: string }[] }>('GET', '/admin/templates'),
+  listVersions: (id: string) =>
+    req<{ items: { id: string; versionNo: number; status: 'draft' | 'tested' | 'published' | 'rolled_back'; content: string; basedOnId?: string; createdAt: string }[] }>('GET', `/admin/templates/${id}/versions`),
+  updateDraft: (id: string, basePrompt: string) =>
+    req<{ version: { id: string; status: 'draft' | 'tested' | 'published' | 'rolled_back' } }>('PATCH', `/admin/templates/${id}`, { basePrompt }),
+  actVersion: (id: string, action: 'test' | 'publish' | 'rollback', targetVersionId?: string) =>
+    req<{ version: { id: string; status: string; versionNo: number; basedOnId?: string } }>('POST', `/admin/templates/${id}/versions`, { action, targetVersionId }),
 };

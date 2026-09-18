@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
 import { api } from './api';
 
-type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings';
-const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置' };
+type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
+const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
 const nav: { k: NavKey; icon: string; label: string }[] = [
   { k: 'home', icon: '⌂', label: '工作台' },
   { k: 'resume', icon: '▤', label: '我的简历' },
@@ -12,6 +12,7 @@ const nav: { k: NavKey; icon: string; label: string }[] = [
   { k: 'room', icon: '▥', label: '面试练习室' },
   { k: 'report', icon: '≡', label: '复盘报告' },
   { k: 'settings', icon: '⚙', label: '设置' },
+  { k: 'admin', icon: '✎', label: '提示词管理' },
 ];
 const stages = ['自我介绍', '技术问题', '业务问题', 'HR 问题'];
 
@@ -114,6 +115,27 @@ export function App() {
 
   const active = page;
   const breadcrumb = `首页 / ${titles[active]}`;
+
+  // ---- 管理员提示词管理 ----
+  const [selId, setSelId] = useState<string>();
+  const [draftText, setDraftText] = useState('');
+  const tplQuery = useQuery({ queryKey: ['adminTemplates'], queryFn: api.listTemplates, enabled: page === 'admin' });
+  const verQuery = useQuery({ queryKey: ['adminVersions', selId], queryFn: () => api.listVersions(selId!), enabled: !!selId && page === 'admin' });
+  const selectedVersions = useMemo(() => (verQuery.data ? [...verQuery.data.items].sort((a, b) => b.versionNo - a.versionNo) : []), [verQuery.data]);
+  const workingDraft = useMemo(() => selectedVersions.find((v) => v.status === 'draft' || v.status === 'tested'), [selectedVersions]);
+  useEffect(() => {
+    if (workingDraft) setDraftText(workingDraft.content);
+  }, [workingDraft?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const refreshAdmin = () => { tplQuery.refetch(); if (selId) verQuery.refetch(); };
+  const saveDraft = useMutation({
+    mutationFn: async () => { await api.updateDraft(selId!, draftText); refreshAdmin(); },
+  });
+  const verAct = useMutation({
+    mutationFn: async (a: { action: 'test' | 'publish' | 'rollback'; targetId?: string }) => {
+      await api.actVersion(selId!, a.action, a.targetId);
+      refreshAdmin();
+    },
+  });
 
   return (
     <div id="viewport">
@@ -322,6 +344,48 @@ export function App() {
                   </div>
                   <div className="actions"><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setResumeId(undefined); }}>再来一次 →</button></div>
                 </>
+              )}
+
+              {active === 'admin' && (
+                <div className="grid2">
+                  <section className="card">
+                    <div className="row between"><h2>任务模板</h2><span className="tag blue">P01—P10</span></div>
+                    {tplQuery.isLoading ? <p className="muted">加载中…</p> : (tplQuery.data?.items ?? []).map((t) => (
+                      <div className="list-row" key={t.id}>
+                        <div><b>{t.taskCode} · {t.name}</b><p>{t.description}</p></div>
+                        <button className={selId === t.id ? 'primary' : ''} onClick={() => setSelId(t.id)}>编辑</button>
+                      </div>
+                    ))}
+                  </section>
+                  <section className="card">
+                    <h2>模板草稿</h2>
+                    {!selId ? (
+                      <div className="empty">选择一个任务模板开始编辑。<br />MVP 中模板为管理数据，尚不影响 Mock 生成。</div>
+                    ) : (
+                      <>
+                        <label className="field">基础提示词<textarea value={draftText} onChange={(e) => setDraftText(e.target.value)} rows={8} /></label>
+                        <div className="row between">
+                          <div className="row">
+                            <button className="primary" onClick={() => saveDraft.mutate()} disabled={saveDraft.isPending}>保存草稿</button>
+                            <button onClick={() => verAct.mutate({ action: 'test' })} disabled={verAct.isPending}>示例测试</button>
+                            <button disabled={workingDraft?.status !== 'tested' || verAct.isPending} onClick={() => verAct.mutate({ action: 'publish' })} title="须先通过测试">发布</button>
+                          </div>
+                          {workingDraft && <span className="tag">{workingDraft.status === 'tested' ? '已测试' : '草稿'}</span>}
+                        </div>
+                        <h3 style={{ marginTop: 20 }}>版本时间线</h3>
+                        {selectedVersions.map((v) => (
+                          <div className="list-row" key={v.id}>
+                            <div className="row">{`v${v.versionNo}`}
+                              <span className="tag">{v.status}</span>
+                              {v.basedOnId && <small>回滚自 {v.id.slice(0, 8)}</small>}
+                            </div>
+                            {v.status === 'published' && <button onClick={() => verAct.mutate({ action: 'rollback', targetId: v.id })} disabled={verAct.isPending}>回滚到此</button>}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </section>
+                </div>
               )}
 
               {active === 'settings' && (
