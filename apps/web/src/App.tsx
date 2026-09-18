@@ -447,7 +447,7 @@ export function App() {
         coverage: `${res.report.overview.directionCoverage.covered}/${res.report.overview.directionCoverage.planned}`,
         usedMinutes: res.report.overview.durationUsedMinutes,
         dims,
-        actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}`),
+        actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}${a.practiceSuggestion ? `（练习：${a.practiceSuggestion}）` : ''}`),
         highlight: resolveHighlight(res.report, detail.interview.turns ?? []),
       });
       const prev = await fetchPrevReport(interviewId!, role);
@@ -606,7 +606,7 @@ export function App() {
         coverage: `${r.overview.directionCoverage.covered}/${r.overview.directionCoverage.planned}`,
         usedMinutes: r.overview.durationUsedMinutes,
         dims,
-        actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}`),
+        actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}${a.practiceSuggestion ? `（练习：${a.practiceSuggestion}）` : ''}`),
         highlight: resolveHighlight(r, detail.interview.turns ?? []),
       });
       const prev = await fetchPrevReport(id, role);

@@ -16,7 +16,7 @@ export interface InterviewSummary {
 export interface InterviewReport {
   overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number }; durationUsedMinutes?: number };
   dimensionReport?: { dim: string; overallScore: number }[];
-  actionPlan?: { area: string; suggestion: string; priority: string }[];
+  actionPlan?: { area: string; suggestion: string; priority: string; practiceSuggestion?: string }[];
   /** P10 高亮：本场最佳作答 / 最需改进（turnRef 指向本场轮次 id）。 */
   highlight?: { bestAnswer: { turnRef: string; why: string }; improvementStart: { turnRef: string; why: string } };
 }
@@ -92,7 +92,7 @@ export const api = {
   coach: (id: string, turnId: string) =>
     req<{ coaching: { modelAnswer: { summary: string; structure: { point: string; explanation: string }[] }; optimization?: { userPoint: string; improved: string; why: string }[]; coachingNote?: string; practicePrompt?: string } }>('POST', `/interviews/${id}/turns/${turnId}/coaching`),
   finish: (id: string) =>
-    req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number }; durationUsedMinutes?: number }; dimensionReport?: { dim: string; overallScore: number }[]; actionPlan: { area: string; suggestion: string; priority: string }[]; highlight?: { bestAnswer: { turnRef: string; why: string }; improvementStart: { turnRef: string; why: string } } } }>('POST', `/interviews/${id}/finish`),
+    req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number }; durationUsedMinutes?: number }; dimensionReport?: { dim: string; overallScore: number }[]; actionPlan: { area: string; suggestion: string; priority: string; practiceSuggestion?: string }[]; highlight?: { bestAnswer: { turnRef: string; why: string }; improvementStart: { turnRef: string; why: string } } } }>('POST', `/interviews/${id}/finish`),
   listInterviews: () => req<{ items: InterviewSummary[] }>('GET', '/interviews'),
   getInterview: (id: string) => req<{ interview: InterviewDetail }>('GET', `/interviews/${id}`),
   deleteInterview: (id: string) => req<{ ok: boolean }>('DELETE', `/interviews/${id}`),
