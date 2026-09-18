@@ -60,6 +60,22 @@ describe('MockProvider P07 随作答内容确定性变化', () => {
     expect(same).toBe(false);
   });
 
+  it('不同作答内容的整场报告综合分不同 → 复盘「vs 上一场」趋势可见', async () => {
+    const p = new MockProvider();
+    const mkReport = async (transcript: string) => {
+      const ev = (await p.completeTask({ task: 'P07', context: { transcript } })) as { dims: { dim: string; score: number }[] };
+      return (await p.completeTask({
+        task: 'P10',
+        context: { it: { kind: 'coach', durationTier: '30m', outline: { outline: [{ topic: 't', mainQuestion: 'q' }] }, turns: [{ topic: 't', attempts: [{ stage: 'first', transcript, evaluation: ev }] }] } },
+      })) as { overview: { avgScore: number }; dimensionReport: { dim: string; overallScore: number }[] };
+    };
+    const ra = await mkReport('我会考虑分布式锁并做好幂等。');
+    const rb = await mkReport('先给结论再给约束。');
+    // 两端断言：综合分不同，且至少一个维度分不同（趋势面板有可展示差值）。
+    expect(ra.overview.avgScore).not.toBe(rb.overview.avgScore);
+    expect(ra.dimensionReport.some((d, i) => d.overallScore !== rb.dimensionReport[i]?.overallScore)).toBe(true);
+  });
+
   it('方向覆盖按已作答主题去重计（同一主题多轮只算一次）', async () => {
     const p = new MockProvider();
     const ev = { dims: DIMS.map((dim, i) => ({ dim, score: 4 })) };

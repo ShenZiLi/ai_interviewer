@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { buildDims, DIMS, WEIGHTS, toDisplay } from '@ai-interviewer/contracts';
+import { buildDims, DIMS, gradeOf, overallScore, WEIGHTS, toDisplay } from '@ai-interviewer/contracts';
 import type { Provider, VoiceGateway } from './provider.interface.js';
 
 /**
@@ -83,19 +83,19 @@ export class MockProvider implements Provider {
           confidence: 0.86,
         };
       case 'P07': {
-        // 按作答内容做确定性扰动，避免每题评分完全一致（模拟更真实的多题表现）。
+        // 按作答内容做确定性扰动，让每个维度的分随文本轻微变化（跨会话自然分化，
+        // 使复盘「vs 上一场」趋势默认可见）；同文本恒确定。
         const seed = seedOf((context as { transcript?: string })?.transcript);
-        const base = [3, 4, 3.5, 3, 3, 4, 4, 4];
-        const dims = base.map((v, i) => {
-          if (i === 1 || i === 3 || i === 4) return Math.min(4.5, Math.max(2.5, v + ((seed >> (i * 2)) % 2 ? 0.5 : -0.5)));
-          return v;
-        });
+        const vals = [3, 4, 3.5, 3, 3, 4, 4, 4].map((v, i) =>
+          Math.min(4.5, Math.max(2.5, v + ((seed >> i) & 1 ? 0.5 : -0.5))),
+        );
+        const score = overallScore(vals);
         return {
           taskCode: 'P07',
           overall: '切题但深度不足，未说清多实例边界。',
-          grade: 'B',
-          score: 68,
-          dims: buildDims(dims).map((d) => ({ ...d, evidence: ['引用回答片段'] })),
+          grade: gradeOf(score),
+          score,
+          dims: buildDims(vals).map((d) => ({ ...d, evidence: ['引用回答片段'] })),
           strengths: ['先识别了问题并给出思路'],
           weaknesses: ['缺少适用前提与失败处理'],
           suggestions: [{ title: '补充部署边界', body: '先说明多实例，再比较分布式锁与数据库条件更新。' }],
