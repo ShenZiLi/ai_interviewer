@@ -72,6 +72,18 @@ export function App() {
       const r = await run(api.createResume(text));
       setResumeId(r.resume.id);
       setAnalysis(r.resume.analysis.summary);
+      // 换新简历 → 清零与本场/上一场相关的会话状态，避免方向/阶段透传。
+      setInterviewId(undefined);
+      setPhase('intro');
+      setTurn(undefined);
+      setReport(undefined);
+      setReview([]);
+      setCoaching(undefined);
+      setTopics([]);
+      setSelectedDirs([]);
+      setDirs([]);
+      setAdjustNote(undefined);
+      setStartedAt(undefined);
       setPage('prepare');
     },
   });
