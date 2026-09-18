@@ -57,7 +57,7 @@ export type AnswerResult =
 
 export const api = {
   createResume: (text: string, title?: string) =>
-    req<{ resume: { id: string; status: string; analysis: { summary: string } } }>('POST', '/resumes', { text, title }),
+    req<{ resume: { id: string; status: string; analysis: { summary: string; candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] } } }>('POST', '/resumes', { text, title }),
   createInterview: (resumeId: string, kind: 'coach' | 'mock' = 'coach', keepAudio = false) =>
     req<{ interview: { id: string; status: string } }>('POST', '/interviews', {
       resumeId,

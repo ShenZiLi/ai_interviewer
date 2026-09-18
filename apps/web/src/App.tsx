@@ -36,6 +36,7 @@ export function App() {
   const [keepAudio, setKeepAudio] = useState(false);
   const [resumeId, setResumeId] = useState<string>();
   const [analysis, setAnalysis] = useState<string>();
+  const [structured, setStructured] = useState<{ candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] }>();
   const [interviewId, setInterviewId] = useState<string>();
   const [phase, setPhase] = useState<Phase>('intro');
   const [adjustNote, setAdjustNote] = useState<string>();
@@ -72,6 +73,7 @@ export function App() {
       const r = await run(api.createResume(text));
       setResumeId(r.resume.id);
       setAnalysis(r.resume.analysis.summary);
+      setStructured(r.resume.analysis);
       // 换新简历 → 清零与本场/上一场相关的会话状态，避免方向/阶段透传。
       setInterviewId(undefined);
       setPhase('intro');
@@ -84,7 +86,7 @@ export function App() {
       setDirs([]);
       setAdjustNote(undefined);
       setStartedAt(undefined);
-      setPage('prepare');
+      // 停留本页供用户确认/修正，再由「确认分析」进入准备。
     },
   });
 
@@ -511,10 +513,32 @@ export function App() {
                     </div>
                   </section>
                   <section className="card">
-                    <div className="row between"><h2>确认分析结果</h2><span className="tag blue">{analysis ? '待你确认' : '示例'}</span></div>
+                    <div className="row between"><h2>确认分析结果</h2><span className="tag blue">{structured ? '待你确认' : '示例'}</span></div>
                     <label className="field">候选人概况<input value={analysis ?? '林同学 · Java 后端 · 3 年'} readOnly /></label>
-                    {['Java', 'Spring Boot', 'MySQL', 'Redis', 'MQ'].map((x) => <span className="tag" key={x} style={{ marginRight: 6 }}>{x}</span>)}
-                    <div className="resume-block"><h3>电商订单与库存服务</h3><p>负责订单接口与促销库存扣减改造，参与压测及重复下单处理方案讨论。</p></div>
+                    {structured ? (
+                      <>
+                        {(structured.skills ?? []).map((s) => <span className="tag" key={s.name} style={{ marginRight: 6 }}>{s.name}{s.level ? ` · ${s.level}` : ''}</span>)}
+                        {(structured.experiences ?? []).map((e, i) => (
+                          <div className="resume-block" key={i} style={{ marginTop: 14 }}>
+                            <h3>{e.company} · {e.role}</h3>
+                            <p>{e.period}</p>
+                            {(e.bullets ?? []).map((b, j) => <p key={j} style={{ marginBottom: 4 }}>· {b}</p>)}
+                          </div>
+                        ))}
+                        {(structured.projects ?? []).map((p, i) => (
+                          <div className="resume-block" key={`p-${i}`} style={{ marginTop: 14 }}>
+                            <h3>{p.name} · {p.role}</h3>
+                            <p>{p.stack.join(' / ')}</p>
+                            {(p.points ?? []).map((pt, j) => <p key={j} style={{ marginBottom: 4 }}>· {pt}</p>)}
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="resume-block"><h3>电商订单与库存服务</h3><p>负责订单接口与促销库存扣减改造，参与压测及重复下单处理方案讨论。</p></div>
+                    )}
+                    <div className="actions">
+                      <button className="primary" onClick={() => setPage('prepare')} disabled={!resumeId}>确认分析，进入准备 →</button>
+                    </div>
                   </section>
                 </div>
               )}
