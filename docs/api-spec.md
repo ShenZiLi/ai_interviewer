@@ -229,6 +229,7 @@ P10 整场报告生成（模拟模式承载统一评价）。
 - `POST /settings/model`，请求体 `{ mode?, baseUrl?, model?, apiKey? }`：
   - `mode: "custom"` → 立即切到 `HttpProvider`（缺 `baseUrl`/`model` 返回 400）；`mode: "platform"` → 回到 env 决定（无 env 回落 `mock`）。
   - 切换无需重启，对后续所有组合请求生效。预设含 GLM / DeepSeek / Qwen 的 OpenAI 兼容地址与默认模型。
+- `POST /settings/model/test`，请求体 `{ mode?, baseUrl?, model?, apiKey? }`（可选）：连通性测试。对当前选中的（或传入的自定义候选）供应商发一次最轻调用，**不改动运行态**。返回 `{ ok, latencyMs, mode, error? }`；自定义缺 `baseUrl`/`model` 返回 400。
 
 ---
 

@@ -59,6 +59,29 @@ export class ProviderRegistry implements Provider {
     return this.state;
   }
 
+  /**
+   * 连通性测试：对当前选中（或传入的自定义候选）供应商发一次最轻请求，不改变运行时状态。
+   * 返回是否连通、延迟与原因；mock 恒通过。
+   */
+  async test(input?: SetModelConfigInput): Promise<{ ok: boolean; latencyMs: number; mode: ModelConfigState['mode']; error?: string }> {
+    const target: Provider = (() => {
+      if (input?.mode === 'custom') {
+        if (!input.baseUrl?.trim() || !input.model?.trim()) {
+          throw new BadRequestException('自定义 API 需先填写 Base URL 与模型');
+        }
+        return new HttpProvider({ baseUrl: input.baseUrl.trim(), model: input.model.trim(), apiKey: input.apiKey });
+      }
+      return this.current;
+    })();
+    const start = performance.now();
+    try {
+      await target.completeTask({ task: 'P01', context: { text: 'ping' } });
+    } catch (e) {
+      return { ok: false, latencyMs: Math.round(performance.now() - start), mode: this.state.mode, error: String((e as Error)?.message ?? e) };
+    }
+    return { ok: true, latencyMs: Math.round(performance.now() - start), mode: input?.mode === 'custom' ? 'custom' : this.state.mode };
+  }
+
   private fromEnv(): { provider: Provider; state: ModelConfigState } {
     const baseUrl = process.env.AI_BASE_URL;
     const model = process.env.AI_MODEL;

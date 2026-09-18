@@ -36,4 +36,28 @@ describe('模型供应商设置 (e2e)', () => {
     const back = await request(app.getHttpServer()).post('/settings/model').send({ mode: 'platform' }).expect(201);
     expect(back.body.status.mode).toBe('mock');
   });
+
+  it('POST /test：mock 模式连通性恒通过', async () => {
+    await request(app.getHttpServer()).post('/settings/model').send({ mode: 'platform' }).expect(201);
+    const res = await request(app.getHttpServer()).post('/settings/model/test').send({}).expect(201);
+    expect(res.body).toMatchObject({ ok: true, mode: 'mock' });
+    expect(typeof res.body.latencyMs).toBe('number');
+  });
+
+  it('POST /test：传入自定义候选，非法 URL 报不连通且不改运行态', async () => {
+    const before = (await request(app.getHttpServer()).get('/settings/model').expect(200)).body.status.mode;
+    const res = await request(app.getHttpServer())
+      .post('/settings/model/test')
+      .send({ mode: 'custom', baseUrl: 'not-a-valid-url', model: 'm' })
+      .expect(201);
+    expect(res.body.ok).toBe(false);
+    expect(res.body.error).toBeTruthy();
+    // 运行态未被测试改动
+    const after = (await request(app.getHttpServer()).get('/settings/model').expect(200)).body.status.mode;
+    expect(after).toBe(before);
+  });
+
+  it('POST /test：自定义候选缺 baseUrl/model 返回 400', async () => {
+    await request(app.getHttpServer()).post('/settings/model/test').send({ mode: 'custom', model: 'm' }).expect(400);
+  });
 });

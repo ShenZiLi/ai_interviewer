@@ -30,4 +30,11 @@ export class ModelSettingsController {
     const input = modelConfigSchema.parse(body ?? {});
     return { status: this.registry.setConfig(input) };
   }
+
+  /** 连通性测试：对当前（或传入的自定义候选）供应商发一次最轻请求，不切换运行态。 */
+  @Post('test')
+  async test(@Body() body: unknown) {
+    const input = modelConfigSchema.parse(body ?? {});
+    return this.registry.test(input);
+  }
 }

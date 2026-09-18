@@ -494,6 +494,15 @@ export function App() {
     },
   });
   const applyPreset = (p: { baseUrl: string; model: string }) => setCfgMode((c) => ({ ...c, baseUrl: p.baseUrl, model: p.model, mode: 'custom' }));
+  const [testResult, setTestResult] = useState<{ ok: boolean; latencyMs: number; error?: string }>();
+  const testModel = useMutation({
+    mutationFn: async () => {
+      // 测试当前选中的配置（custom 用表单候选，不切换运行态）
+      const r = await api.testModel({ mode: cfgMode.mode, baseUrl: cfgMode.baseUrl, model: cfgMode.model, apiKey: cfgMode.apiKey || undefined });
+      setTestResult(r);
+      return r;
+    },
+  });
 
   // 面试室内软计时：每 30s 刷新，用于「到时提示收尾」而非强制截断。
   useEffect(() => {
@@ -984,8 +993,14 @@ export function App() {
                     <label className="field">API Key<input type="password" value={cfgMode.apiKey} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, apiKey: e.target.value }))} placeholder="sk-…（可选，保存在服务端内存）" /></label>
                     <div className="actions">
                       <button className="primary" onClick={() => saveModel.mutate()} disabled={saveModel.isPending}>{saveModel.isPending ? '保存中…' : '保存并生效'}</button>
+                      <button onClick={() => testModel.mutate()} disabled={testModel.isPending}>{testModel.isPending ? '测试中…' : '测试连接'}</button>
                       <span className="tag">{modelQuery.data ? { mock: '默认样本（无需密钥）', platform: '平台默认', custom: '自定义 API' }[modelQuery.data.status.mode] : '加载中…'}</span>
                     </div>
+                    {testResult && (
+                      <div className="notice" style={{ marginTop: 12, ...(testResult.ok ? { background: '#edf8f3', color: 'var(--green)' } : { background: '#fff1f0', color: '#b34545' }) }}>
+                        {testResult.ok ? `连接成功 · 延迟 ${testResult.latencyMs} ms` : `连接失败：${testResult.error ?? '未知错误'}`}
+                      </div>
+                    )}
                   </section>
                   <section className="card"><h2>账号与数据</h2>
                     <div className="setting-row"><div><b>林同学 · 演示账号</b><p>Web 与小程序使用同一份练习记录</p></div><span className="tag">示例</span></div>

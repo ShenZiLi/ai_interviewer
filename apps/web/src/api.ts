@@ -93,6 +93,8 @@ export const api = {
     req<{ status: { mode: 'platform' | 'custom' | 'mock'; baseUrl?: string; model?: string }; presets: { id: string; vendor: string; baseUrl: string; model: string }[] }>('GET', '/settings/model'),
   setModelConfig: (cfg: { mode?: 'platform' | 'custom'; baseUrl?: string; model?: string; apiKey?: string }) =>
     req<{ status: { mode: 'platform' | 'custom' | 'mock'; baseUrl?: string; model?: string } }>('POST', '/settings/model', cfg),
+  testModel: (cfg?: { mode?: 'platform' | 'custom'; baseUrl?: string; model?: string; apiKey?: string }) =>
+    req<{ ok: boolean; latencyMs: number; mode: string; error?: string }>('POST', '/settings/model/test', cfg ?? {}),
   uploadAudio: async (blob: Blob): Promise<{ ref: string; mime: string }> => {
     const data = await blob.arrayBuffer();
     const base64 = btoa(String.fromCharCode(...new Uint8Array(data)));
