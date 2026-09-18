@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Post } from '@nestjs/common';
 import { z } from 'zod';
 import { InterviewService } from '../core/interview.service.js';
 
@@ -33,6 +33,12 @@ export class InterviewsController {
   @Get(':id')
   get(@Param('id') id: string) {
     return { interview: this.service.get(id) };
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    this.service.remove(id);
+    return { ok: true };
   }
 
   @Post(':id/analyze')

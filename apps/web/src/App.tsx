@@ -436,6 +436,14 @@ export function App() {
     onSuccess: () => histQuery.refetch(),
   });
 
+  /** 删除一场面试记录（任意状态），删除成功后刷新列表。 */
+  const deleteInterview = useMutation({
+    mutationFn: async (id: string) => {
+      await run(api.deleteInterview(id));
+      histQuery.refetch();
+    },
+  });
+
   // ---- 管理员提示词管理 ----
   const [selId, setSelId] = useState<string>();
   const [draftText, setDraftText] = useState('');
@@ -540,6 +548,7 @@ export function App() {
                           ) : (
                             <span className="tag">{h.status}</span>
                           )}
+                          <button className="danger ghost" onClick={() => { if (window.confirm('删除这场面试记录？')) deleteInterview.mutate(h.id); }} disabled={deleteInterview.isPending}>删除</button>
                         </div>
                       ))}
                     </section>

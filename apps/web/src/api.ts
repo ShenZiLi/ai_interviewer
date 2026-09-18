@@ -87,6 +87,7 @@ export const api = {
     req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; dimensionReport?: { dim: string; overallScore: number }[]; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
   listInterviews: () => req<{ items: InterviewSummary[] }>('GET', '/interviews'),
   getInterview: (id: string) => req<{ interview: InterviewDetail }>('GET', `/interviews/${id}`),
+  deleteInterview: (id: string) => req<{ ok: boolean }>('DELETE', `/interviews/${id}`),
   /* ---------- 模型供应商设置 ---------- */
   getModelSettings: () =>
     req<{ status: { mode: 'platform' | 'custom' | 'mock'; baseUrl?: string; model?: string }; presets: { id: string; vendor: string; baseUrl: string; model: string }[] }>('GET', '/settings/model'),

@@ -271,6 +271,11 @@ export class InterviewService {
   get(id: string): InterviewRecord {
     return this.mustGet(id);
   }
+  /** 删除一场面试记录（任意状态）。 */
+  remove(id: string): boolean {
+    if (!this.store.deleteInterview(id)) throw new NotFoundException('面试不存在');
+    return true;
+  }
   list() {
     return this.store.listInterviews();
   }

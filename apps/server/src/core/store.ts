@@ -124,4 +124,9 @@ export class InMemoryStore {
   listInterviews(): InterviewRecord[] {
     return [...this.interviews.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
+  deleteInterview(id: string): boolean {
+    const existed = this.interviews.delete(id);
+    if (existed) this.persist();
+    return existed;
+  }
 }

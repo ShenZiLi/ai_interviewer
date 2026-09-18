@@ -128,6 +128,13 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(got.body.interview.directions).toEqual(['concurrency', 'distributed']);
   });
 
+  it('删除面试记录（DELETE /interviews/:id），再查 404', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).delete(`/interviews/${id}`).expect(200);
+    await request(app.getHttpServer()).get(`/interviews/${id}`).expect(404);
+  });
+
   it('单轮辅导优化（P09）基于末次作答返回示范', async () => {
     const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
     const id = created.body.interview.id;
