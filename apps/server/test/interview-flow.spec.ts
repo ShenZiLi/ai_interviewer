@@ -119,6 +119,35 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(attempts.map((a: { stage: string }) => a.stage)).toEqual(['first', 'after_hint']);
   });
 
+  it('大纲调整模式隔离：模拟自动应用，陪练未确认不应用', async () => {
+    // 陪练未确认 → 不静默应用
+    const coach = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const cid = coach.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${cid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/start`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/outline/adjust`).send({}).expect(201);
+    let got = await request(app.getHttpServer()).get(`/interviews/${cid}`).expect(200);
+    expect(got.body.interview.outlineAdjustedAt).toBeUndefined();
+
+    // 模拟未确认 → 自动应用
+    const mock = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'mock' }).expect(201);
+    const mid = mock.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline/adjust`).send({}).expect(201);
+    got = await request(app.getHttpServer()).get(`/interviews/${mid}`).expect(200);
+    expect(got.body.interview.outlineAdjustedAt).toBeTruthy();
+
+    // 陪练确认后 → 应用
+    await request(app.getHttpServer()).post(`/interviews/${cid}/outline/adjust`).send({ confirm: true }).expect(201);
+    got = await request(app.getHttpServer()).get(`/interviews/${cid}`).expect(200);
+    expect(got.body.interview.outlineAdjustedAt).toBeTruthy();
+  });
+
   it('保留录音偏好持久化到面试详情', async () => {
     const created = await request(app.getHttpServer())
       .post('/interviews')

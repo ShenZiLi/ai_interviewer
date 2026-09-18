@@ -229,7 +229,9 @@ export class InterviewService {
     const it = this.mustGet(id);
     this.assertStatus(it, ['active']);
     const adj = (await this.compose.compose('P05', this.ctx(it, 'P05', { it }))) as OutlineAdjustment;
-    if (adj.mode === 'auto' || confirm === true) {
+    // 模拟模式自动应用；陪练模式仅在用户确认后应用（不因模型 mode=auto 而静默改动大纲）。
+    const apply = it.kind === 'mock' || confirm === true;
+    if (apply) {
       it.outlineAdjustedAt = now();
       this.store.saveInterview(it);
     }
