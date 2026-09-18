@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { buildDims, DIMS } from '@ai-interviewer/contracts';
+import { buildDims, DIMS, WEIGHTS, toDisplay } from '@ai-interviewer/contracts';
 import type { Provider, VoiceGateway } from './provider.interface.js';
 
 /**
@@ -114,15 +114,54 @@ export class MockProvider implements Provider {
           practicePrompt: '可重答一次练习。',
           confidence: 0.74,
         };
-      case 'P10':
+      case 'P10': {
+        // 教练模式：整场报告以本轮实测八维（P07）为准聚合，保证与逐题成绩自洽；
+        // 模拟模式 / 无作答（无实测数据）时回退固定样本。
+        const it = (context as { it?: P10Context })?.it;
+        const mode = it?.kind === 'mock' ? 'mock' : 'coach';
+        const measurements = collectMeasurements(it);
+        if (!measurements.length) {
+          return {
+            taskCode: 'P10',
+            overview: { mode, directionCoverage: { covered: 2, planned: 3 }, durationUsedMinutes: 26, completedAnswers: 0, avgScore: 68 },
+            dimensionReport: DIMS_SAMPLE,
+            highlight: { bestAnswer: { turnRef: 'turn:1', why: '结构清晰' }, improvementStart: { turnRef: 'turn:2', why: '缺边界' } },
+            actionPlan: [{ area: '方案取舍', suggestion: '补充约束与失败处理', practiceSuggestion: '用 STAR 结构重答', priority: 'high' }],
+            confidence: 0.83,
+          };
+        }
+        const perDim = DIMS.map((dim) => {
+          const vals = measurements.map((m) => m[dim]).filter((n): n is number => typeof n === 'number');
+          if (!vals.length) return null;
+          const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+          return Math.round(avg * 2) / 2; // 收敛到 0.5 步进
+        });
+        if (perDim.some((s) => s === null)) {
+          return {
+            taskCode: 'P10',
+            overview: { mode, directionCoverage: { covered: 2, planned: 3 }, durationUsedMinutes: 26, completedAnswers: measurements.length, avgScore: 68 },
+            dimensionReport: DIMS_SAMPLE,
+            highlight: { bestAnswer: { turnRef: 'turn:1', why: '结构清晰' }, improvementStart: { turnRef: 'turn:2', why: '缺边界' } },
+            actionPlan: [{ area: '方案取舍', suggestion: '补充约束与失败处理', practiceSuggestion: '用 STAR 结构重答', priority: 'high' }],
+            confidence: 0.83,
+          };
+        }
+        const scores = perDim as number[];
+        let sum = 0;
+        DIMS.forEach((dim, i) => { sum += WEIGHTS[dim] * scores[i]!; });
+        const avgScore = Math.round(sum * 20);
+        const planned = it?.outline?.outline?.length ?? 3;
+        const covered = Math.min(measurements.length, planned);
+        const durationUsedMinutes = { '15m': 14, '30m': 26, '45m': 40 }[it?.durationTier ?? '30m'] ?? 26;
         return {
           taskCode: 'P10',
-          overview: { mode: 'coach', directionCoverage: { covered: 2, planned: 3 }, durationUsedMinutes: 26, completedAnswers: 3, avgScore: 68 },
-          dimensionReport: DIMS_SAMPLE,
-          highlight: { bestAnswer: { turnRef: 'turn:1', why: '结构清晰' }, improvementStart: { turnRef: 'turn:2', why: '缺边界' } },
-          actionPlan: [{ area: '方案取舍', suggestion: '补充约束与失败处理', practiceSuggestion: '用 STAR 结构重答', priority: 'high' }],
+          overview: { mode, directionCoverage: { covered, planned }, durationUsedMinutes, completedAnswers: measurements.length, avgScore },
+          dimensionReport: DIMS.map((dim, i) => ({ dim, overallScore: scores[i]!, trend: 'flat' })),
+          highlight: { bestAnswer: { turnRef: 'turn:1', why: '整体结构清晰' }, improvementStart: { turnRef: 'turn:1', why: '可补充前提与失败处理' } },
+          actionPlan: lowestDimActions(scores),
           confidence: 0.83,
         };
+      }
       default:
         throw new Error(`MockProvider 未实现任务: ${task}`);
     }
@@ -136,6 +175,45 @@ const DIMS_SAMPLE: { dim: (typeof DIMS)[number]; overallScore: number; trend: 'u
     overallScore: [4, 4, 3.5, 3.5, 3, 3, 4, 3][i],
     trend: 'flat',
   }));
+
+/** P10 需要的面试上下文（取 ctx 中完整 it 的一个子集）。 */
+interface P10Context {
+  kind?: 'coach' | 'mock';
+  durationTier?: string;
+  outline?: { outline?: { topic: string; mainQuestion: string }[] };
+  turns?: { attempts?: { evaluation?: { dims?: { dim: string; score: number }[] } }[] }[];
+}
+
+/** 收集各轮末次作答（P07）的八维实测分（0–5）。 */
+function collectMeasurements(it?: P10Context): Record<string, number>[] {
+  if (!it) return [];
+  const out: Record<string, number>[] = [];
+  for (const turn of it.turns ?? []) {
+    const attempts = turn.attempts ?? [];
+    const st = attempts[attempts.length - 1];
+    if (!st?.evaluation?.dims) continue;
+    const m: Record<string, number> = {};
+    for (const d of st.evaluation.dims) m[d.dim] = d.score;
+    out.push(m);
+  }
+  return out;
+}
+
+/** 依据八维实测均值生成「下一题专注」行动计划（取最低两维）。 */
+function lowestDimActions(scores: number[]): { area: string; suggestion: string; practiceSuggestion: string; priority: 'high' | 'mid' }[] {
+  return DIMS.map((_, i) => i)
+    .sort((a, b) => scores[a] - scores[b])
+    .slice(0, 2)
+    .map((i) => {
+      const dim = DIMS[i];
+      return {
+        area: dim,
+        suggestion: `「${dim}」本场均值 ${toDisplay(scores[i])} 分，建议用 STAR 结构补足适用前提与失败处理。`,
+        practiceSuggestion: `围绕「${dim}」重答一次练习。`,
+        priority: scores[i] <= 3 ? 'high' : 'mid',
+      };
+    });
+}
 
 /** Mock 语音网关：ASR/TTS 返回占位，保证链路可跑。 */
 @Injectable()

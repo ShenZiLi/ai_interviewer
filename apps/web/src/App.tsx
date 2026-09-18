@@ -246,13 +246,13 @@ export function App() {
       const res = await run(api.finish(interviewId!));
       const detail = await run(api.getInterview(interviewId!));
       setReview(buildReview(detail.interview.turns ?? []));
-      const evScore = (turn?.answered?.score ?? 0);
+      const dims = (res.report.dimensionReport ?? []).map((d) => ({ dim: d.dim, displayScore: Math.round(d.overallScore * 20) }));
       setReport({
         avgScore: res.report.overview.avgScore,
-        grade: gradeOf(evScore),
+        grade: gradeOf(res.report.overview.avgScore),
         completed: res.report.overview.completedAnswers,
         coverage: `${res.report.overview.directionCoverage.covered}/${res.report.overview.directionCoverage.planned}`,
-        dims: turn?.answered?.dims ?? [],
+        dims,
         actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}`),
       });
       setPage('report');

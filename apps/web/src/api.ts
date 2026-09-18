@@ -72,7 +72,7 @@ export const api = {
   ) =>
     req<AnswerResult>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript: payload.transcript, audioRef: payload.audioRef, stage: payload.stage ?? 'first' }),
   finish: (id: string) =>
-    req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
+    req<{ report: { overview: { avgScore: number; completedAnswers: number; directionCoverage: { covered: number; planned: number } }; dimensionReport?: { dim: string; overallScore: number }[]; actionPlan: { area: string; suggestion: string; priority: string }[] } }>('POST', `/interviews/${id}/finish`),
   listInterviews: () => req<{ items: InterviewSummary[] }>('GET', '/interviews'),
   getInterview: (id: string) => req<{ interview: InterviewDetail }>('GET', `/interviews/${id}`),
   uploadAudio: async (blob: Blob): Promise<{ ref: string; mime: string }> => {
