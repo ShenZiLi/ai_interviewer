@@ -383,8 +383,10 @@ export function App() {
   };
 
   // ---- 工作台：历史报告 ----
+  const [histFilter, setHistFilter] = useState<'all' | 'active' | 'finished'>('all');
   const histQuery = useQuery({ queryKey: ['interviews'], queryFn: api.listInterviews, enabled: page === 'home' });
   const history = histQuery.data?.items ?? [];
+  const filteredHistory = history.filter((h) => (histFilter === 'active' ? h.status !== 'finished' : histFilter === 'finished' ? h.status === 'finished' : true));
   const finCount = history.filter((h) => h.status === 'finished').length;
   const avgFinished = (() => {
     const scores = history.filter((h) => h.status === 'finished' && h.report).map((h) => h.report!.overview.avgScore);
@@ -537,8 +539,14 @@ export function App() {
 
                   {history.length > 0 && (
                     <section className="card section-title">
-                      <h2>历史场次</h2>
-                      {history.map((h) => (
+                      <div className="row between"><h2>历史场次</h2>
+                        <div className="row" style={{ gap: 4 }}>
+                          {([['all', '全部'], ['active', '进行中'], ['finished', '已完成']] as const).map(([k, label]) => (
+                            <button key={k} aria-pressed={histFilter === k} onClick={() => setHistFilter(k)} style={{ padding: '5px 10px', fontSize: 12 }}>{label}</button>
+                          ))}
+                        </div>
+                      </div>
+                      {filteredHistory.map((h) => (
                         <div className="list-row" key={h.id}>
                           <div>
                             <b>{h.targetRole} · {h.level === 'mid' ? '中级' : h.level === 'junior' ? '初级' : '高级'}</b>
