@@ -377,6 +377,12 @@ export function App() {
     L.push('');
     L.push(`## 八维表现`);
     report.dims.forEach((d) => L.push(`- ${d.dim}：${d.displayScore ?? '—'}`));
+    if (trend && (trend.dims.length > 0 || trend.avgDelta !== 0)) {
+      L.push('');
+      L.push(`## vs 上一场`);
+      L.push(`- 综合表现：${trend.avgDelta >= 0 ? '▲ +' : '▼ '}${Math.abs(trend.avgDelta)}`);
+      trend.dims.forEach((d) => L.push(`- ${d.dim}：${d.delta >= 0 ? '▲ +' : '▼ '}${Math.abs(d.delta)}`));
+    }
     L.push('');
     L.push(`## 行动建议`);
     report.actions.forEach((a, i) => L.push(`${i + 1}. ${a}`));
