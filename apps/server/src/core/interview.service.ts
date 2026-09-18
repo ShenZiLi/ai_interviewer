@@ -22,6 +22,8 @@ import { InMemoryStore, newId, now, type InterviewRecord, type Turn } from './st
 export interface CreateInterviewInput {
   resumeId: string;
   targetRole: string;
+  /** 可选 JD 文本（api-spec 3.1 的 jdText），供岗位分析参考。 */
+  jdText?: string;
   level: 'junior' | 'mid' | 'senior';
   kind?: 'coach' | 'mock';
   durationTier?: '15m' | '30m' | '45m';
@@ -76,6 +78,7 @@ export class InterviewService {
       id: newId('interview'),
       resumeId: input.resumeId,
       targetRole: input.targetRole,
+      jdText: input.jdText,
       level: input.level,
       kind: input.kind ?? 'coach',
       durationTier: input.durationTier ?? '30m',
@@ -133,16 +136,16 @@ export class InterviewService {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
     const resume = this.getResume(it.resumeId);
-    const position = (await this.compose.compose('P02', this.ctx(it, 'P02', { resume: resume.analysis, targetRole: it.targetRole }))) as PositionAnalysis;
+    const position = (await this.compose.compose('P02', this.ctx(it, 'P02', { resume: resume.analysis, targetRole: it.targetRole, jdText: it.jdText }))) as PositionAnalysis;
     it.position = position;
     this.store.saveInterview(it);
     return position;
   }
 
-  async directions(id: string, selected?: string[]): Promise<Directions> {
+  async directions(id: string, selected?: string[], extra?: string): Promise<Directions> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
-    const result = (await this.compose.compose('P03', this.ctx(it, 'P03', { position: it.position, selected }))) as Directions;
+    const result = (await this.compose.compose('P03', this.ctx(it, 'P03', { position: it.position, selected, extra }))) as Directions;
     it.directionsResult = result;
     it.directions = selected ?? result.recommendedDirections.map((d) => d.id);
     this.store.saveInterview(it);

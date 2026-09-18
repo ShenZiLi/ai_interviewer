@@ -63,7 +63,7 @@ export type AnswerResult =
 export const api = {
   createResume: (text: string, title?: string) =>
     req<{ resume: { id: string; status: string; analysis: { summary: string; candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] } } }>('POST', '/resumes', { text, title }),
-  createInterview: (resumeId: string, kind: 'coach' | 'mock' = 'coach', keepAudio = false) =>
+  createInterview: (resumeId: string, kind: 'coach' | 'mock' = 'coach', keepAudio = false, jdText?: string) =>
     req<{ interview: { id: string; status: string } }>('POST', '/interviews', {
       resumeId,
       targetRole: 'Java 后端工程师',
@@ -71,9 +71,10 @@ export const api = {
       kind,
       durationTier: '30m',
       keepAudio,
+      jdText,
     }),
   analyze: (id: string) => req<{ position: { role: string; seniority: string; focusAreas: string[] } }>('POST', `/interviews/${id}/analyze`),
-  directions: (id: string, selected?: string[]) => req<{ recommendedDirections: { recommendedDirections: { id: string; name: string; weight: number }[]; pendingClarify?: { question: string }[] } }>('POST', `/interviews/${id}/directions`, { selectedDirections: selected }),
+  directions: (id: string, selected?: string[], extra?: string) => req<{ recommendedDirections: { recommendedDirections: { id: string; name: string; weight: number }[]; pendingClarify?: { question: string }[] } }>('POST', `/interviews/${id}/directions`, { selectedDirections: selected, extra }),
   outline: (id: string) => req<{ outline: { summary: string; durationPlan: { tier: string; budgetMinutes: number; phases: { phase: string; minutes: number; questionCount: number; focus: string[] }[] }; outline: { topic: string; mainQuestion: string; difficulty?: string }[] } }>('POST', `/interviews/${id}/outline`),
   start: (id: string) => req<{ interview: { id: string; status: string; startedAt?: string } }>('POST', `/interviews/${id}/start`),
   newTurn: (id: string, phase?: 'intro' | 'tech' | 'biz' | 'hr', parentTurnId?: string) =>

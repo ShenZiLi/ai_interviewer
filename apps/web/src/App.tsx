@@ -42,10 +42,12 @@ export function App() {
   const [page, setPage] = useState<NavKey>('home');
   const [text, setText] = useState('三年 Java 后端，负责订单与库存扣减改造，熟悉 Spring Boot、MySQL、Redis、消息队列。');
   const [role, setRole] = useState('Java 后端工程师');
+  const [jd, setJd] = useState('');
   const [level, setLevel] = useState('中级');
   const [mode, setMode] = useState<'coach' | 'mock'>('coach');
   const [duration, setDuration] = useState<'15m' | '30m' | '45m'>('30m');
   const [keepAudio, setKeepAudio] = useState(false);
+  const [extra, setExtra] = useState('');
   const [resumeId, setResumeId] = useState<string>();
   const [analysis, setAnalysis] = useState<string>();
   const [structured, setStructured] = useState<{ candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] }>();
@@ -147,9 +149,9 @@ export function App() {
   const bootstrap = useMutation({
     mutationFn: async () => {
       if (!resumeId) throw new Error('请先导入简历');
-      const interview = await run(api.createInterview(resumeId, mode, keepAudio));
+      const interview = await run(api.createInterview(resumeId, mode, keepAudio, jd || undefined));
       await run(api.analyze(interview.interview.id));
-      const d = await run(api.directions(interview.interview.id));
+      const d = await run(api.directions(interview.interview.id, undefined, extra || undefined));
       setDirs(d.recommendedDirections.recommendedDirections);
       setSelectedDirs(d.recommendedDirections.recommendedDirections.map((x) => x.id));
       setInterviewId(interview.interview.id);
@@ -160,7 +162,7 @@ export function App() {
   /** 按已选方向重新推荐 + 生成大纲（不立即开考，供先预览流程/题目）。 */
   const generatePlan = useMutation({
     mutationFn: async () => {
-      const d = await run(api.directions(interviewId!, selectedDirs.length ? selectedDirs : undefined));
+      const d = await run(api.directions(interviewId!, selectedDirs.length ? selectedDirs : undefined, extra || undefined));
       setDirs(d.recommendedDirections.recommendedDirections);
       const o = await run(api.outline(interviewId!));
       setTopics(o.outline.outline.map((q) => q.topic));
@@ -844,6 +846,7 @@ export function App() {
                           <div className="fields">
                             <label className="field">目标岗位<input value={role} onChange={(e) => setRole(e.target.value)} /></label>
                             <label className="field">目标级别<select value={level} onChange={(e) => setLevel(e.target.value)}><option>初级</option><option>中级</option><option>高级</option></select></label>
+                            <label className="field" style={{ gridColumn: '1 / -1' }}>目标岗位 JD（可选）<textarea value={jd} onChange={(e) => setJd(e.target.value)} rows={3} placeholder="粘贴岗位描述，让出题更有针对性（可选）" /></label>
                           </div>
                           <h3 style={{ marginTop: 18 }}>选择本次练习方式</h3>
                           <div className="choice">
@@ -876,6 +879,7 @@ export function App() {
                             })}
                           </div>
                           <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向</small></div>
+                          <label className="field" style={{ marginTop: 12 }}>补充诉求（可选）<input value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="例如：更看重原理深度、多考察分布式事务…" /></label>
                           <h3 style={{ marginTop: 18 }}>目标岗位：{role} · {level}</h3>
                           <div className="row">{topics.map((t) => <span className="summary-chip" key={t}>{t}</span>)}</div>
                           {outlinePhases && outlinePhases.length > 0 && (

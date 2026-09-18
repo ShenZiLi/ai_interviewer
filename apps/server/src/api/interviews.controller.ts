@@ -5,6 +5,7 @@ import { InterviewService } from '../core/interview.service.js';
 const createSchema = z.object({
   resumeId: z.string(),
   targetRole: z.string().min(1),
+  jdText: z.string().max(2000).optional(),
   level: z.enum(['junior', 'mid', 'senior']).default('mid'),
   kind: z.enum(['coach', 'mock']).optional(),
   durationTier: z.enum(['15m', '30m', '45m']).optional(),
@@ -48,8 +49,8 @@ export class InterviewsController {
 
   @Post(':id/directions')
   async directions(@Param('id') id: string, @Body() body: unknown) {
-    const { selectedDirections } = directionsSchema.parse(body ?? {});
-    return { recommendedDirections: await this.service.directions(id, selectedDirections) };
+    const { selectedDirections, extra } = directionsSchema.parse(body ?? {});
+    return { recommendedDirections: await this.service.directions(id, selectedDirections, extra) };
   }
 
   @Post(':id/outline')

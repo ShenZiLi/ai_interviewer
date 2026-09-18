@@ -58,6 +58,8 @@ export interface InterviewRecord {
   id: string;
   resumeId: string;
   targetRole: string;
+  /** 用户可选提供的目标岗位 JD（候选文本），供 P02 岗位分析参考。 */
+  jdText?: string;
   level: 'junior' | 'mid' | 'senior';
   kind: 'coach' | 'mock';
   durationTier: '15m' | '30m' | '45m';
