@@ -16,13 +16,27 @@ const DEFAULT_PROMPTS: [string, string][] = [
   ['P10', '基于整场转写与各轮评价，生成复盘报告（维度总览、亮点、行动项）。'],
 ];
 
+/** 每个任务实际注入的上下文变量（与 interview.service 中 compose 调用对齐），供管理员「查看上下文变量」。 */
+const TASK_VARIABLES: Record<string, string[]> = {
+  P01: ['text'],
+  P02: ['resume', 'targetRole'],
+  P03: ['position', 'selected'],
+  P04: ['it'],
+  P05: ['it'],
+  P06: ['it', 'phase'],
+  P07: ['it', 'turn', 'transcript'],
+  P08: ['it', 'turn', 'evaluation'],
+  P09: ['it', 'turn', 'transcript'],
+  P10: ['it'],
+};
+
 @Injectable()
 class PromptSeed implements OnModuleInit {
   constructor(@Inject(PromptService) private readonly prompts: PromptService) {}
   onModuleInit(): void {
     if (this.prompts.listTemplates().length > 0) return;
     for (const [taskCode, basePrompt] of DEFAULT_PROMPTS) {
-      this.prompts.createTemplate({ taskCode, name: `任务 ${taskCode}`, basePrompt, variables: ['context', 'resume', 'outline'] });
+      this.prompts.createTemplate({ taskCode, name: `任务 ${taskCode}`, basePrompt, variables: TASK_VARIABLES[taskCode] ?? [] });
     }
   }
 }

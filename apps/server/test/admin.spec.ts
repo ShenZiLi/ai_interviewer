@@ -22,6 +22,14 @@ describe('管理员提示词管理 (e2e)', () => {
     expect(res.body.items.map((t: { taskCode: string }) => t.taskCode)).toContain('P07');
   });
 
+  it('模板带任务对应的上下文变量（供管理员查看）', async () => {
+    const items = (await request(app.getHttpServer()).get('/admin/templates').expect(200)).body.items as { taskCode: string; variables: string[] }[];
+    const by = (code: string) => items.find((t) => t.taskCode === code)!.variables;
+    expect(by('P01')).toContain('text');
+    expect(by('P07')).toEqual(expect.arrayContaining(['it', 'turn', 'transcript']));
+    expect(by('P10')).toContain('it');
+  });
+
   it('任务编码唯一性冲突返回 409', async () => {
     const some = (await request(app.getHttpServer()).get('/admin/templates').expect(200)).body.items[0];
     await request(app.getHttpServer())

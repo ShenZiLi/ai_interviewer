@@ -1063,7 +1063,7 @@ export function App() {
                     <div className="row between"><h2>任务模板</h2><span className="tag blue">P01—P10</span></div>
                     {tplQuery.isLoading ? <p className="muted">加载中…</p> : (tplQuery.data?.items ?? []).map((t) => (
                       <div className="list-row" key={t.id}>
-                        <div><b>{t.taskCode} · {t.name}</b><p>{t.description}</p></div>
+                        <div><b>{t.taskCode} · {t.name}</b><p>{t.description}</p>{t.variables?.length ? <p className="muted" style={{ marginTop: 6 }}>上下文变量：{t.variables.map((v) => <span className="tag" key={v} style={{ marginRight: 4 }}>{v}</span>)}</p> : null}</div>
                         <button className={selId === t.id ? 'primary' : ''} onClick={() => setSelId(t.id)}>编辑</button>
                       </div>
                     ))}

@@ -101,7 +101,7 @@ export const api = {
     return req<{ ref: string; mime: string }>('POST', '/files/audio', { data: base64, mime: blob.type });
   },
   /* ---------- 管理员提示词 ---------- */
-  listTemplates: () => req<{ items: { id: string; taskCode: string; name: string; description: string; basePrompt: string }[] }>('GET', '/admin/templates'),
+  listTemplates: () => req<{ items: { id: string; taskCode: string; name: string; description: string; basePrompt: string; variables: string[] }[] }>('GET', '/admin/templates'),
   listVersions: (id: string) =>
     req<{ items: { id: string; versionNo: number; status: 'draft' | 'tested' | 'published' | 'rolled_back'; content: string; basedOnId?: string; createdAt: string }[] }>('GET', `/admin/templates/${id}/versions`),
   updateDraft: (id: string, basePrompt: string) =>
