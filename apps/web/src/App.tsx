@@ -59,6 +59,8 @@ export function App() {
   const [outlineQuestions, setOutlineQuestions] = useState<{ topic: string; mainQuestion: string }[]>();
   const [turn, setTurn] = useState<RoomTurn>();
   const [phaseProgress, setPhaseProgress] = useState<Partial<Record<Phase, number>>>({});
+  /** 自我介绍（陪练）后待确认的大纲调整建议。 */
+  const [pendingAdjust, setPendingAdjust] = useState<{ type: string; after: string }[]>();
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
   const [revising, setRevising] = useState(false);
@@ -104,6 +106,7 @@ export function App() {
       setPhase('intro');
       setTurn(undefined);
       setPhaseProgress({});
+      setPendingAdjust(undefined);
       setReport(undefined);
       setTrend(undefined);
       setReview([]);
@@ -176,6 +179,7 @@ export function App() {
       setCoaching(undefined);
       setRevising(false);
       reanswerStartRef.current = undefined;
+      setPendingAdjust(undefined);
       setRecording(false);
       setFollowUpCount(0);
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: false });
@@ -192,6 +196,7 @@ export function App() {
       setCoaching(undefined);
       setRevising(false);
       reanswerStartRef.current = undefined;
+      setPendingAdjust(undefined);
       setRecording(false);
       setFollowUpCount((c) => c + 1);
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: true });
@@ -209,13 +214,13 @@ export function App() {
     finish.mutate();
   };
 
-  /** 答完一题向前推进环节；自我介绍结束自动触发大纲调整(P05)。 */
-  const advance = () => {
+  /** 推进到下一环节（含自我介绍后的大纲调整触发）；hr 之后结束。 */
+  const advancePhase = () => {
     const planned = plannedOf(phase);
     const done = phaseProgress[phase] ?? 0;
     if (planned && done < planned && !window.confirm(`本环节计划 ${planned} 题，目前已答 ${done}。确定进入下一环节吗？`)) return;
     const idx = PHASES.indexOf(phase);
-    if (phase === 'intro') {
+    if (phase === 'intro' && mode === 'mock') {
       setAdjustNote('自我介绍后：已按新线索自动更新后续大纲。');
       api.adjustOutline(interviewId!, true).catch(() => setAdjustNote('自我介绍后：大纲自动更新（可选）。'));
     }
@@ -223,6 +228,32 @@ export function App() {
     if (!next) { goFinish(); return; }
     setPhase(next);
     beginTurn.mutate();
+  };
+
+  /** 答完一题向前推进；自我介绍（陪练）先生成大纲调整供确认，不直接推进。 */
+  const advance = () => {
+    if (phase === 'intro' && mode === 'coach') {
+      run(api.adjustOutline(interviewId!, false))
+        .then((adj) => setPendingAdjust(adj.adjustment.changes ?? []))
+        .catch(() => setPendingAdjust([]));
+      return;
+    }
+    advancePhase();
+  };
+
+  /** 确认应用大纲调整后进入下一环节；模拟模式自动应用即此语义。 */
+  const applyAdjustAndAdvance = () => {
+    api.adjustOutline(interviewId!, true)
+      .then(() => setAdjustNote('已按确认应用自我介绍后的大纲调整。'))
+      .catch(() => setAdjustNote('自我介绍后：大纲调整应用失败（可继续）。'));
+    setPendingAdjust(undefined);
+    advancePhase();
+  };
+
+  /** 跳过自我介绍后的大纲调整，直接进入下一环节。 */
+  const skipAdjustAndAdvance = () => {
+    setPendingAdjust(undefined);
+    advancePhase();
   };
 
   const mediaRef = useRef<MediaRecorder | null>(null);
@@ -284,6 +315,7 @@ export function App() {
         const start = reanswerStartRef.current ?? answeredAt;
         reanswer = { readMs: Math.max(0, start - answeredAt), reanswerMs: Math.max(0, now - start) };
         reanswerStartRef.current = undefined;
+      setPendingAdjust(undefined);
       }
       const patch = { answeredAt, ...(reanswer ? { reanswer } : {}) };
       // 主问题首次作答计入本环节进度（追问轮与重答不计）。
@@ -543,6 +575,7 @@ export function App() {
       setCoaching(undefined);
       setRevising(false);
       reanswerStartRef.current = undefined;
+      setPendingAdjust(undefined);
       setRecording(false);
       setFollowUpCount(0);
       setAdjustNote('已从上次进度继续，这是本环节下一题。');
@@ -860,6 +893,16 @@ export function App() {
                       );
                     })}
                     {adjustNote && <div className="notice" style={{ marginTop: 10 }}>{adjustNote}</div>}
+                    {pendingAdjust !== undefined && (
+                      <div className="notice" style={{ marginTop: 10 }}>
+                        <b>自我介绍后的大纲调整建议</b>
+                        <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c, i) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
+                        <div className="row" style={{ marginTop: 8 }}>
+                          <button style={{ padding: '4px 10px', fontSize: 12 }} onClick={applyAdjustAndAdvance}>确认应用</button>
+                          <button className="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={skipAdjustAndAdvance}>跳过</button>
+                        </div>
+                      </div>
+                    )}
                     <div className="room-meta">{duration} 分钟 · {level}
                       {(() => {
                         const budget = parseInt(duration, 10);
@@ -1058,7 +1101,8 @@ export function App() {
                     </section>
                   )}
                   <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined);
-      setPhaseProgress({}); setReport(undefined);
+      setPhaseProgress({});
+      setPendingAdjust(undefined); setReport(undefined);
       setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined);
       setOutlineQuestions(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
