@@ -1,7 +1,7 @@
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
-import { api, type AnswerResult, type InterviewDetail } from './api';
+import { api, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -55,6 +55,7 @@ export function App() {
   const [clock, setClock] = useState(Date.now());
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
   const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string }[] }[]>([]);
+  const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [error, setError] = useState<string>();
 
   const run = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => { setError(String((e as Error)?.message ?? e)); throw e; });
@@ -69,6 +70,27 @@ export function App() {
         return { id: t.id, parentId: t.parentTurnId, phase: t.phase, question: t.question, attempts, transcript: last.transcript, score: last.score, grade: last.grade };
       });
 
+  /** 计算「本场相对上一场」的趋势：综合分差值 + 各维差值（差值为 0 的维度省略）。 */
+  const buildTrend = (prev: InterviewReport, curAvg: number, curDims: { dim: string; displayScore?: number }[]) => {
+    const prevDims = prev.dimensionReport ?? [];
+    const dims = curDims
+      .map((d) => {
+        const p = prevDims.find((x) => x.dim === d.dim);
+        return { dim: d.dim, delta: p ? (d.displayScore ?? 0) - Math.round(p.overallScore * 20) : 0 };
+      })
+      .filter((x) => x.delta !== 0);
+    return { avgDelta: Math.round(curAvg - prev.overview.avgScore), dims };
+  };
+
+  /** 抓取本场之前最近一场已完成面试的报告（用于横向对比；无上一场则返回 undefined）。 */
+  const fetchPrevReport = async (curId: string): Promise<InterviewReport | undefined> => {
+    const items = (await api.listInterviews()).items;
+    const prev = items
+      .filter((h) => h.status === 'finished' && h.report && h.id !== curId)
+      .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
+    return prev[0]?.report;
+  };
+
   const parseResume = useMutation({
     mutationFn: async () => {
       const r = await run(api.createResume(text));
@@ -80,6 +102,7 @@ export function App() {
       setPhase('intro');
       setTurn(undefined);
       setReport(undefined);
+      setTrend(undefined);
       setReview([]);
       setCoaching(undefined);
       setTopics([]);
@@ -299,6 +322,8 @@ export function App() {
         dims,
         actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}`),
       });
+      const prev = await fetchPrevReport(interviewId!);
+      setTrend(prev ? buildTrend(prev, res.report.overview.avgScore, dims) : undefined);
       setPage('report');
     },
   });
@@ -401,14 +426,17 @@ export function App() {
       setRole(detail.interview.targetRole);
       setLevel(detail.interview.level === 'senior' ? '高级' : detail.interview.level === 'junior' ? '初级' : '中级');
       setReview(buildReview(detail.interview.turns ?? []));
+      const dims = (r.dimensionReport ?? []).map((d) => ({ dim: d.dim, displayScore: Math.round(d.overallScore * 20) }));
       setReport({
         avgScore: r.overview.avgScore,
         grade: gradeOf(r.overview.avgScore),
         completed: r.overview.completedAnswers,
         coverage: `${r.overview.directionCoverage.covered}/${r.overview.directionCoverage.planned}`,
-        dims: (r.dimensionReport ?? []).map((d) => ({ dim: d.dim, displayScore: Math.round(d.overallScore * 20) })),
+        dims,
         actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}`),
       });
+      const prev = await fetchPrevReport(id);
+      setTrend(prev ? buildTrend(prev, r.overview.avgScore, dims) : undefined);
       setPage('report');
     },
     onSuccess: () => histQuery.refetch(),
@@ -832,6 +860,19 @@ export function App() {
                         <div className="score-row" key={d.dim}><span style={{ minWidth: 100 }}>{d.dim}</span><span className="bar"><i style={{ width: `${d.displayScore ?? 0}%` }} /></span><b>{d.displayScore ?? '—'}</b></div>
                       ))}
                     </div>
+                    {trend && (trend.dims.length > 0 || trend.avgDelta !== 0) && (
+                      <div className="trend-block">
+                        <div className="row between" style={{ marginBottom: 10 }}>
+                          <b>vs 上一场</b>
+                          <span className={`delta ${trend.avgDelta >= 0 ? 'up' : 'down'}`}>{trend.avgDelta >= 0 ? '▲' : '▼'} 综合 {Math.abs(trend.avgDelta)} 分</span>
+                        </div>
+                        <div className="dimension-grid">
+                          {trend.dims.map((d) => (
+                            <div className="score-row" key={d.dim}><span style={{ minWidth: 100 }}>{d.dim}</span><span className={`delta ${d.delta >= 0 ? 'up' : 'down'}`}>{d.delta >= 0 ? '▲' : '▼'} {Math.abs(d.delta)}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </section>
                   <div className="grid2 section-title">
                     <section className="card"><h2>下一个题，专注这三件事</h2>
@@ -868,7 +909,8 @@ export function App() {
                       })}
                     </section>
                   )}
-                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
+                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined); setReport(undefined);
+      setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setOutlinePhases(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
               )}
 

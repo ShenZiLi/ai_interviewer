@@ -65,7 +65,7 @@
 ### 5.3 M1 验收核对（当前状态）
 
 > 现状盘点（持续更新）：Mock 文本供应商默认跑通全链路；接入真实文本模型可用 `settings` 运行期热切换或 `.env`。
-> 验证命令：`pnpm -r run typecheck` 与 `pnpm -r run test`（全仓当前 80 测试全绿：contracts 15 / web 1 / server 64）。
+> 验证命令：`pnpm -r run typecheck` 与 `pnpm -r run test`（全仓当前 83 测试全绿：contracts 15 / web 1 / server 67）。
 
 | # | 验收项 | 通过证据 |
 |---|---|---|

@@ -7,5 +7,7 @@
 @media(max-width:600px){.prototype-bar{padding:0 12px;height:50px;font-size:10px}.demo-note{display:none}.prototype-bar b{margin-right:5px}.device-switch button{padding:5px 9px}#viewport.mobile{margin:0 auto;border:0;border-radius:0;min-height:calc(100vh - 50px);box-shadow:none}}
 /* 回答转写回顾 */
 .review-item{border-top:1px dashed var(--line);padding:14px 0}.review-item:first-child{border-top:0}.review-item .tag small{font-size:10px;margin-left:3px}
+/* 相对上一场趋势 */
+.trend-block{margin-top:20px;border-top:1px dashed var(--line);padding-top:16px}.trend-block .row.between b{font-size:13px}.delta{font-size:11px;font-weight:600}.delta.up{color:var(--green)}.delta.down{color:#b34545}
 /* 陪练重答并列对比 */
 .revise-compare{border-bottom:1px dashed var(--line);padding-bottom:12px;margin-bottom:6px}.revise-compare .score-row{font-size:11px}.revise-compare .score-row:first-child .bar{background:transparent;flex:1}.revise-compare .score-row b{font-weight:600;font-size:11px;min-width:28px;text-align:right}
