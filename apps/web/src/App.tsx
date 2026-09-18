@@ -1254,8 +1254,11 @@ export function App() {
 
               {active === 'report' && !report && (
                 <section className="card">
-                  <div className="empty"><div className="empty-icon">◎</div>还没有复盘报告。<br />完成一场面试后，整场八维报告会出现在这里；<br />也可以从「工作台」打开历史场次的报告。</div>
-                  <div className="actions"><button className="primary" onClick={() => setPage('home')}>回工作台 →</button></div>
+                  <div className="empty"><div className="empty-icon">◎</div>还没有打开复盘报告。<br />完成一场面试后，整场八维报告会出现在这里；<br />也可以从「工作台」或下方按钮打开历史报告。</div>
+                  <div className="actions">
+                    <button onClick={async () => { try { const items = (await api.listInterviews()).items; const latest = items.filter((h) => h.status === 'finished' && h.report).sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))[0]; if (latest) openHistory.mutate(latest.id); else setError('还没有已完成场次'); } catch (e) { setError(String((e as Error)?.message ?? e)); } }}>打开最近一场报告 →</button>
+                    <button className="primary" onClick={() => setPage('home')}>回工作台 →</button>
+                  </div>
                 </section>
               )}
 
