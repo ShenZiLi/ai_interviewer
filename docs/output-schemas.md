@@ -242,6 +242,13 @@
 
 **校验规则**：`overview`、`dimensionReport`、`highlight`、`actionPlan` 必填；`dimensionReport[].dim` 覆盖量表维度；`evidenceRefs` 引用的 turn/attempt 存在否则丢弃；`trend ∈ {up, flat, down}`；`priority ∈ {high, mid, low}`；`overview.mode` 须与 `interview.kind` 一致。
 
+**服务端归一（整场与逐题自洽）**：报告生成后由 `normalizeSessionReport` guard 归一：
+- 只要本场存在逐题 P07 实测（教练模式各轮、模拟模式静默评估存档的末次作答），就把 `overview.avgScore`、`dimensionReport` 重算为八维实测聚合（`avgScore = Σ(weight×dim)×20`，维度取各轮均值、0.5 步进收敛），`completedAnswers` 统计实测作答数。
+- 保留模型/报告的定性字段（`mode`、coverage、时长、`highlight`、`actionPlan`、各 `dim.trend`）；无实测数据（未作答）时原样保留。
+- 意义：即使真实模型在 P10 给出偏移的分数，服务端也将其纠正到与逐题一致的尺度，避免「整场 68 分、逐题却普遍 90+」这类自相矛盾。
+
+**模拟模式（kind=mock）**：各轮作答时不向用户返回即时评价，但服务端仍调用 P07 并**静默评估存档**（响应仅 `{recorded:true}`）；P10 整场报告据此基于真实作答合成「统一复盘」，而非固定样本兜底。
+
 ---
 
 ## 实现落点
