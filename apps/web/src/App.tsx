@@ -44,7 +44,7 @@ export function App() {
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
   const [revising, setRevising] = useState(false);
-  const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number }[]>([]);
+  const [scoreHistory, setScoreHistory] = useState<{ stage: string; score: number; dims: { dim: string; displayScore?: number }[]; grade?: string }[]>([]);
   const [followUpCount, setFollowUpCount] = useState(0);
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; dims: { dim: string; displayScore?: number }[]; actions: string[] }>();
   const [review, setReview] = useState<{ phase: string; question: string; transcript: string; score?: number; grade?: string }[]>([]);
@@ -158,6 +158,21 @@ export function App() {
     }
   };
 
+  /** 首次与复发各次作答的按阶段评分记录（用于陪练并列对比，不以提示后最高分计入统计）。 */
+  const compareDims = (() => {
+    if (scoreHistory.length < 2) return [];
+    const a = scoreHistory[0];
+    const b = scoreHistory[scoreHistory.length - 1];
+    const keys = new Set<string>();
+    a.dims.forEach((d) => keys.add(d.dim));
+    b.dims.forEach((d) => keys.add(d.dim));
+    return [...keys].map((dim) => ({
+      dim,
+      a: a.dims.find((d) => d.dim === dim)?.displayScore,
+      b: b.dims.find((d) => d.dim === dim)?.displayScore,
+    }));
+  })();
+
   const submitAnswer = useMutation({
     mutationFn: async (payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' }) => {
       setRecording(false);
@@ -165,7 +180,11 @@ export function App() {
       const stage = payload.stage ?? (revising ? 'after_hint' : 'first');
       const transcript = payload.transcript ?? draft;
       const answered = await run(api.answer(interviewId!, turn!.id, payload.audioRef ? { audioRef: payload.audioRef, stage } : { transcript, stage }));
-      setScoreHistory((h) => [...h, { stage, score: 'evaluation' in answered && answered.evaluation ? answered.evaluation.score : 0 }]);
+      setScoreHistory((h) => {
+        if ('recorded' in answered && answered.recorded) return [...h, { stage, score: 0, dims: [] }];
+        const coach = answered as Extract<AnswerResult, { evaluation: { score: number } }>;
+        return [...h, { stage, score: coach.evaluation.score, dims: coach.evaluation.dims, grade: coach.evaluation.grade }];
+      });
       setRevising(false);
       if ('recorded' in answered && answered.recorded) {
         setTurn({
@@ -502,11 +521,21 @@ export function App() {
                         ) : (
                           <>
                             {scoreHistory.length > 1 ? (
-                              <p className="subtitle">首次 {scoreHistory[0].score} 分 → 复发 {scoreHistory[scoreHistory.length - 1].score} 分</p>
+                              <div className="revise-compare">
+                                <p className="subtitle">首次 {scoreHistory[0].score} 分（{scoreHistory[0].grade}） → 复发 {scoreHistory[scoreHistory.length - 1].score} 分（{scoreHistory[scoreHistory.length - 1].grade}）· 逐维并列，不以提示后最高分计入</p>
+                                <div className="score-row"><span style={{ minWidth: 92 }}>维度</span><span className="bar" /><b>首次</b><span className="bar" /><b>复发</b></div>
+                                {compareDims.map((c) => (
+                                  <div className="score-row" key={c.dim}>
+                                    <span style={{ minWidth: 92 }}>{c.dim}</span>
+                                    <span className="bar"><i style={{ width: `${c.a ?? 0}%` }} /></span><b>{c.a ?? '—'}</b>
+                                    <span className="bar"><i style={{ width: `${c.b ?? 0}%` }} /></span><b>{c.b ?? '—'}</b>
+                                  </div>
+                                ))}
+                              </div>
                             ) : null}
                             <div className="score">{turn.answered.score}<small> / 100 · {turn.answered.grade}</small></div>
                             <p className="subtitle">{turn.answered.overall}</p>
-                            {turn.answered.dims.map((d) => (
+                            {scoreHistory.length < 2 && turn.answered.dims.map((d) => (
                               <div className="score-row" key={d.dim}><span>{d.dim}</span><span className="bar"><i style={{ width: `${d.displayScore ?? 0}%` }} /></span><span>{d.displayScore ?? '—'}</span></div>
                             ))}
                             <div className="feedback-block"><h3>做得好的地方</h3><p>{turn.answered.strengths.join('；') || '—'}</p></div>
