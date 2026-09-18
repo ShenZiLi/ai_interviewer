@@ -154,4 +154,7 @@ export class InMemoryStore {
   deleteAudio(ref: string): boolean {
     return this.audios.delete(ref);
   }
+  listAudioRefs(): string[] {
+    return [...this.audios.keys()];
+  }
 }

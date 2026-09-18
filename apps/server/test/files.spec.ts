@@ -141,4 +141,29 @@ describe('录音保留策略 (e2e)', () => {
     // 记录删除后音频一并清理
     await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(404);
   });
+
+  it('孤立录音（上传后未作答）在新面试创建时被清扫', async () => {
+    const up = await uploadAudio('orphan-sweep').expect(201);
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(200);
+    // 创建一个新面试触发清扫 → 未附着的孤立音频被回收
+    const resume = await request(app.getHttpServer()).post('/resumes').send({ text: '三年 Java 后端。' }).expect(201);
+    await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId: resume.body.resume.id, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(404);
+  });
+
+  it('已附着到作答的录音不会被清扫（仍在进行的场次）', async () => {
+    const { interviewId, turnId } = await setupInterview(app);
+    const up = await uploadAudio('attached-kept').expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${turnId}/answer`).send({ audioRef: up.body.ref }).expect(201);
+    // 再建一个新面试触发清扫 → 已附着的不受影响
+    const resume = await request(app.getHttpServer()).post('/resumes').send({ text: '三年 Java 后端。' }).expect(201);
+    await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId: resume.body.resume.id, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    await request(app.getHttpServer()).get(`/files/audio/${up.body.ref}`).expect(200);
+  });
 });

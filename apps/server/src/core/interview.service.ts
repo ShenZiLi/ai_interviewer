@@ -71,6 +71,7 @@ export class InterviewService {
 
   create(input: CreateInterviewInput): InterviewRecord {
     if (!this.store.getResume(input.resumeId)) throw new NotFoundException('简历不存在');
+    this.sweepOrphanAudio();
     const interview: InterviewRecord = {
       id: newId('interview'),
       resumeId: input.resumeId,
@@ -87,6 +88,23 @@ export class InterviewService {
       updatedAt: now(),
     };
     return this.store.saveInterview(interview);
+  }
+
+  /** 清理未被任何面试轮次引用的孤立录音（上传后未作答/作答失败残留），防止内存泄漏。 */
+  private sweepOrphanAudio(): number {
+    const referenced = new Set<string>();
+    for (const it of this.store.listInterviews()) {
+      for (const t of it.turns) {
+        for (const a of t.attempts) {
+          if (a.audioRef) referenced.add(a.audioRef);
+        }
+      }
+    }
+    let removed = 0;
+    for (const ref of this.store.listAudioRefs()) {
+      if (!referenced.has(ref) && this.store.deleteAudio(ref)) removed++;
+    }
+    return removed;
   }
 
   private mustGet(id: string): InterviewRecord {
