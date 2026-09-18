@@ -15,7 +15,7 @@ import {
 import { ComposeService } from '../ai/compose.service.js';
 import { MockVoiceGateway } from '../ai/mock.provider.js';
 import { PromptService } from '../admin/prompt.service.js';
-import { normalizeEvaluation } from './evaluation.guard.js';
+import { normalizeEvaluation, normalizeSessionReport } from './evaluation.guard.js';
 import { InMemoryStore, newId, now, type InterviewRecord, type Turn } from './store.js';
 
 export interface CreateInterviewInput {
@@ -236,7 +236,9 @@ export class InterviewService {
   async finish(id: string): Promise<SessionReport> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['active']);
-    const report = (await this.compose.compose('P10', this.ctx(it, 'P10', { it }))) as SessionReport;
+    let report = (await this.compose.compose('P10', this.ctx(it, 'P10', { it }))) as SessionReport;
+    // 整场报告与逐题八维实测对齐（教练模式有 P07 数据时重算聚合值）。
+    report = normalizeSessionReport(report, it.turns);
     it.report = report;
     it.status = 'finished';
     this.store.saveInterview(it);

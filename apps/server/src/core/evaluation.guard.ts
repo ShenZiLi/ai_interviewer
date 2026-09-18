@@ -1,4 +1,4 @@
-import { DIMS, gradeOf, overallScore, SELF_CONSISTENT_TOLERANCE, toDisplay, WEIGHTS, type Evaluation } from '@ai-interviewer/contracts';
+import { DIMS, gradeOf, overallScore, SELF_CONSISTENT_TOLERANCE, toDisplay, WEIGHTS, type Evaluation, type SessionReport } from '@ai-interviewer/contracts';
 
 /**
  * 评分业务规则 guard（对齐 docs/output-schemas.md §0）：
@@ -25,4 +25,41 @@ export function normalizeEvaluation(input: Evaluation): Evaluation {
   if (score !== input.score) flags.add('self_inconsistent');
 
   return { ...input, dims, score, grade: gradeOf(score), flags: [...flags] };
+}
+
+/**
+ * 整场报告 guard：在存在逐题实测（P07）时，将 overview.avgScore 与 dimensionReport 重算为
+ * 八维实测的聚合（每题取末次作答），保证整场分数与逐题成绩自洽（同 mock P10 口径）。
+ * 保留模型的定性字段（mode/coverage/时长/highlight/actionPlan/trend 等）；
+ * 无实测数据时原样返回。返回副本，不原地改。
+ */
+export function normalizeSessionReport(report: SessionReport, turns: { attempts?: { evaluation?: unknown }[] }[]): SessionReport {
+  const perTurn: Evaluation[] = [];
+  for (const t of turns) {
+    const attempts = t.attempts ?? [];
+    const last = attempts[attempts.length - 1];
+    if (last?.evaluation) perTurn.push(last.evaluation as Evaluation);
+  }
+  if (!perTurn.length) return report;
+
+  const dimScores: (number | null)[] = DIMS.map((dim) => {
+    const vals = perTurn.map((e) => e.dims.find((d) => d.dim === dim)?.score).filter((n): n is number => typeof n === 'number');
+    if (!vals.length) return null;
+    return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 2) / 2; // 收敛到 0.5 步进
+  });
+  if (dimScores.some((s) => s === null)) return report;
+
+  const scores = (dimScores as number[]).slice();
+  let sum = 0;
+  DIMS.forEach((dim, i) => { sum += WEIGHTS[dim] * scores[i]; });
+  const avgScore = Math.round(sum * 20);
+
+  const trendOf = new Map<string, SessionReport['dimensionReport'][number]['trend']>(report.dimensionReport.map((d) => [d.dim, d.trend]));
+  const dimensionReport = DIMS.map((dim, i) => ({ dim, overallScore: scores[i], trend: trendOf.get(dim) ?? 'flat' })) as SessionReport['dimensionReport'];
+
+  return {
+    ...report,
+    overview: { ...report.overview, avgScore, completedAnswers: perTurn.length },
+    dimensionReport,
+  };
 }
