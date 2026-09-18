@@ -178,6 +178,9 @@ importers:
       '@ai-interviewer/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@fastify/cors':
+        specifier: ^11.3.0
+        version: 11.3.0
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.2.5(reflect-metadata@0.2.2)(rxjs@7.8.2)
