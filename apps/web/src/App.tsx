@@ -4,6 +4,7 @@ import { gradeOf } from '@ai-interviewer/contracts';
 import { api, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
 import { buildTrend } from './lib/trend';
 import { recentScores } from './lib/session-trend';
+import { filterByRole, uniqueRoles } from './lib/session-filter';
 import { durLabel } from './lib/durations';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
@@ -429,16 +430,22 @@ export function App() {
 
   // ---- 工作台：历史报告 ----
   const [histFilter, setHistFilter] = useState<'all' | 'active' | 'finished'>('all');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
   const histQuery = useQuery({ queryKey: ['interviews'], queryFn: api.listInterviews, enabled: page === 'home' });
   const history = histQuery.data?.items ?? [];
-  const filteredHistory = history.filter((h) => (histFilter === 'active' ? h.status !== 'finished' : histFilter === 'finished' ? h.status === 'finished' : true));
-  const finCount = history.filter((h) => h.status === 'finished').length;
+  const roles = uniqueRoles(history);
+  /** 目标岗位缩范围（岗位被删光时回落到「全部」，避免空列表）。 */
+  const effectiveRole = roleFilter !== 'all' && !roles.includes(roleFilter) ? 'all' : roleFilter;
+  /** 按目标岗位缩范围后的场次（「全部」为 all）。 */
+  const scoped = filterByRole(history, effectiveRole);
+  const filteredHistory = scoped.filter((h) => (histFilter === 'active' ? h.status !== 'finished' : histFilter === 'finished' ? h.status === 'finished' : true));
+  const finCount = scoped.filter((h) => h.status === 'finished').length;
   const avgFinished = (() => {
-    const scores = history.filter((h) => h.status === 'finished' && h.report).map((h) => h.report!.overview.avgScore);
+    const scores = scoped.filter((h) => h.status === 'finished' && h.report).map((h) => h.report!.overview.avgScore);
     return scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
   })();
-  /** 最近几场综合分（旧→新），用于工作台「成绩走势」。 */
-  const scores = recentScores(history.filter((h) => h.status === 'finished'), 5);
+  /** 最近几场综合分（旧→新，按当前岗位范围），用于工作台「成绩走势」。 */
+  const scores = recentScores(scoped.filter((h) => h.status === 'finished'), 5);
   const openHistory = useMutation({
     mutationFn: async (id: string) => {
       const detail = await run(api.getInterview(id));
@@ -611,6 +618,14 @@ export function App() {
 
                   {history.length > 0 && (
                     <section className="card section-title">
+                      {roles.length > 1 && (
+                        <div className="row" style={{ marginBottom: 14, gap: 6 }}>
+                          <small style={{ marginRight: 4 }}>岗位：</small>
+                          {['all', ...roles].map((r) => (
+                            <button key={r} aria-pressed={roleFilter === r} onClick={() => setRoleFilter(r)} style={{ padding: '4px 10px', fontSize: 12 }}>{r === 'all' ? '全部' : r}</button>
+                          ))}
+                        </div>
+                      )}
                       <div className="row between"><h2>历史场次</h2>
                         <div className="row" style={{ gap: 4 }}>
                           {([['all', '全部'], ['active', '进行中'], ['finished', '已完成']] as const).map(([k, label]) => (
