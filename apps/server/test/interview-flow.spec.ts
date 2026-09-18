@@ -91,4 +91,22 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
       .send({ transcript: 'x' })
       .expect(409);
   });
+
+  it('模式隔离：模拟面试作答仅记录，不返回即时评价', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'mock', durationTier: '30m' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+    const res = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '只记录不反馈。', stage: 'first' })
+      .expect(201);
+    expect(res.body).toEqual({ recorded: true });
+  });
 });

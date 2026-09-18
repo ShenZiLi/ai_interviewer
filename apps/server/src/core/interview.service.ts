@@ -11,6 +11,7 @@ import type {
   SessionReport,
 } from '@ai-interviewer/contracts';
 import { ComposeService } from '../ai/compose.service.js';
+import { normalizeEvaluation } from './evaluation.guard.js';
 import { InMemoryStore, newId, now, type InterviewRecord, type Turn } from './store.js';
 
 export interface CreateInterviewInput {
@@ -157,7 +158,7 @@ export class InterviewService {
       return { recorded: true } as const;
     }
 
-    const ev = (await this.compose.compose('P07', { it, turn, transcript: input.transcript })) as Evaluation;
+    const ev = normalizeEvaluation((await this.compose.compose('P07', { it, turn, transcript: input.transcript })) as Evaluation);
     const follow = (await this.compose.compose('P08', { it, turn, evaluation: ev })) as FollowUpDecision;
     turn.attempts.push({ id: newId('attempt'), stage, transcript: input.transcript, evaluation: ev, followUp: follow, createdAt: now() });
     this.store.saveInterview(it);
