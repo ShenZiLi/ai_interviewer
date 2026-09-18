@@ -1004,6 +1004,29 @@ export function App() {
 
               {active === 'room' && (
                 <div className="room">
+                  <details className="mobile-flow">
+                    <summary>本场流程 · 计时</summary>
+                    <div style={{ padding: '8px 2px' }}>
+                      {stages.map((name, i) => {
+                        const idx = PHASES.indexOf(phase);
+                        const ph = PHASES[i];
+                        const state = phase && i < idx ? 'done' : phase && i === idx ? 'active' : '';
+                        const done = phaseProgress[ph] ?? 0;
+                        const planned = outlinePhases?.find((p) => p.phase === ph)?.questionCount;
+                        return (
+                          <div className={`stage ${state}`} key={name}><span className="step-number">{i < (phase ? idx : -1) ? '✓' : `${i + 1}`}</span><div><b>{name}</b><small>{state === 'done' ? '已完成' : state === 'active' ? '进行中' : '待开始'}{planned ? ` · 已答 ${done}/${planned} 题` : done ? ` · 已答 ${done} 题` : ''}</small></div></div>
+                        );
+                      })}
+                      <div className="room-meta">{duration} 分钟 · {level} · {STYLES.find((s) => s.id === style)?.name}
+                        {(() => {
+                          const budget = parseInt(duration, 10);
+                          const elapsed = startedAt ? Math.max(0, Math.floor((clock - new Date(startedAt).getTime()) / 60000)) : 0;
+                          const overdue = startedAt && elapsed >= budget;
+                          return (<span>{overdue ? ` ｜ 已超时（已进行 ${elapsed} 分钟，可收尾）` : startedAt ? ` ｜ 已进行 ${elapsed} / ${budget} 分钟` : ''}</span>);
+                        })()}
+                        <br />{topics.join(' / ')}</div>
+                    </div>
+                  </details>
                   <aside className="card outline">
                     <h3>本场流程</h3>
                     {stages.map((name, i) => {
