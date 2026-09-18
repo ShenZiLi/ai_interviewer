@@ -35,7 +35,7 @@ interface RoomTurn {
   /** 首次作答提交（反馈出现）的时间戳，用于统计「反馈阅读 + 重答耗时」。 */
   answeredAt?: number;
   reanswer?: { readMs: number; reanswerMs: number };
-  answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[] };
+  answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[]; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] };
 }
 
 export function App() {
@@ -297,6 +297,7 @@ export function App() {
           weaknesses: coach.evaluation.weaknesses ?? [],
           suggestion: coach.evaluation.suggestions?.[0]?.body ?? '',
           followup: coach.next.questions.map((q) => q.text),
+          misconceptions: coach.evaluation.misconceptions,
         },
       });
     },
@@ -910,7 +911,15 @@ export function App() {
                             ))}
                             <div className="feedback-block"><h3>做得好的地方</h3><p>{turn.answered.strengths.join('；') || '—'}</p></div>
                             <div className="feedback-block"><h3>还缺少什么</h3><p>{turn.answered.weaknesses.join('；') || turn.answered.suggestion}</p></div>
-                            {turn.answered.followup.length > 0 && <div className="feedback-block"><h3>挑香追问</h3><p>{turn.answered.followup.join('；')}</p></div>}
+                            {turn.answered.misconceptions && turn.answered.misconceptions.length > 0 && (
+                              <div className="feedback-block"><h3>误区澄清</h3>{turn.answered.misconceptions.map((m, i) => (
+                                <div key={i} style={{ marginTop: 8 }}>
+                                  <span className="tag amber" style={{ marginRight: 6 }}>{({ knowledge: '知识误区', asr: '转写误识', assumption: '前提假设' } as Record<string, string>)[m.kind ?? 'knowledge']}</span>
+                                  <p className="quote" style={{ marginTop: 6 }}>「{m.quote}」→ {m.clarification}</p>
+                                </div>
+                              ))}</div>
+                            )}
+                            {turn.answered.followup.length > 0 && <div className="feedback-block"><h3>推荐追问</h3><p>{turn.answered.followup.join('；')}</p></div>}
                             <div className="feedback-block">
                               {coaching ? (
                                 <>

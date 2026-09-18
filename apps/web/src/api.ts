@@ -51,7 +51,7 @@ export type AnswerResult =
   | { recorded: true }
   | {
       transcript: string;
-      evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[]; strengths?: string[]; weaknesses?: string[]; suggestions?: { title: string; body: string }[] };
+      evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[]; strengths?: string[]; weaknesses?: string[]; suggestions?: { title: string; body: string }[]; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] };
       next: { shouldAsk: boolean; questions: { text: string }[]; nextStep: string };
     };
 
