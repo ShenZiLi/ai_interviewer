@@ -35,7 +35,7 @@ export const api = {
     transcript: string,
   ) =>
     req<{
-      evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[] };
+      evaluation: { overall: string; grade: string; score: number; dims: { dim: string; score: number; displayScore?: number }[]; strengths?: string[]; weaknesses?: string[]; suggestions?: { title: string; body: string }[] };
       next: { shouldAsk: boolean; questions: { text: string }[]; nextStep: string };
     }>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript, stage: 'first' }),
   finish: (id: string) =>
