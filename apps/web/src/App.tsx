@@ -6,6 +6,7 @@ import { buildTrend } from './lib/trend';
 import { recentScores } from './lib/session-trend';
 import { filterByRole, uniqueRoles } from './lib/session-filter';
 import { durLabel } from './lib/durations';
+import { avgDims } from './lib/dim-avg';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -569,6 +570,9 @@ export function App() {
   })();
   /** 最近几场综合分（旧→新，按当前岗位范围），用于工作台「成绩走势」。 */
   const scores = recentScores(scoped.filter((h) => h.status === 'finished'), 5);
+  /** 已完成场次的报告（按当前岗位范围），用于「平均八维」。 */
+  const finishedReports = scoped.filter((h) => h.status === 'finished' && h.report);
+  const avgDim = avgDims(finishedReports.map((h) => h.report!));
   const openHistory = useMutation({
     mutationFn: async (id: string) => {
       const detail = await run(api.getInterview(id));
@@ -760,6 +764,20 @@ export function App() {
                       </div>
                       <div className="row" style={{ gap: 6 }}>
                         {scores.map((s, i) => <span className="tag" key={i}>{s}<small> /100</small></span>)}
+                      </div>
+                    </section>
+                  )}
+
+                  {avgDim.length > 0 && (
+                    <section className="card" style={{ marginTop: 18 }}>
+                      <div className="row between" style={{ marginBottom: 10 }}>
+                        <h3 style={{ margin: 0 }}>平均八维</h3>
+                        <span className="tag blue">{finishedReports.length} 场平均</span>
+                      </div>
+                      <div className="dimension-grid">
+                        {avgDim.map((d) => (
+                          <div className="score-row" key={d.dim}><span style={{ minWidth: 100 }}>{d.dim}</span><span className="bar"><i style={{ width: `${d.displayScore}%` }} /></span><b>{d.displayScore}</b></div>
+                        ))}
                       </div>
                     </section>
                   )}
