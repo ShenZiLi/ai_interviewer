@@ -15,9 +15,12 @@ const nav: { k: NavKey; icon: string; label: string }[] = [
   { k: 'admin', icon: '✎', label: '提示词管理' },
 ];
 const stages = ['自我介绍', '技术问题', '业务问题', 'HR 问题'];
+const PHASES = ['intro', 'tech', 'biz', 'hr'] as const;
+type Phase = (typeof PHASES)[number];
 
 interface RoomTurn {
   id: string;
+  phase?: Phase;
   question: string;
   answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[] };
 }
@@ -33,6 +36,8 @@ export function App() {
   const [resumeId, setResumeId] = useState<string>();
   const [analysis, setAnalysis] = useState<string>();
   const [interviewId, setInterviewId] = useState<string>();
+  const [phase, setPhase] = useState<Phase>('intro');
+  const [adjustNote, setAdjustNote] = useState<string>();
   const [dirs, setDirs] = useState<{ id: string; name: string; weight: number; reason?: string }[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
   const [turn, setTurn] = useState<RoomTurn>();
@@ -84,15 +89,28 @@ export function App() {
 
   const beginTurn = useMutation({
     mutationFn: async () => {
-      const res = await run(api.newTurn(interviewId!));
+      const res = await run(api.newTurn(interviewId!, phase));
       setDraft('');
       setScoreHistory([]);
       setRevising(false);
       setRecording(false);
-      setTurn({ id: res.turn.id, question: res.turn.question });
+      setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase });
       setPage('room');
     },
   });
+
+  /** 答完一题向前推进环节；自我介绍结束自动触发大纲调整(P05)。 */
+  const advance = () => {
+    const idx = PHASES.indexOf(phase);
+    if (phase === 'intro') {
+      setAdjustNote('自我介绍后：已按新线索自动更新后续大纲。');
+      api.adjustOutline(interviewId!, true).catch(() => setAdjustNote('自我介绍后：大纲自动更新（可选）。'));
+    }
+    const next = PHASES[idx + 1];
+    if (!next) { finish.mutate(); return; }
+    setPhase(next);
+    beginTurn.mutate();
+  };
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -392,7 +410,12 @@ export function App() {
                 <div className="room">
                   <aside className="card outline">
                     <h3>本场流程</h3>
-                    {stages.map((name, i) => <div className="stage" key={name}><span className="step-number">0{i + 1}</span><div><b>{name}</b><small>待开始</small></div></div>)}
+                    {stages.map((name, i) => {
+                      const idx = PHASES.indexOf(phase);
+                      const state = phase && i < idx ? 'done' : phase && i === idx ? 'active' : '';
+                      return <div className={`stage ${state}`} key={name}><span className="step-number">{i < (phase ? PHASES.indexOf(phase) : -1) ? '✓' : `${i + 1}`}</span><div><b>{name}</b><small>{state === 'done' ? '已完成' : state === 'active' ? '进行中' : '待开始'}</small></div></div>;
+                    })}
+                    {adjustNote && <div className="notice" style={{ marginTop: 10 }}>{adjustNote}</div>}
                     <div className="room-meta">{duration} 分钟 · {level}<br />{topics.join(' / ')}</div>
                   </aside>
                   <section className="card">
@@ -428,7 +451,7 @@ export function App() {
                           {!scoreHistory.some((s) => s.stage === 'after_hint') && (
                             <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); mediaRef.current?.stop(); mediaRef.current = null; setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
                           )}
-                          <button onClick={() => beginTurn.mutate()}>下一题</button>
+                          <button onClick={advance}>{phase === 'hr' ? '完成面试' : '下一环节 →'}</button>
                           <button className="primary" onClick={() => finish.mutate()} disabled={finish.isPending}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
                         </div>
                       )}
