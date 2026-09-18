@@ -40,6 +40,7 @@ export function App() {
   const [phase, setPhase] = useState<Phase>('intro');
   const [adjustNote, setAdjustNote] = useState<string>();
   const [dirs, setDirs] = useState<{ id: string; name: string; weight: number; reason?: string }[]>([]);
+  const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
   const [topics, setTopics] = useState<string[]>([]);
   const [turn, setTurn] = useState<RoomTurn>();
   const [draft, setDraft] = useState('');
@@ -95,11 +96,21 @@ export function App() {
       await run(api.analyze(interview.interview.id));
       const d = await run(api.directions(interview.interview.id));
       setDirs(d.recommendedDirections.recommendedDirections);
-      const o = await run(api.outline(interview.interview.id));
-      setTopics(o.outline.outline.map((q) => q.topic));
-      const st = await run(api.start(interview.interview.id));
-      setStartedAt(st.interview.startedAt);
+      setSelectedDirs(d.recommendedDirections.recommendedDirections.map((x) => x.id));
       setInterviewId(interview.interview.id);
+      setError(undefined);
+    },
+  });
+
+  /** 按已选方向重新推荐 + 生成大纲 + 开考（此前只管解析/推荐方向）。 */
+  const generatePlan = useMutation({
+    mutationFn: async () => {
+      const d = await run(api.directions(interviewId!, selectedDirs.length ? selectedDirs : undefined));
+      setDirs(d.recommendedDirections.recommendedDirections);
+      const o = await run(api.outline(interviewId!));
+      setTopics(o.outline.outline.map((q) => q.topic));
+      const st = await run(api.start(interviewId!));
+      setStartedAt(st.interview.startedAt);
       setError(undefined);
     },
   });
@@ -528,12 +539,25 @@ export function App() {
                         <>
                           <h3>这些方向，值得一起深入。 <span className="tag blue">可多选</span></h3>
                           <div className="topic-grid">
-                            {dirs.map((d) => <div className="topic" key={d.id}><span className="step-number">{Math.round(d.weight * 10)}</span><span><b>{d.name}</b><small>{d.reason}</small></span></div>)}
+                            {dirs.map((d) => {
+                              const on = selectedDirs.includes(d.id);
+                              return (
+                                <div className="topic" key={d.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id])); } }} style={{ borderColor: on ? '#96b3f8' : undefined, background: on ? '#f6f9ff' : undefined }}>
+                                  <span className="step-number">{Math.round(d.weight * 10)}</span>
+                                  <span><b>{d.name}</b><small>{d.reason}</small></span>
+                                </div>
+                              );
+                            })}
                           </div>
+                          <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向</small></div>
                           <h3 style={{ marginTop: 18 }}>目标岗位：{role} · {level}</h3>
                           <div className="row">{topics.map((t) => <span className="summary-chip" key={t}>{t}</span>)}</div>
                           <div className="actions">
-                            <button className="primary" onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>{beginTurn.isPending ? '准备题目…' : '开始自我介绍 →'}</button>
+                            {topics.length === 0 ? (
+                              <button className="primary" onClick={() => generatePlan.mutate()} disabled={generatePlan.isPending}>{generatePlan.isPending ? '生成面试流程…' : '按所选生成面试流程 →'}</button>
+                            ) : (
+                              <button className="primary" onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>{beginTurn.isPending ? '准备题目…' : '开始自我介绍 →'}</button>
+                            )}
                           </div>
                         </>
                       )}

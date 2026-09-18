@@ -119,6 +119,15 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(attempts.map((a: { stage: string }) => a.stage)).toEqual(['first', 'after_hint']);
   });
 
+  it('考察方向可多选：selectedDirections 持久化到面试详情', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({ selectedDirections: ['concurrency', 'distributed'] }).expect(201);
+    const got = await request(app.getHttpServer()).get(`/interviews/${id}`).expect(200);
+    expect(got.body.interview.directions).toEqual(['concurrency', 'distributed']);
+  });
+
   it('单轮辅导优化（P09）基于末次作答返回示范', async () => {
     const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
     const id = created.body.interview.id;
