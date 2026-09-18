@@ -223,7 +223,6 @@ export function App() {
   const reanswerStartRef = useRef<number | undefined>(undefined);
 
   const startRec = async () => {
-    setRecording(true);
     if (!navigator.mediaDevices?.getUserMedia) {
       setError('当前浏览器不支持录音，已切换为文本作答');
       return;
@@ -235,6 +234,7 @@ export function App() {
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
       rec.start();
       mediaRef.current = rec;
+      setRecording(true);
     } catch {
       setError('无法获取麦克风权限，已切换为文本作答');
     }
