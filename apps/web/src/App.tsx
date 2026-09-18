@@ -4,6 +4,7 @@ import { gradeOf } from '@ai-interviewer/contracts';
 import { api, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
 import { buildTrend } from './lib/trend';
 import { recentScores } from './lib/session-trend';
+import { durLabel } from './lib/durations';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -28,6 +29,9 @@ interface RoomTurn {
   topic?: string;
   difficulty?: string;
   targetAspect?: string;
+  /** 首次作答提交（反馈出现）的时间戳，用于统计「反馈阅读 + 重答耗时」。 */
+  answeredAt?: number;
+  reanswer?: { readMs: number; reanswerMs: number };
   answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[] };
 }
 
@@ -155,6 +159,7 @@ export function App() {
       setScoreHistory([]);
       setCoaching(undefined);
       setRevising(false);
+      reanswerStartRef.current = undefined;
       setRecording(false);
       setFollowUpCount(0);
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
@@ -170,6 +175,7 @@ export function App() {
       setScoreHistory([]);
       setCoaching(undefined);
       setRevising(false);
+      reanswerStartRef.current = undefined;
       setRecording(false);
       setFollowUpCount((c) => c + 1);
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect });
@@ -191,6 +197,8 @@ export function App() {
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  /** 点击「重新回答」的时刻，用于统计反馈阅读 / 重答耗时。 */
+  const reanswerStartRef = useRef<number | undefined>(undefined);
 
   const startRec = async () => {
     setRecording(true);
@@ -238,9 +246,20 @@ export function App() {
         return [...h, { stage, score: coach.evaluation.score, dims: coach.evaluation.dims, grade: coach.evaluation.grade }];
       });
       setRevising(false);
+      // 计时：首次作答记录反馈出现时间；重答时按「读到反馈→重答提交」分段。
+      const now = Date.now();
+      const answeredAt = turn?.answeredAt ?? now;
+      let reanswer: RoomTurn['reanswer'];
+      if (stage === 'after_hint') {
+        const start = reanswerStartRef.current ?? answeredAt;
+        reanswer = { readMs: Math.max(0, start - answeredAt), reanswerMs: Math.max(0, now - start) };
+        reanswerStartRef.current = undefined;
+      }
+      const patch = { answeredAt, ...(reanswer ? { reanswer } : {}) };
       if ('recorded' in answered && answered.recorded) {
         setTurn({
           ...turn!,
+          ...patch,
           answered: {
             recorded: true,
             transcript: transcript || '(音频作答)',
@@ -255,6 +274,7 @@ export function App() {
       const coach = answered as Extract<AnswerResult, { evaluation: { score: number } }>;
       setTurn({
         ...turn!,
+        ...patch,
         answered: {
           transcript: coach.transcript || transcript || '(音频作答)',
           score: coach.evaluation.score,
@@ -462,6 +482,7 @@ export function App() {
       setScoreHistory([]);
       setCoaching(undefined);
       setRevising(false);
+      reanswerStartRef.current = undefined;
       setRecording(false);
       setFollowUpCount(0);
       setAdjustNote('已从上次进度继续，这是本环节下一题。');
@@ -798,7 +819,7 @@ export function App() {
                       ) : (
                         <div className="actions" style={{ marginTop: 10 }}>
                           {mode === 'coach' && !scoreHistory.some((s) => s.stage === 'after_hint') && (
-                            <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); mediaRef.current?.stop(); mediaRef.current = null; setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
+                            <button className="ghost" onClick={() => { setRevising(true); setDraft(''); setRecording(false); mediaRef.current?.stop(); mediaRef.current = null; reanswerStartRef.current = Date.now(); setTurn({ ...turn!, answered: undefined }); }}>重新回答</button>
                           )}
                           {mode === 'coach' && turn.answered?.followup.length ? (
                             <button onClick={() => askFollowUp.mutate()} disabled={askFollowUp.isPending || followUpCount >= 3}>{followUpCount >= 3 ? '追问已满' : '追问 →'}</button>
@@ -828,6 +849,7 @@ export function App() {
                             {scoreHistory.length > 1 ? (
                               <div className="revise-compare">
                                 <p className="subtitle">首次 {scoreHistory[0].score} 分（{scoreHistory[0].grade}） → 复发 {scoreHistory[scoreHistory.length - 1].score} 分（{scoreHistory[scoreHistory.length - 1].grade}）· 逐维并列，不以提示后最高分计入</p>
+                                {turn.reanswer && <p className="subtitle">反馈阅读 {durLabel(turn.reanswer.readMs)} · 重答用时 {durLabel(turn.reanswer.reanswerMs)}</p>}
                                 <div className="score-row"><span style={{ minWidth: 92 }}>维度</span><span className="bar" /><b>首次</b><span className="bar" /><b>复发</b></div>
                                 {compareDims.map((c) => (
                                   <div className="score-row" key={c.dim}>
