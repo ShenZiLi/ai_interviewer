@@ -85,7 +85,7 @@ export function App() {
   const [followUpCount, setFollowUpCount] = useState(0);
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
-  const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[]; highlight?: { best: { q?: string; why: string }; improve: { q?: string; why: string } } }>();
+  const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[]; keepAudio?: boolean; highlight?: { best: { q?: string; why: string }; improve: { q?: string; why: string } } }>();
   const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string; audioRef?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [error, setError] = useState<string>();
@@ -450,6 +450,7 @@ export function App() {
         usedMinutes: res.report.overview.durationUsedMinutes,
         dims,
         actions: res.report.actionPlan.map((a) => `${a.area}：${a.suggestion}${a.practiceSuggestion ? `（练习：${a.practiceSuggestion}）` : ''}`),
+        keepAudio: detail.interview.keepAudio,
         highlight: resolveHighlight(res.report, detail.interview.turns ?? []),
       });
       const prev = await fetchPrevReport(interviewId!, role);
@@ -610,6 +611,7 @@ export function App() {
         usedMinutes: r.overview.durationUsedMinutes,
         dims,
         actions: (r.actionPlan ?? []).map((a) => `${a.area}：${a.suggestion}${a.practiceSuggestion ? `（练习：${a.practiceSuggestion}）` : ''}`),
+        keepAudio: detail.interview.keepAudio,
         highlight: resolveHighlight(r, detail.interview.turns ?? []),
       });
       const prev = await fetchPrevReport(id, role);
@@ -1176,7 +1178,7 @@ export function App() {
                       <div>
                         <h2>{reportLine.head}</h2>
                         <p className="muted">{reportLine.sub}</p>
-                        <div className="row"><span className="tag">{role}</span><span className="tag">{level}</span><span className="tag blue">复盘报告</span></div>
+                        <div className="row"><span className="tag">{role}</span><span className="tag">{level}</span><span className="tag blue">复盘报告</span>{report.keepAudio && <span className="tag green">录音已保留 · 可回听</span>}</div>
                       </div>
                     </div>
                     <div className="dimension-grid" style={{ marginTop: 25 }}>
