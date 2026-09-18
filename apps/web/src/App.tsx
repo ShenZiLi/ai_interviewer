@@ -145,7 +145,7 @@ export function App() {
     },
   });
 
-  /** 按已选方向重新推荐 + 生成大纲 + 开考（此前只管解析/推荐方向）。 */
+  /** 按已选方向重新推荐 + 生成大纲（不立即开考，供先预览流程/题目）。 */
   const generatePlan = useMutation({
     mutationFn: async () => {
       const d = await run(api.directions(interviewId!, selectedDirs.length ? selectedDirs : undefined));
@@ -154,9 +154,17 @@ export function App() {
       setTopics(o.outline.outline.map((q) => q.topic));
       setOutlinePhases(o.outline.durationPlan?.phases);
       setOutlineQuestions(o.outline.outline);
+      setError(undefined);
+    },
+  });
+
+  /** 预览确认后正式开考：start（记开始时间）→ 出第一题进面试室。 */
+  const startInterview = useMutation({
+    mutationFn: async () => {
       const st = await run(api.start(interviewId!));
       setStartedAt(st.interview.startedAt);
       setError(undefined);
+      await beginTurn.mutateAsync();
     },
   });
 
@@ -820,7 +828,7 @@ export function App() {
                             {topics.length === 0 ? (
                               <button className="primary" onClick={() => generatePlan.mutate()} disabled={generatePlan.isPending}>{generatePlan.isPending ? '生成面试流程…' : '按所选生成面试流程 →'}</button>
                             ) : (
-                              <button className="primary" onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>{beginTurn.isPending ? '准备题目…' : '开始自我介绍 →'}</button>
+                              <button className="primary" onClick={() => startInterview.mutate()} disabled={startInterview.isPending || beginTurn.isPending}>{startInterview.isPending || beginTurn.isPending ? '准备题目…' : '开始面试 →'}</button>
                             )}
                           </div>
                         </>
