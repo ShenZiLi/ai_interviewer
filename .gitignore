@@ -1,12 +1,25 @@
-.env
-.env.*
-!.env.example
+# deps / build
 node_modules/
 dist/
-build/
 coverage/
-.venv/
-__pycache__/
+*.tsbuildinfo
+
+# env & secrets
+.env
+.env.local
+.env.*.local
+
+# prototype build leftovers
+*.local
+
+# logs / os
 *.log
 .DS_Store
 Thumbs.db
+
+# ide
+.idea/
+.vscode/
+
+# generated schema artifacts from contracts
+packages/contracts/schemas/*.json
