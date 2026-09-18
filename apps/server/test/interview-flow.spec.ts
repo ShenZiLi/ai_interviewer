@@ -85,6 +85,28 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(res.body.report.dimensionReport.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('两场不同作答的整场报告综合分不同（趋势数据来源）', async () => {
+    const runSession = async (transcript: string) => {
+      const created = await request(app.getHttpServer())
+        .post('/interviews')
+        .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+        .expect(201);
+      const mid = created.body.interview.id;
+      await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+      const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`).send({ transcript, stage: 'first' }).expect(201);
+      const fin = await request(app.getHttpServer()).post(`/interviews/${mid}/finish`).expect(201);
+      return { avg: fin.body.report.overview.avgScore as number, dims: fin.body.report.dimensionReport as { overallScore: number }[] };
+    };
+    const a = await runSession('我会考虑分布式锁并做好幂等。');
+    const b = await runSession('先给结论再给约束。');
+    expect(a.avg).not.toBe(b.avg);
+    expect(a.dims.some((d, i) => d.overallScore !== b.dims[i]?.overallScore)).toBe(true);
+  });
+
   it('AC7: 状态机防护——结束后作答返回 409', async () => {
     await request(app.getHttpServer())
       .post(`/interviews/${interviewId}/turns/${turnId}/answer`)
