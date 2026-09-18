@@ -494,6 +494,13 @@ export function App() {
               )}
             </div>
           </div>
+            <nav className="mobile-nav">
+              {nav.map((n) => (
+                <button key={n.k} className={active === n.k ? 'active' : ''} onClick={() => setPage(n.k)}>
+                  <span>{n.icon}</span>{n.label}
+                </button>
+              ))}
+            </nav>
         </div>
       </div>
     </div>
