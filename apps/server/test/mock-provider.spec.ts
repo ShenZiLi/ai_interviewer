@@ -93,6 +93,17 @@ describe('MockProvider P07 随作答内容确定性变化', () => {
     expect(tech1.targetAspect).toBeTruthy();
   });
 
+  it('P04 大纲按所选方向取题（只选缓存方向 → 题目与覆盖方向一致）', async () => {
+    const p = new MockProvider();
+    const onlyCache = (await p.completeTask({ task: 'P04', context: { it: { directions: ['cacheredis'] } } })) as { outline: { topic: string; mainQuestion: string }[]; coveredDirections: string[] };
+    expect(onlyCache.outline.length).toBeGreaterThanOrEqual(1);
+    expect(onlyCache.outline.every((q) => q.topic === '缓存一致性')).toBe(true);
+    expect(onlyCache.coveredDirections).toEqual(['cacheredis']);
+    // 全选/未选 → 回落到完整 tech 题库（≥ 并发控制 主题）
+    const all = (await p.completeTask({ task: 'P04', context: { it: { directions: ['concurrency', 'distributed', 'cacheredis'] } } })) as { outline: { topic: string }[] };
+    expect(all.outline.some((q) => q.topic === '并发控制')).toBe(true);
+  });
+
   it('方向覆盖按已作答主题去重计（同一主题多轮只算一次）', async () => {
     const p = new MockProvider();
     const ev = { dims: DIMS.map((dim, i) => ({ dim, score: 4 })) };

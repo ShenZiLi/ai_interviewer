@@ -53,17 +53,21 @@ export class MockProvider implements Provider {
           pendingClarify: [{ question: '更看重原理考核还是项目深挖？', options: ['原理', '项目'] }],
           confidence: 0.78,
         };
-      case 'P04':
+      case 'P04': {
+        // 按所选方向挑选大纲主问题（未选/全选时回落到 tech 题库），使流程与用户选择一致。
+        const selected = ((context as { it?: P04Ctx })?.it?.directions) ?? [];
+        const pool = QUESTIONS_BY_PHASE.tech.filter((q) => !q.biasToDirections?.length || q.biasToDirections.some((d) => selected.includes(d)));
+        const use = pool.length ? pool : QUESTIONS_BY_PHASE.tech;
+        const outline = use.slice(0, 3).map((q) => ({ topic: q.topic, mainQuestion: q.text, difficulty: q.difficulty, followUpPlan: { depth: 3, branches: ['前提条件', '失败处理'] } }));
+        const focus = [...new Set(use.slice(0, 3).map((q) => q.topic))];
         return {
-          summary: '围绕并发与分布式展开 30 分钟标准面试。',
-          durationPlan: { tier: '30m', budgetMinutes: 30, phases: [{ phase: 'tech', minutes: 18, questionCount: 3, focus: ['并发', '分布式'] }, { phase: 'biz', minutes: 8, questionCount: 1, focus: ['项目取舍'] }, { phase: 'hr', minutes: 4, questionCount: 1, focus: ['离职原因'] }] },
-          outline: [
-            { topic: '并发控制', mainQuestion: '在线购物结算如何保证不超卖？', difficulty: 'mid', followUpPlan: { depth: 3, branches: ['内存模型', '锁'] } },
-            { topic: '分布式事务', mainQuestion: '跨服务扣库存与下单如何保证一致？', difficulty: 'mid', followUpPlan: { depth: 3, branches: ['本地消息表', 'TCC'] } },
-          ],
-          coveredDirections: ['concurrency', 'distributed'],
+          summary: '围绕所选方向展开 30 分钟标准面试。',
+          durationPlan: { tier: '30m', budgetMinutes: 30, phases: [{ phase: 'tech', minutes: 18, questionCount: Math.max(1, outline.length), focus }, { phase: 'biz', minutes: 8, questionCount: 1, focus: ['项目取舍'] }, { phase: 'hr', minutes: 4, questionCount: 1, focus: ['离职原因'] }] },
+          outline,
+          coveredDirections: use.slice(0, 3).flatMap((q) => q.biasToDirections ?? []).filter((d, i, a) => a.indexOf(d) === i),
           confidence: 0.8,
         };
+      }
       case 'P05':
         return {
           changes: [{ type: 'add', ref: 'project_orders', after: '新增幂等设计追问', reason: '自我介绍提及重复下单处理' }],
@@ -210,6 +214,11 @@ const DIMS_SAMPLE: { dim: (typeof DIMS)[number]; overallScore: number; trend: 'u
 interface P06Ctx {
   phase?: string;
   turns?: { phase?: string }[];
+}
+
+/** P04 需要的面试上下文子集（所选方向 id 列表，用于按选择生成大纲）。 */
+interface P04Ctx {
+  directions?: string[];
 }
 
 interface MockQuestion {
