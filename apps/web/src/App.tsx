@@ -588,7 +588,7 @@ export function App() {
     const safeRole = (role || '面试').replace(/[\\/:*?"<>|]/g, '_');
     const d = new Date();
     const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    a.download = `ai_interviewer-${dateStr}-${safeRole}-${report.avgScore}分.md`;
+    a.download = `AI面试小助理-${dateStr}-${safeRole}-${report.avgScore}分.md`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -759,7 +759,7 @@ export function App() {
       <div id="app">
         <div className="shell">
           <aside className="sidebar">
-            <div className="logo"><span className="logo-mark"><BrandMark /></span><span>ai_interviewer</span></div>
+            <div className="logo"><span className="logo-mark"><BrandMark /></span><span>AI面试小助理</span></div>
             <nav className="nav">
               {nav.map((n) => (
                 <button key={n.k} className={active === n.k ? 'active' : ''} onClick={() => setPage(n.k)}>
