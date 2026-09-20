@@ -21,3 +21,76 @@
   .highlight-grid{grid-template-columns:1fr}
   .room .actions button{flex:1 1 calc(50% - 6px)}
 }
+
+/* Visual refinement: quiet editorial workspace */
+:root{
+  --ink:#1d2b3f;
+  --muted:#718096;
+  --blue:#2d5bd1;
+  --soft:#edf3ff;
+  --line:#e3e8f0;
+  --bg:#f4f6fa;
+  --green:#21866b;
+  --amber:#9a6925;
+  --radius:16px;
+}
+body{background:#e8edf4;color:var(--ink)}
+#viewport{background:radial-gradient(circle at 86% 8%,#eef3ff 0,#f4f6fa 34%,#f4f6fa 100%)}
+.sidebar{box-shadow:10px 0 28px rgba(32,49,77,.035);padding-top:30px}
+.logo{letter-spacing:-.3px}
+.logo-mark{box-shadow:0 8px 18px rgba(45,91,209,.22);transform:rotate(-2deg)}
+.nav{gap:4px}
+.nav button{position:relative;border-radius:11px;transition:background .18s,color .18s,transform .18s}
+.nav button:hover{background:#f6f8fc;color:var(--ink);transform:translateX(2px)}
+.nav button.active{box-shadow:inset 3px 0 0 var(--blue);font-weight:700}
+.topbar{backdrop-filter:blur(14px);box-shadow:0 1px 0 rgba(32,49,77,.025)}
+.content{padding-top:36px;padding-bottom:46px}
+.card{min-width:0;box-shadow:0 10px 26px rgba(32,49,77,.045);transition:box-shadow .18s,border-color .18s,transform .18s}
+.card:hover{border-color:#d7e0ef;box-shadow:0 14px 32px rgba(32,49,77,.07)}
+.grid2,.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.hero{background:linear-gradient(112deg,#eef3ff 0%,#edf2fc 62%,#e7efff 100%);border-color:#d8e3fa;box-shadow:0 16px 36px rgba(45,91,209,.08)}
+.hero:after{content:'';position:absolute;width:230px;height:230px;right:22px;top:-85px;border:1px solid rgba(45,91,209,.12);border-radius:50%;box-shadow:0 0 0 24px rgba(45,91,209,.035),0 0 0 48px rgba(45,91,209,.025)}
+.hero-art{position:relative;z-index:1;filter:drop-shadow(0 12px 12px rgba(45,91,209,.13))}
+.hero-art i{width:14px;background:linear-gradient(180deg,#2d5bd1,#8da8ec);border-radius:99px}
+.metric{letter-spacing:-1px}
+.section-title.card{padding-top:22px;padding-bottom:22px}
+.list-row{transition:background .16s,padding .16s;border-radius:10px;padding-left:10px;padding-right:10px}
+.list-row:hover{background:#f8faff}
+button{box-shadow:0 2px 0 rgba(32,49,77,.025);transition:background .18s,border-color .18s,box-shadow .18s,transform .18s}
+button:hover{box-shadow:0 5px 14px rgba(32,49,77,.08);transform:translateY(-1px)}
+button.primary{box-shadow:0 8px 18px rgba(45,91,209,.2)}
+button.primary:hover{box-shadow:0 10px 22px rgba(45,91,209,.28);transform:translateY(-2px)}
+textarea,input[type=text],input[type=password],select{border-color:#d8e0eb;transition:border-color .18s,box-shadow .18s,background .18s}
+textarea:hover,input[type=text]:hover,input[type=password]:hover,select:hover{border-color:#b9c8df}
+textarea:focus,input[type=text]:focus,input[type=password]:focus,select:focus{border-color:#7e9ce5;box-shadow:0 0 0 4px rgba(45,91,209,.1);outline:0}
+.dropzone{background:linear-gradient(180deg,#fbfcff,#f7faff);box-shadow:inset 0 1px 0 #fff}
+.topic{transition:border-color .16s,background .16s,transform .16s,box-shadow .16s}
+.topic:hover{border-color:#a9bff0;background:#fafcff;transform:translateY(-1px);box-shadow:0 6px 16px rgba(45,91,209,.07)}
+.topic:has(input:checked){box-shadow:0 8px 18px rgba(45,91,209,.09)}
+.flow-node{box-shadow:0 6px 16px rgba(32,49,77,.04)}
+.flow-node:first-child{box-shadow:0 8px 20px rgba(45,91,209,.09)}
+.answer{background:linear-gradient(180deg,#f8faff,#f4f7fb)}
+.voice{border-top-color:#dfe6f0}
+.feedback-block{border-top-color:#e2e8f0}
+.big-score{box-shadow:0 12px 28px rgba(45,91,209,.09)}
+.tag{box-shadow:0 1px 0 rgba(32,49,77,.025)}
+@container (max-width:1150px){
+  .content{padding-left:27px;padding-right:27px}
+  .hero-art{display:none}
+}
+@container (max-width:700px){
+  #viewport{background:#f4f6fa}
+  .content{padding:22px 16px 90px}
+  .topbar{box-shadow:0 1px 12px rgba(32,49,77,.05)}
+  .card{box-shadow:0 7px 18px rgba(32,49,77,.045)}
+  .hero{min-height:0;padding:25px 22px}
+  .hero:after{width:150px;height:150px;right:-74px;top:-54px}
+  .hero p{max-width:none}
+  .grid2,.fields,.topic-grid{grid-template-columns:1fr}
+  .grid3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .grid3 .card{display:block;padding:16px}
+  .grid3 .card>small{display:block;font-size:11px}
+  .grid3 .card .metric{font-size:29px;margin:10px 0 0}
+  .mobile-nav{box-shadow:0 -6px 18px rgba(32,49,77,.06)}
+}
