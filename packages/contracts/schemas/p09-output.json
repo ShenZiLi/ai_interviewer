@@ -1,0 +1,93 @@
+{
+  "$ref": "#/definitions/P09Output",
+  "definitions": {
+    "P09Output": {
+      "type": "object",
+      "properties": {
+        "taskCode": {
+          "type": "string",
+          "const": "P09"
+        },
+        "modelAnswer": {
+          "type": "object",
+          "properties": {
+            "summary": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "structure": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "point": {
+                    "type": "string"
+                  },
+                  "explanation": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "point",
+                  "explanation"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "maxItems": 10
+            }
+          },
+          "required": [
+            "summary",
+            "structure"
+          ],
+          "additionalProperties": false
+        },
+        "optimization": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "userPoint": {
+                "type": "string"
+              },
+              "improved": {
+                "type": "string"
+              },
+              "why": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "userPoint",
+              "improved",
+              "why"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 10
+        },
+        "coachingNote": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "practicePrompt": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "modelAnswer",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

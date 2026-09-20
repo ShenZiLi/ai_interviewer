@@ -21,9 +21,6 @@ Thumbs.db
 .idea/
 .vscode/
 
-# generated schema artifacts from contracts
-packages/contracts/schemas/*.json
-
 # M1 最小持久化（含简历原文/转写，敏感，不入库）
 .data/
 

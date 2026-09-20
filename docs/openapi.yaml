@@ -1,0 +1,202 @@
+openapi: 3.0.3
+info:
+  title: ai_interviewer MVP API
+  version: 0.1.0
+  description: |
+    当前仓库可运行的 Web MVP REST API。M1 默认使用 Mock provider，尚未接入登录鉴权。
+servers:
+  - url: http://127.0.0.1:3000
+tags:
+  - name: system
+  - name: resumes
+  - name: interviews
+  - name: audio
+  - name: model
+  - name: admin
+paths:
+  /health:
+    get:
+      tags: [system]
+      responses:
+        '200':
+          description: 服务正常
+  /grade:
+    get:
+      tags: [system]
+      parameters:
+        - {name: score, in: query, required: true, schema: {type: number}}
+      responses:
+        '200': {description: 等级结果}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+  /resumes:
+    post:
+      tags: [resumes]
+      summary: 粘贴文本并解析简历
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: {type: string, minLength: 1, maxLength: 200000}
+                title: {type: string, maxLength: 80}
+      responses:
+        '201': {description: 简历已解析}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+  /resumes/{id}:
+    get:
+      tags: [resumes]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses:
+        '200': {description: 简历详情}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /interviews:
+    get:
+      tags: [interviews]
+      responses: {'200': {description: 面试摘要列表}}
+    post:
+      tags: [interviews]
+      summary: 创建面试草稿
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resumeId, targetRole, level]
+              properties:
+                resumeId: {type: string}
+                targetRole: {type: string}
+                jdText: {type: string, maxLength: 2000}
+                style: {type: string, enum: [professional, coaching, concise]}
+                level: {type: string, enum: [junior, mid, senior]}
+                kind: {type: string, enum: [coach, mock]}
+                durationTier: {type: string, enum: ['15m', '30m', '45m']}
+                keepAudio: {type: boolean}
+      responses:
+        '201': {description: 面试草稿}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+  /interviews/{id}:
+    get:
+      tags: [interviews]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses:
+        '200': {description: 面试详情}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      tags: [interviews]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      responses:
+        '200': {description: 删除成功}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /interviews/{id}/analyze:
+    post: {tags: [interviews], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'201': {description: 操作结果}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /interviews/{id}/directions:
+    post: {tags: [interviews], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'201': {description: 操作结果}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /interviews/{id}/outline:
+    post: {tags: [interviews], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'201': {description: 操作结果}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /interviews/{id}/start:
+    post: {tags: [interviews], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'201': {description: 操作结果}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /interviews/{id}/outline/adjust:
+    post: {tags: [interviews], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'201': {description: 操作结果}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /interviews/{id}/finish:
+    post: {tags: [interviews], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'201': {description: 操作结果}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /interviews/{id}/turns:
+    post:
+      tags: [interviews]
+      parameters: [{ $ref: '#/components/parameters/id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phase]
+              properties:
+                phase: {type: string, enum: [intro, tech, biz, hr]}
+                parentTurnId: {type: string}
+      responses:
+        '201': {description: 新问题}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /interviews/{id}/turns/{turnId}/answer:
+    post:
+      tags: [interviews]
+      parameters:
+        - { $ref: '#/components/parameters/id' }
+        - {name: turnId, in: path, required: true, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                transcript: {type: string, maxLength: 10000}
+                audioRef: {type: string}
+                stage: {type: string, enum: [first, after_hint]}
+      responses:
+        '201': {description: 作答结果；coach 返回评价，mock 仅返回 recorded}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /interviews/{id}/turns/{turnId}/coaching:
+    post: {tags: [interviews], parameters: [{ $ref: '#/components/parameters/id' }, {name: turnId, in: path, required: true, schema: {type: string}}], responses: {'201': {description: 辅导结果}, '404': {$ref: '#/components/responses/NotFound'}, '409': {$ref: '#/components/responses/Conflict'}}}
+  /files/audio:
+    post:
+      tags: [audio]
+      summary: MVP 使用 base64 JSON 上传音频
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [data]
+              properties:
+                data: {type: string, description: base64 音频数据}
+                mime: {type: string, maxLength: 60}
+      responses:
+        '201': {description: 音频引用}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+  /files/audio/{ref}:
+    get:
+      tags: [audio]
+      parameters: [{name: ref, in: path, required: true, schema: {type: string}}]
+      responses:
+        '200': {description: 音频二进制流, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /settings/model:
+    get: {tags: [model], responses: {'200': {description: 当前模型配置和预设}}}
+    post: {tags: [model], responses: {'201': {description: 配置已更新}, '400': {$ref: '#/components/responses/InvalidRequest'}}}
+  /settings/model/test:
+    post: {tags: [model], responses: {'201': {description: 连接测试结果}, '400': {$ref: '#/components/responses/InvalidRequest'}}}
+  /admin/templates:
+    get: {tags: [admin], responses: {'200': {description: 模板列表}}}
+    post: {tags: [admin], responses: {'201': {description: 模板已创建}, '400': {$ref: '#/components/responses/InvalidRequest'}}}
+  /admin/templates/{id}:
+    get: {tags: [admin], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'200': {description: 模板详情}}}
+    patch: {tags: [admin], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'200': {description: 草稿已更新}}}
+    delete: {tags: [admin], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'200': {description: 删除成功}}}
+  /admin/templates/{id}/versions:
+    get: {tags: [admin], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'200': {description: 版本列表}}}
+    post: {tags: [admin], parameters: [{ $ref: '#/components/parameters/id' }], responses: {'201': {description: 版本操作结果}}}
+components:
+  parameters:
+    id: {name: id, in: path, required: true, schema: {type: string}}
+  responses:
+    InvalidRequest:
+      description: 参数不合法
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    NotFound:
+      description: 资源不存在
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Conflict:
+      description: 当前状态不允许该操作
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: {type: string}
+        error: {type: string}
+        statusCode: {type: integer}

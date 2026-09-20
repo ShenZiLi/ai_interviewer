@@ -58,9 +58,9 @@ describe('MockProvider P10 整场报告与逐题八维自洽', () => {
           durationTier: '30m',
           outline: { outline: [{ topic: 't1', mainQuestion: 'q1' }, { topic: 't2', mainQuestion: 'q2' }, { topic: 't3', mainQuestion: 'q3' }] },
           turns: [
-            { id: 'turn_1', topic: '并发', attempts: [{ stage: 'first', transcript: 'x', evaluation: { score: 72, dims: DIMS.map((dim, i) => ({ dim, score: 3.5 })) } }] },
-            { id: 'turn_2', topic: '缓存', attempts: [{ stage: 'first', transcript: 'y', evaluation: { score: 88, dims: DIMS.map((dim, i) => ({ dim, score: 4.5 })) } }] },
-            { id: 'turn_3', topic: '分布式', attempts: [{ stage: 'first', transcript: 'z', evaluation: { score: 60, dims: DIMS.map((dim, i) => ({ dim, score: 3 })) } }] },
+            { id: 'turn_1', topic: '并发', attempts: [{ stage: 'first', transcript: 'x', evaluation: { score: 72, dims: DIMS.map((dim) => ({ dim, score: 3.5 })) } }] },
+            { id: 'turn_2', topic: '缓存', attempts: [{ stage: 'first', transcript: 'y', evaluation: { score: 88, dims: DIMS.map((dim) => ({ dim, score: 4.5 })) } }] },
+            { id: 'turn_3', topic: '分布式', attempts: [{ stage: 'first', transcript: 'z', evaluation: { score: 60, dims: DIMS.map((dim) => ({ dim, score: 3 })) } }] },
           ],
         },
       },
@@ -143,7 +143,7 @@ describe('MockProvider P07 随作答内容确定性变化', () => {
 
   it('方向覆盖按已作答主题去重计（同一主题多轮只算一次）', async () => {
     const p = new MockProvider();
-    const ev = { dims: DIMS.map((dim, i) => ({ dim, score: 4 })) };
+    const ev = { dims: DIMS.map((dim) => ({ dim, score: 4 })) };
     const sameTopic = (await p.completeTask({
       task: 'P10', context: { it: { kind: 'coach', durationTier: '45m', outline: { outline: [{ topic: 'a', mainQuestion: 'q1' }, { topic: 'b', mainQuestion: 'q2' }] }, turns: [{ topic: 'a', attempts: [{ evaluation: ev }] }, { topic: 'a', attempts: [{ evaluation: ev }] }, { topic: 'b', attempts: [{ evaluation: ev }] }] } },
     })) as { overview: { directionCoverage: { covered: number; planned: number }; completedAnswers: number } };

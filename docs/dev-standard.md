@@ -2,7 +2,7 @@
 
 > 更新时间：2026-09-19 ｜ 状态：供评审 ｜ 上游：[系统架构](system-architecture.md)、[接口规范](api-spec.md)、[输出 Schema](output-schemas.md)、[AGENTS.md](../AGENTS.md)
 >
-> 前置提醒：进入实现前需先定**应用技术栈**（后端框架/前端框架/数据库），本规范保持技术栈中立；相关落点标注「随选型」。下一个待决策即在文末。
+> 当前状态：技术栈已确认，M1 Web 单端 MVP 已实现。本规范用于 M2 产品化与发布质量整改。
 
 ## 1. 分支与提交规范
 
@@ -19,7 +19,7 @@
 
 ## 2. 契约与代码布局
 
-- **契约先行**：接口与输出 Schema 已有规范（`api-spec.md` / `output-schemas.md`）。实现前将每个端点和 P01—P10 输出固化为**契约文件**（OpenAPI + JSON Schema），纳入仓库 `schemas/`。
+- **契约先行**：接口与输出 Schema 已有规范（`api-spec.md` / `output-schemas.md`）。当前 OpenAPI 文件为 [`openapi.yaml`](openapi.yaml)，P01—P10 JSON Schema 由脚本生成并纳入 `packages/contracts/schemas/`，通过 `pnpm schemas:check` 校验未发生漂移。
 - **校验落点**：模型输出（`compose`）必须经 `schemas/` 里的 JSON Schema 校验，`validate + repair + retry + degrade` 流程在**编排层**统一实现，不散落到业务代码。
 - **命名**：接口/表名用 snake_case，JSON 域用 camelCase；枚举集中定义，禁止魔数。
 - **配置**：模型/语音供应商、密钥、域名等走环境变量与配置中心；`.env.example` 供应商列表，真实 `.env` 进 `.gitignore`。
@@ -87,7 +87,7 @@ login/DB/持久化重启与否、录音长期保留、管理员真实 LLM 测试
 - **Monorepo**：pnpm workspaces；`apps/web` + `apps/server` + `packages/contracts`。
 - **后端**：NestJS + `@nestjs/platform-fastify`（结构化 + 快）。
 - **契约 / 校验**：`packages/contracts` 用 **zod** 定义端点 DTO 与 P01—P10 输出；`zod-to-json-schema` 生成 `schemas/*.json`；运行时 zod 校验 `compose` 输出，前后端共享同一份契约。
-- **数据库**：PostgreSQL + Prisma（迁移/枚举友好）；M1 先做最小持久化。
+- **数据库**：PostgreSQL + Prisma（迁移/枚举友好）；当前 M1 仍使用内存仓库，可选 `DATA_FILE` 做本地 JSON 持久化，PostgreSQL/Prisma 属于 M2。
 - **前端**：Vite + React + TypeScript + TanStack Query。
 - **测试**：Vitest + Supertest（REST 契约）；后续 Playwright 冒烟。
 - **工程**：ESLint + Prettier；Node 20+；脚本走 `pnpm`。

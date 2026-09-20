@@ -1,0 +1,199 @@
+{
+  "$ref": "#/definitions/P07Output",
+  "definitions": {
+    "P07Output": {
+      "type": "object",
+      "properties": {
+        "taskCode": {
+          "type": "string",
+          "const": "P07"
+        },
+        "overall": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "grade": {
+          "type": "string",
+          "enum": [
+            "A+",
+            "A",
+            "B+",
+            "B",
+            "C"
+          ]
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "dims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dim": {
+                "type": "string",
+                "enum": [
+                  "切题与完整性",
+                  "专业准确性",
+                  "分析与推理",
+                  "方案与取舍",
+                  "项目深度与贡献",
+                  "证据与一致性",
+                  "表达与结构",
+                  "沟通与反思"
+                ]
+              },
+              "score": {
+                "type": "number"
+              },
+              "weight": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "displayScore": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "gap": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "maxItems": 6
+              }
+            },
+            "required": [
+              "dim",
+              "score"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 8
+        },
+        "strengths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "weaknesses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "body": {
+                "type": "string",
+                "maxLength": 300
+              }
+            },
+            "required": [
+              "title",
+              "body"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "misconceptions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "quote": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "clarification": {
+                "type": "string",
+                "maxLength": 300
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "knowledge",
+                  "asr",
+                  "assumption"
+                ]
+              }
+            },
+            "required": [
+              "quote",
+              "clarification",
+              "kind"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "followUpHint": {
+          "type": "object",
+          "properties": {
+            "recommended": {
+              "type": "boolean"
+            },
+            "reason": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          "required": [
+            "recommended"
+          ],
+          "additionalProperties": false
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 50
+          },
+          "default": []
+        }
+      },
+      "required": [
+        "taskCode",
+        "overall",
+        "grade",
+        "score",
+        "dims",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

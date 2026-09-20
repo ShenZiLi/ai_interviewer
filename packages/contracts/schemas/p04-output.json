@@ -1,0 +1,152 @@
+{
+  "$ref": "#/definitions/P04Output",
+  "definitions": {
+    "P04Output": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "durationPlan": {
+          "type": "object",
+          "properties": {
+            "tier": {
+              "type": "string",
+              "enum": [
+                "15m",
+                "30m",
+                "45m"
+              ]
+            },
+            "budgetMinutes": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "phases": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "intro",
+                      "tech",
+                      "biz",
+                      "hr"
+                    ]
+                  },
+                  "minutes": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "questionCount": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "focus": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 10
+                  }
+                },
+                "required": [
+                  "phase",
+                  "minutes",
+                  "questionCount"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "tier",
+            "budgetMinutes",
+            "phases"
+          ],
+          "additionalProperties": false
+        },
+        "outline": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "topic": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50
+              },
+              "mainQuestion": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "difficulty": {
+                "type": "string",
+                "enum": [
+                  "begin",
+                  "mid",
+                  "deep"
+                ]
+              },
+              "followUpPlan": {
+                "type": "object",
+                "properties": {
+                  "depth": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "branches": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 10
+                  }
+                },
+                "required": [
+                  "depth"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "topic",
+              "mainQuestion",
+              "difficulty",
+              "followUpPlan"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 15
+        },
+        "coveredDirections": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 10
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "summary",
+        "durationPlan",
+        "outline",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

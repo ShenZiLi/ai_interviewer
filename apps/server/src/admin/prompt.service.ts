@@ -102,7 +102,7 @@ export class PromptService {
     if (input.variables !== undefined) t.variables = input.variables;
     if (input.basePrompt !== undefined) t.basePrompt = input.basePrompt;
 
-    let draft = this.workingDraft(id);
+    const draft = this.workingDraft(id);
     const content = input.basePrompt ?? draft.content;
     if (content !== draft.content) {
       draft.status = 'draft';

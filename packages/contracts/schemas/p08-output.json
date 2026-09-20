@@ -1,0 +1,86 @@
+{
+  "$ref": "#/definitions/P08Output",
+  "definitions": {
+    "P08Output": {
+      "type": "object",
+      "properties": {
+        "taskCode": {
+          "type": "string",
+          "const": "P08"
+        },
+        "shouldAsk": {
+          "type": "boolean"
+        },
+        "decidedBy": {
+          "type": "string",
+          "enum": [
+            "depth",
+            "coverage",
+            "answer"
+          ]
+        },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "difficulty": {
+                "type": "string",
+                "enum": [
+                  "begin",
+                  "mid",
+                  "deep"
+                ]
+              },
+              "relationToPrev": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "purpose",
+              "difficulty"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 3
+        },
+        "maxDepthReached": {
+          "type": "boolean"
+        },
+        "nextStep": {
+          "type": "string",
+          "enum": [
+            "followup",
+            "next_topic",
+            "coaching",
+            "wrapup"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "shouldAsk",
+        "decidedBy",
+        "questions",
+        "maxDepthReached",
+        "nextStep",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

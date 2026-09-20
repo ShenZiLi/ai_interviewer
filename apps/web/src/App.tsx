@@ -508,8 +508,6 @@ export function App() {
       ))}
     </div>
   );
-  const breadcrumb = `首页 / ${titles[active]}`;
-
   /** 把当前复盘报告导出为 Markdown（含维度、行动项、逐题转写）。 */
   const exportReport = () => {
     if (!report) return;
@@ -1043,7 +1041,7 @@ export function App() {
                     {pendingAdjust !== undefined && (
                       <div className="notice" style={{ marginTop: 10 }}>
                         <b>自我介绍后的大纲调整建议</b>
-                        <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c, i) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
+                        <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
                         <div className="row" style={{ marginTop: 8 }}>
                           <button style={{ padding: '4px 10px', fontSize: 12 }} onClick={applyAdjustAndAdvance}>确认应用</button>
                           <button className="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={skipAdjustAndAdvance}>跳过</button>
@@ -1074,7 +1072,7 @@ export function App() {
                     {pendingAdjust !== undefined && (
                       <div className="notice mobile-only" style={{ marginTop: 12 }}>
                         <b>自我介绍后的大纲调整建议</b>
-                        <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c, i) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
+                        <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
                         <div className="row" style={{ marginTop: 8 }}>
                           <button style={{ padding: '4px 10px', fontSize: 12 }} onClick={applyAdjustAndAdvance}>确认应用</button>
                           <button className="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={skipAdjustAndAdvance}>跳过</button>
