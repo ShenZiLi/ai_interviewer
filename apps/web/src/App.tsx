@@ -61,6 +61,8 @@ export function App() {
   const [style, setStyle] = useState<'professional' | 'coaching' | 'concise'>(() => (localStorage.getItem('style') as 'professional' | 'coaching' | 'concise') || 'professional');
   const setStyleAndSave = (s: 'professional' | 'coaching' | 'concise') => { setStyle(s); localStorage.setItem('style', s); };
   const [resumeId, setResumeId] = useState<string>();
+  /** 已选择的简历文件名（供上传控件反馈）。 */
+  const [fileName, setFileName] = useState<string>();
   const [analysis, setAnalysis] = useState<string>();
   const [structured, setStructured] = useState<{ candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] }>();
   const [interviewId, setInterviewId] = useState<string>();
@@ -157,6 +159,7 @@ export function App() {
       return;
     }
     const reader = new FileReader();
+    setFileName(f.name);
     reader.onload = () => setText(String(reader.result ?? ''));
     reader.readAsText(f);
   };
@@ -854,8 +857,12 @@ export function App() {
                       <h3>粘贴简历内容 或 上传 .md/.txt</h3>
                       <p>PDF、DOCX、Markdown、TXT（MVP 读取 .md/.txt，其余请粘贴）</p>
                       <textarea data-field="resumeText" value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="粘贴你的项目经历、技术栈与工作经历…" />
-                      <div className="row" style={{ marginTop: 12, justifyContent: 'center' }}>
-                        <input type="file" accept=".md,.txt,.pdf,.docx" onChange={pickResumeFile} aria-label="选择简历文件" />
+                      <div className="row" style={{ marginTop: 14, justifyContent: 'center' }}>
+                        <label className="file-picker">
+                          <input type="file" accept=".md,.txt,.pdf,.docx" onChange={pickResumeFile} aria-label="选择简历文件" />
+                          <span className="file-picker-btn">选择文件</span>
+                          <span className="file-picker-name">{fileName ?? '拖拽或点击选择 .md / .txt'}</span>
+                        </label>
                       </div>
                     </div>
                     <div className="actions">
@@ -866,7 +873,7 @@ export function App() {
                   </section>
                   <section className="card">
                     <div className="row between"><h2>确认分析结果</h2><span className="tag blue">{structured ? '待你确认' : '示例'}</span></div>
-                    <label className="field">候选人概况<input value={analysis ?? '林同学 · Java 后端 · 3 年'} readOnly /></label>
+                    <div className="profile-summary"><span className="eyebrow">候选人概况</span><strong>{analysis ?? '林同学 · Java 后端 · 3 年'}</strong></div>
                     {structured ? (
                       <>
                         {(structured.skills ?? []).map((s) => <span className="tag" key={s.name} style={{ marginRight: 6 }}>{s.name}{s.level ? ` · ${s.level}` : ''}</span>)}

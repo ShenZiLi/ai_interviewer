@@ -231,6 +231,26 @@ label.field{font-weight:600;color:#55637e;letter-spacing:.15px;}
 .dropzone textarea{border-radius:10px;}
 .upload-icon{display:inline-grid;place-items:center;width:54px;height:54px;border-radius:16px;background:linear-gradient(150deg,#eef3ff,#e2ebff);box-shadow:0 10px 22px rgba(43,86,214,.12);}
 
+/* 自定义文件选择器 — 隐藏原生 input，展示统一风格的上传按钮 + 文件名 */
+.file-picker{position:relative;display:inline-flex;align-items:center;gap:12px;padding:7px 10px 7px 7px;border:1px dashed #c3d0ea;border-radius:12px;background:#fff;box-shadow:inset 0 1px 0 #fff;cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s;}
+.file-picker input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+.file-picker:hover{border-color:#8fa8e3;background:#f7faff;box-shadow:0 6px 16px rgba(43,86,214,.08);}
+.file-picker:focus-within{border-color:#8aa6f0;box-shadow:0 0 0 4px rgba(43,86,214,.12);}
+.file-picker-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:9px;background:linear-gradient(150deg,#6d8dff,#2b56d6);color:#fff;font-size:13px;font-weight:600;letter-spacing:.1px;box-shadow:0 7px 16px rgba(43,86,214,.22);white-space:nowrap;transition:transform .18s,box-shadow .18s;}
+.file-picker-btn::before{content:'⊕';font-size:14px;line-height:1;}
+.file-picker:hover .file-picker-btn{transform:translateY(-1px);box-shadow:0 9px 20px rgba(43,86,214,.28);}
+.file-picker-name{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;}
+
+/* 候选人概况 — 只读摘要块（替代易误解的只读输入框） */
+.profile-summary{display:flex;flex-direction:column;gap:6px;margin-top:6px;padding:16px 18px;background:linear-gradient(180deg,#fbfcff,#f4f8ff);border:1px solid #e2e9fb;border-left:3px solid var(--blue);border-radius:12px;box-shadow:inset 0 1px 0 #fff;}
+.profile-summary .eyebrow{margin-bottom:0;}
+.profile-summary strong{font-size:16px;font-weight:700;letter-spacing:-.2px;}
+@container (max-width:700px){
+  .file-picker{width:100%;justify-content:flex-start;}
+  .file-picker-name{max-width:none;flex:1;}
+  .profile-summary{width:100%;}
+}
+
 /* Conversation bubbles */
 .bot{border-radius:11px;background:linear-gradient(150deg,#eef3ff,#e4edff);box-shadow:0 6px 14px rgba(43,86,214,.12);}
 .bubble{border-radius:2px 16px 16px 16px;box-shadow:var(--shadow-card);}
