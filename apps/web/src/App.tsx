@@ -1,4 +1,4 @@
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
 import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
@@ -10,20 +10,45 @@ import { avgDims } from './lib/dim-avg';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
+
+type IconName = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
+
+function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
+  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+  const paths: Record<IconName, ReactNode> = {
+    home: <><path d="m3.5 10.5 8.5-7 8.5 7" /><path d="M5.5 9.5v10h13v-10" /><path d="M9.5 19.5v-5h5v5" /></>,
+    resume: <><rect x="5" y="3.5" width="14" height="17" rx="2" /><path d="M8.5 8h7M8.5 12h7M8.5 16h4" /></>,
+    prepare: <><path d="M12 4v16M4 12h16" /></>,
+    room: <><rect x="3.5" y="5" width="17" height="13.5" rx="3" /><path d="M8 18.5v2l4-2h3.5" /><path d="M8 10.5h8M8 14h5" /></>,
+    report: <><path d="M5 19V9M12 19V5M19 19v-7" /><path d="M3.5 19.5h17" /></>,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.4 1.4-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-2v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L9 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H7v-2h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L8.4 9 9.8 7.6l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h2v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.2 9l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v2h-.2a1.7 1.7 0 0 0-1.6 1Z" /></>,
+    admin: <><path d="M5 4.5h14v15H5z" /><path d="m8 8 2 2-2 2M12 12h4M8 15h8" /></>,
+  };
+  return <svg {...common}>{paths[name]}</svg>;
+}
+
+function BrandMark() {
+  return <svg className="brand-symbol" viewBox="0 0 40 48" fill="none" aria-hidden="true">
+    <defs><linearGradient id="brand-gradient" x1="7" y1="2" x2="34" y2="46" gradientUnits="userSpaceOnUse"><stop stopColor="#4679F0" /><stop offset="1" stopColor="#244FCB" /></linearGradient></defs>
+    <rect x="7" y="2" width="26" height="44" rx="13" fill="url(#brand-gradient)" />
+    <path d="m20 14 8 8-8 8-8-8 8-8Z" fill="#fff" fillOpacity=".12" stroke="#fff" strokeWidth="1.7" />
+    <path d="m20 18 4 4-4 4-4-4 4-4Z" fill="#fff" />
+  </svg>;
+}
 /** 面试风格预设：只影响反馈文案口径，不改变评分标准。 */
 const STYLES: { id: 'professional' | 'coaching' | 'concise'; name: string; desc: string }[] = [
   { id: 'professional', name: '严谨专业', desc: '点评聚焦前提与失败处理，追问犀利' },
   { id: 'coaching', name: '循循善诱', desc: '多给提示与鼓励，追问渐进' },
   { id: 'concise', name: '简洁高效', desc: '反馈简短，直击要点' },
 ];
-const nav: { k: NavKey; icon: string; label: string }[] = [
-  { k: 'home', icon: '⌂', label: '工作台' },
-  { k: 'resume', icon: '▤', label: '我的简历' },
-  { k: 'prepare', icon: '＋', label: '准备面试' },
-  { k: 'room', icon: '▥', label: '面试练习室' },
-  { k: 'report', icon: '≡', label: '复盘报告' },
-  { k: 'settings', icon: '⚙', label: '设置' },
-  { k: 'admin', icon: '✎', label: '提示词管理' },
+const nav: { k: NavKey; icon: IconName; label: string }[] = [
+  { k: 'home', icon: 'home', label: '工作台' },
+  { k: 'resume', icon: 'resume', label: '我的简历' },
+  { k: 'prepare', icon: 'prepare', label: '准备面试' },
+  { k: 'room', icon: 'room', label: '面试练习室' },
+  { k: 'report', icon: 'report', label: '复盘报告' },
+  { k: 'settings', icon: 'settings', label: '设置' },
+  { k: 'admin', icon: 'admin', label: '提示词管理' },
 ];
 const stages = ['自我介绍', '技术问题', '业务问题', 'HR 问题'];
 const phaseLabel: Record<string, string> = { intro: '自我介绍', tech: '技术问题', biz: '业务问题', hr: 'HR 问题' };
@@ -738,11 +763,11 @@ export function App() {
       <div id="app">
         <div className="shell">
           <aside className="sidebar">
-            <div className="logo"><span className="logo-mark">◈</span>ai_interviewer</div>
+            <div className="logo"><span className="logo-mark"><BrandMark /></span><span>ai_interviewer</span></div>
             <nav className="nav">
               {nav.map((n) => (
                 <button key={n.k} className={active === n.k ? 'active' : ''} onClick={() => setPage(n.k)}>
-                  <span className="navicon">{n.icon}</span>{n.label}
+                  <span className="navicon"><Icon name={n.icon} /></span>{n.label}
                 </button>
               ))}
             </nav>
@@ -1402,7 +1427,7 @@ export function App() {
             <nav className="mobile-nav">
               {nav.map((n) => (
                 <button key={n.k} className={active === n.k ? 'active' : ''} onClick={() => setPage(n.k)}>
-                  <span>{n.icon}</span>{n.label}
+                  <span><Icon name={n.icon} size={19} /></span>{n.label}
                 </button>
               ))}
             </nav>

@@ -151,6 +151,16 @@ summary{color:#415471}
   .choice button{min-height:0}
 }
 
+/* Icon system: one visual language for the brand and navigation. */
+.logo{gap:11px}
+.logo-mark{width:34px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(150deg,#eff4ff,#dfe9ff);box-shadow:0 9px 20px rgba(43,86,214,.16);transform:none;overflow:hidden}
+.brand-symbol{width:29px;height:35px;display:block}
+.navicon{width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center;color:#77849a;flex-shrink:0}
+.navicon svg{display:block}
+.nav button.active .navicon{color:var(--blue)}
+.mobile-nav button span:first-child{height:21px;display:flex;align-items:center;justify-content:center}
+.mobile-nav button svg{display:block}
+
 /* Third UI pass — cohesive polish: denser hierarchy, tactile controls, refined hero & metrics */
 :root{
   --ink:#17253a;
