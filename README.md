@@ -199,6 +199,7 @@ python -m http.server 8765 --bind 127.0.0.1 --directory prototype
 | [输出 Schema 与校验](docs/output-schemas.md) | P01—P10 输出骨架与评分口径 |
 | [开发规范与验收标准](docs/dev-standard.md) | 分支提交、测试、安全、DoD |
 | [提示词管理](docs/prompt-management.md) | 模板版本与发布流程 |
+| [外部对接清单与操作手册](docs/external-integrations.md) | 大模型、数据库、语音、微信、对象存储、部署与上线验收 |
 | [项目协作规范](AGENTS.md) | 协作约定与推进方式 |
 
 ---
