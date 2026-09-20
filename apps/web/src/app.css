@@ -196,6 +196,9 @@ section.card.section-title{padding:22px 24px 24px;}
 .nav button.active .navicon{color:var(--blue);}
 .nav button:hover{transform:translateX(2px);}
 
+/* Keep the approved mascot free of any square brand background. */
+.logo-mark{background:transparent!important;box-shadow:none!important;}
+
 /* Hero — tighter, more purposeful, motion on the waveforms */
 .hero{min-height:238px;padding:38px 42px;border-radius:20px;background:linear-gradient(118deg,#eef3ff 0%,#f0f4ff 55%,#e8eeff 100%);border-color:#d9e4fb;}
 .hero h1{margin-bottom:12px;}
