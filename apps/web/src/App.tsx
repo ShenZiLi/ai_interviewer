@@ -7,6 +7,7 @@ import { recentScores } from './lib/session-trend';
 import { filterByRole, uniqueRoles } from './lib/session-filter';
 import { durLabel } from './lib/durations';
 import { avgDims } from './lib/dim-avg';
+import mascotLogo from './assets/ai-interviewer-mascot.png';
 
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
@@ -28,12 +29,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
 }
 
 function BrandMark() {
-  return <svg className="brand-symbol" viewBox="0 0 40 48" fill="none" aria-hidden="true">
-    <defs><linearGradient id="brand-gradient" x1="7" y1="2" x2="34" y2="46" gradientUnits="userSpaceOnUse"><stop stopColor="#4679F0" /><stop offset="1" stopColor="#244FCB" /></linearGradient></defs>
-    <rect x="7" y="2" width="26" height="44" rx="13" fill="url(#brand-gradient)" />
-    <path d="m20 14 8 8-8 8-8-8 8-8Z" fill="#fff" fillOpacity=".12" stroke="#fff" strokeWidth="1.7" />
-    <path d="m20 18 4 4-4 4-4-4 4-4Z" fill="#fff" />
-  </svg>;
+  return <img className="brand-mascot" src={mascotLogo} alt="" aria-hidden="true" />;
 }
 /** 面试风格预设：只影响反馈文案口径，不改变评分标准。 */
 const STYLES: { id: 'professional' | 'coaching' | 'concise'; name: string; desc: string }[] = [

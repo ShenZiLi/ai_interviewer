@@ -152,9 +152,11 @@ summary{color:#415471}
 }
 
 /* Icon system: one visual language for the brand and navigation. */
-.logo{gap:11px}
+.logo{gap:7px;font-size:15px;letter-spacing:-.45px;white-space:nowrap}
 .logo-mark{width:34px;height:38px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(150deg,#eff4ff,#dfe9ff);box-shadow:0 9px 20px rgba(43,86,214,.16);transform:none;overflow:hidden}
 .brand-symbol{width:29px;height:35px;display:block}
+.logo-mark{width:40px;height:40px;border-radius:0;background:transparent;box-shadow:none;overflow:visible}
+.brand-mascot{width:44px;height:44px;display:block;object-fit:contain}
 .navicon{width:21px;height:21px;display:inline-flex;align-items:center;justify-content:center;color:#77849a;flex-shrink:0}
 .navicon svg{display:block}
 .nav button.active .navicon{color:var(--blue)}
