@@ -1362,8 +1362,8 @@ export function App() {
                       ))}
                     </div>
                     <div className="field-group">
-                      <label className="field" style={{ marginTop: 12 }}>Base URL<input value={cfgMode.baseUrl} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, baseUrl: e.target.value }))} placeholder="https://open.bigmodel.cn/api/paas/v4" /></label>
-                      <label className="field">模型名<input value={cfgMode.model} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, model: e.target.value }))} placeholder="glm-4-flash" /></label>
+                      <label className="field" style={{ marginTop: 12 }}>Base URL<input type="text" value={cfgMode.baseUrl} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, baseUrl: e.target.value }))} placeholder="https://open.bigmodel.cn/api/paas/v4" /></label>
+                      <label className="field">模型名<input type="text" value={cfgMode.model} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, model: e.target.value }))} placeholder="glm-4-flash" /></label>
                       <label className="field">API Key<input type="password" value={cfgMode.apiKey} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, apiKey: e.target.value }))} placeholder="sk-…（可选，保存在服务端内存）" /></label>
                     </div>
                     <div className="actions">

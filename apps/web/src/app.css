@@ -266,13 +266,8 @@ label.field{font-weight:600;color:#55637e;letter-spacing:.15px;}
 .field-group{display:grid;gap:16px;padding:18px;margin-top:6px;background:linear-gradient(180deg,#fbfcff,#f5f8ff);border:1px solid #e2e9fb;border-radius:14px;box-shadow:inset 0 1px 0 #fff;}
 .field-group label.field{margin-bottom:0;}
 
-/* 模型配置字段组 — 精化内部控件：更规整的标签与聚焦体验 */
-.field-group{gap:16px;padding:18px;margin-top:6px;}
-.field-group label.field{display:flex;flex-direction:column;gap:8px;font-size:12px;}
-.field-group input{min-height:44px;border-radius:10px;font-size:13px;letter-spacing:.1px;background:#fff;transition:border-color .18s,box-shadow .18s,background .18s;}
-.field-group input:hover{border-color:#b3c3e2;background:#fcfdff;}
-.field-group input:focus{background:#fff;border-color:#85a1ef;}
-.field-group input::placeholder{color:#a6b4cc;}
+/* 模型配置字段组 — 三个输入框（Base URL/模型名/API Key）保持一致样式，不做差异化定制 */
+.field-group label.field{display:flex;flex-direction:column;gap:7px;font-size:12px;}
 .choice button[aria-pressed=true]{background:linear-gradient(95deg,var(--soft),#eef4ff);border-color:#92adeb;box-shadow:0 8px 20px rgba(43,86,214,.12);}
 
 /* Report score treatments */
