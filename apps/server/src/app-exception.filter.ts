@@ -1,9 +1,10 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from '@nestjs/common';
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
 import { ZodError } from 'zod';
 import { ComposeValidationError } from './ai/compose.service.js';
 
 type ResLike = {
   status?: (n: number) => { send: (b: unknown) => unknown };
+  header?: (name: string, value: string) => unknown;
   send: (b: unknown) => unknown;
 };
 
@@ -30,6 +31,33 @@ export class ComposeErrorFilter implements ExceptionFilter {
       error: { code: 'PROMPT_OUTPUT_FAILED', message: '本次生成结果未通过校验，请稍后重试', task: ex.task },
     };
     if (typeof res.status === 'function') res.status(HttpStatus.BAD_GATEWAY).send(payload);
+    else res.send(payload);
+  }
+}
+
+/**
+ * 统一 Nest HTTP 异常为 api-spec 的错误信封，避免默认异常响应泄露实现细节。
+ * 已有 Zod/Compose 专用过滤器先匹配其更精确的错误类型。
+ */
+@Catch(HttpException)
+export class HttpErrorFilter implements ExceptionFilter {
+  catch(ex: HttpException, host: ArgumentsHost): void {
+    const res = host.switchToHttp().getResponse() as unknown as ResLike;
+    const status = ex.getStatus();
+    const response = ex.getResponse();
+    const responseBody = typeof response === 'string' ? { message: response } : response as Record<string, unknown>;
+    const code = status === HttpStatus.BAD_REQUEST ? 'INVALID_REQUEST'
+      : status === HttpStatus.UNAUTHORIZED ? 'AUTH_UNAUTHORIZED'
+        : status === HttpStatus.FORBIDDEN ? 'FORBIDDEN'
+          : status === HttpStatus.NOT_FOUND ? 'NOT_FOUND'
+            : status === HttpStatus.CONFLICT ? 'CONFLICT_STATE'
+              : status === HttpStatus.TOO_MANY_REQUESTS ? 'RATE_LIMITED'
+                : status >= 500 ? 'UPSTREAM_UNAVAILABLE' : 'REQUEST_FAILED';
+    const message = typeof responseBody.message === 'string' ? responseBody.message : '请求失败';
+    const details = Array.isArray(responseBody.message) ? responseBody.message : undefined;
+    const payload = { error: { code, message, ...(details ? { details } : {}) } };
+    res.header?.('content-type', 'application/json; charset=utf-8');
+    if (typeof res.status === 'function') res.status(status).send(payload);
     else res.send(payload);
   }
 }

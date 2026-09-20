@@ -30,6 +30,12 @@ describe('AppController (e2e)', () => {
   });
 
   it('GET /grade?score=abc → 400', async () => {
-    await request(app.getHttpServer()).get('/grade').expect(400);
+    const res = await request(app.getHttpServer()).get('/grade').expect(400);
+    expect(res.body.error).toMatchObject({ code: 'INVALID_REQUEST' });
+  });
+
+  it('不存在的资源返回统一错误信封', async () => {
+    const res = await request(app.getHttpServer()).get('/interviews/interview:nope').expect(404);
+    expect(res.body).toEqual({ error: { code: 'NOT_FOUND', message: '面试不存在' } });
   });
 });
