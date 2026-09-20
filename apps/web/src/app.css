@@ -94,3 +94,59 @@ textarea:focus,input[type=text]:focus,input[type=password]:focus,select:focus{bo
   .grid3 .card .metric{font-size:29px;margin:10px 0 0}
   .mobile-nav{box-shadow:0 -6px 18px rgba(32,49,77,.06)}
 }
+
+/* Second UI pass: make the interview room and review surfaces feel more focused. */
+.room{gap:20px}
+.room>.outline,.room>.feedback{position:sticky;top:20px}
+.room>.outline{background:linear-gradient(180deg,#fbfcff,#f5f8fd);border-color:#dce5f3}
+.room>.outline h3{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#718096}
+.room>.outline .room-meta{font-size:11px;line-height:1.8}
+.room>section.card{padding:26px 28px}
+.room>section.card>.row:first-child{padding-bottom:14px;border-bottom:1px solid #e8edf4}
+.room .question{max-width:760px;font-size:clamp(20px,2.1vw,27px);line-height:1.6;letter-spacing:-.35px;margin:24px 0 18px}
+.question-context{background:#fbfcff;border-left-color:#9eb5e8;border-radius:0 8px 8px 0;padding:11px 14px}
+.answer{margin-top:26px;padding:19px;border-color:#dfe6f1;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.answer textarea{min-height:145px}
+.voice{margin-top:22px;padding-top:15px}
+.voice .primary{box-shadow:0 8px 18px rgba(45,91,209,.16)}
+.room>.feedback{max-height:calc(100vh - 40px);overflow:auto;scrollbar-width:thin}
+.room>.feedback>.row:first-child{padding-bottom:14px;border-bottom:1px solid #e8edf4}
+.feedback .score{margin:20px 0 4px;font-size:52px;letter-spacing:-1px}
+.feedback .score-row{margin:13px 0}
+.feedback-block{padding-top:17px;margin-top:20px}
+.feedback-block h3{font-size:12px;color:#52627a;letter-spacing:.02em}
+.feedback-block p{line-height:1.75;margin-bottom:0}
+.empty{background:linear-gradient(180deg,#fbfcff,#f8faff);border-radius:10px;padding-left:14px;padding-right:14px}
+.report-top{padding:4px 4px 25px;border-bottom:1px solid #e8edf4}
+.report-top h2{font-size:25px;letter-spacing:-.35px}
+.big-score{background:linear-gradient(145deg,#fff,#f7faff);border-width:8px}
+.dimension-grid{padding-top:3px}
+.dimension-grid .score-row{padding:8px 0;margin:0;border-bottom:1px solid #f0f2f6}
+.dimension-grid .score-row:last-child{border-bottom:0}
+.trend-block{background:#fbfcff;border:1px solid #e5ebf4;border-radius:12px;padding:15px 16px;margin-top:23px}
+.highlight-item{transition:transform .18s,box-shadow .18s,border-color .18s}
+.highlight-item:hover{transform:translateY(-2px);border-color:#c8d5ec;box-shadow:0 8px 20px rgba(32,49,77,.06)}
+.highlight-item:first-child{background:linear-gradient(145deg,#fbfffd,#f5fbf8);border-color:#d9eee5}
+.highlight-item:last-child{background:linear-gradient(145deg,#fffdf9,#fff8ee);border-color:#f2e6d0}
+.review-phase{margin-top:18px;padding:14px 15px 2px;background:#fbfcff;border:1px solid #e8edf4;border-radius:12px}
+.review-item{padding:15px 0}
+details{background:#fbfcff;transition:border-color .18s,background .18s}
+details[open]{background:#fff;border-color:#cbd8ee}
+summary{color:#415471}
+.setting-row{padding:19px 0}
+.setting-row:first-of-type{border-top:1px solid #eef1f5}
+.choice button{min-height:64px;background:#fbfcff}
+.choice button[aria-pressed=true]{box-shadow:0 7px 16px rgba(45,91,209,.1)}
+
+@container (max-width:700px){
+  .room>.outline,.room>.feedback{position:static;max-height:none;overflow:visible}
+  .room>section.card{padding:20px 18px}
+  .room>section.card>.row:first-child{padding-bottom:11px}
+  .room .question{font-size:19px;line-height:1.7;margin-top:20px}
+  .room>.feedback{margin-top:18px}
+  .room>.feedback .score{font-size:46px}
+  .report-top{padding-bottom:20px}
+  .report-top h2{font-size:21px}
+  .review-phase{padding-left:12px;padding-right:12px}
+  .choice button{min-height:0}
+}
