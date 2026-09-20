@@ -1354,9 +1354,11 @@ export function App() {
                         <button key={p.id} onClick={() => applyPreset(p)}>{p.vendor}</button>
                       ))}
                     </div>
-                    <label className="field" style={{ marginTop: 12 }}>Base URL<input value={cfgMode.baseUrl} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, baseUrl: e.target.value }))} placeholder="https://open.bigmodel.cn/api/paas/v4" /></label>
-                    <label className="field">模型名<input value={cfgMode.model} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, model: e.target.value }))} placeholder="glm-4-flash" /></label>
-                    <label className="field">API Key<input type="password" value={cfgMode.apiKey} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, apiKey: e.target.value }))} placeholder="sk-…（可选，保存在服务端内存）" /></label>
+                    <div className="field-group">
+                      <label className="field" style={{ marginTop: 12 }}>Base URL<input value={cfgMode.baseUrl} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, baseUrl: e.target.value }))} placeholder="https://open.bigmodel.cn/api/paas/v4" /></label>
+                      <label className="field">模型名<input value={cfgMode.model} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, model: e.target.value }))} placeholder="glm-4-flash" /></label>
+                      <label className="field">API Key<input type="password" value={cfgMode.apiKey} disabled={cfgMode.mode === 'platform'} onChange={(e) => setCfgMode((c) => ({ ...c, apiKey: e.target.value }))} placeholder="sk-…（可选，保存在服务端内存）" /></label>
+                    </div>
                     <div className="actions">
                       <button className="primary" onClick={() => saveModel.mutate()} disabled={saveModel.isPending}>{saveModel.isPending ? '保存中…' : '保存并生效'}</button>
                       <button onClick={() => testModel.mutate()} disabled={testModel.isPending}>{testModel.isPending ? '测试中…' : '测试连接'}</button>
