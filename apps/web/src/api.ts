@@ -49,6 +49,16 @@ export interface ResumeStreamProgress {
   message: string;
 }
 
+export interface PlanStreamProgress extends ResumeStreamProgress {
+  task: 'P02' | 'P03' | 'P04';
+}
+
+export interface PlanStreamResult {
+  position?: { role: string; seniority: string; focusAreas: string[] };
+  recommendedDirections: { recommendedDirections: { id: string; name: string; weight: number; reason?: string }[] };
+  outline?: { summary: string; durationPlan: { tier: string; budgetMinutes: number; phases: { phase: string; minutes: number; questionCount: number; focus: string[] }[] }; outline: { topic: string; mainQuestion: string; difficulty?: string }[] };
+}
+
 /** 录音回听地址（保留策略决定音频是否存在，不存在时播放器自然报错）。 */
 export const audioSrc = (ref: string): string => `${API_BASE}/files/audio/${ref}`;
 
@@ -119,6 +129,46 @@ async function streamResume(text: string, title: string | undefined, onProgress:
   return result;
 }
 
+/** 面试计划 SSE：依次推送 P02/P03/P04 的模型增量与契约校验，再交付计划结果。 */
+async function streamPlan<T extends PlanStreamResult>(path: string, body: unknown, onProgress: (event: PlanStreamProgress) => void): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok || !res.body) {
+    const text = await res.text();
+    throw new Error(`HTTP ${res.status}: ${text || '无法建立计划流式连接'}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: T | undefined;
+  const consume = (block: string) => {
+    const event = /^event:\s*(.+)$/m.exec(block)?.[1]?.trim() ?? 'message';
+    const raw = /^data:\s*(.+)$/m.exec(block)?.[1];
+    if (!raw) return;
+    const data = JSON.parse(raw) as PlanStreamProgress | T | { code?: string; message?: string; detail?: string };
+    if (event === 'progress') onProgress(data as PlanStreamProgress);
+    if (event === 'result') result = data as T;
+    if (event === 'error') {
+      const error = data as { code?: string; message?: string; detail?: string };
+      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? '面试计划生成失败'}`);
+    }
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? '';
+    blocks.forEach(consume);
+    if (done) break;
+  }
+  if (buffer.trim()) consume(buffer);
+  if (!result) throw new Error('计划流式处理结束，但未收到结果');
+  return result;
+}
+
 export type AnswerResult =
   | { recorded: true }
   | {
@@ -132,6 +182,10 @@ export const api = {
     req<ResumeCreateResponse>('POST', '/resumes', { text, title }),
   createResumeStream: (text: string, onProgress: (event: ResumeStreamProgress) => void, title?: string) =>
     streamResume(text, title, onProgress),
+  createPlanStream: (id: string, onProgress: (event: PlanStreamProgress) => void) =>
+    streamPlan<PlanStreamResult>(`/interviews/${id}/plan/stream`, undefined, onProgress),
+  createOutlineStream: (id: string, selectedDirections: string[] | undefined, extra: string | undefined, onProgress: (event: PlanStreamProgress) => void) =>
+    streamPlan<PlanStreamResult>(`/interviews/${id}/outline/stream`, { selectedDirections, extra }, onProgress),
   createInterview: (resumeId: string, opts: { kind?: 'coach' | 'mock'; keepAudio?: boolean; jdText?: string; role?: string; level?: 'junior' | 'mid' | 'senior'; durationTier?: '15m' | '30m' | '45m'; style?: 'professional' | 'coaching' | 'concise' } = {}) =>
     req<{ interview: { id: string; status: string } }>('POST', '/interviews', {
       resumeId,

@@ -24,9 +24,18 @@ const TASK_PROMPTS: Record<TaskCode, string> = {
   "confidence": 0.0 到 1.0 的数字
 }
 education、skills、confidence、summary 为必填字段；没有信息时数组必须返回 []，不要省略字段，不要增加其他字段。`,
-  P02: '你是岗位分析助手。结合简历与目标岗位输出结构化目标画像 JSON。',
-  P03: '你是面试准备助手。输出 2-6 个可多选的考察方向及澄清问题 JSON。',
-  P04: '你是面试大纲规划助手。按方向与时长档位输出阶段与主问题计划 JSON，须保证各阶段分钟数总和不超预算。',
+  P02: `你是岗位分析助手。结合简历与目标岗位输出 JSON，不要输出 Markdown 或解释。
+必须且只能使用：
+{"role":"岗位名","seniority":"junior|mid|senior","requiredSkills":["至少 1 项"],"preferredSkills":["可选技能"],"focusAreas":["至少 1 项考察重点"],"jdRisk":{"missing":["可为空"],"conflict":["可为空"]},"summary":"不超过 200 字","confidence":0.0 到 1.0}
+role、seniority、requiredSkills、focusAreas、summary、confidence 必填；无可选信息时返回 []，不要省略必填字段，不要增加字段。`,
+  P03: `你是面试准备助手。根据岗位画像输出 JSON，不要输出 Markdown 或解释。
+必须且只能使用：
+{"recommendedDirections":[{"id":"英文小写-连字符标识","name":"方向名称","weight":0.0001 到 1 的数字,"reason":"推荐原因","questions":[{"q":"澄清问题","why":"原因"}]}],"pendingClarify":[{"question":"可选澄清问题","options":["选项"],"why":"原因"}],"confidence":0.0 到 1.0}
+recommendedDirections 与 confidence 必填；方向数量必须为 2 到 6 个；每个方向必须有 id、name、weight；没有澄清项时返回 []，不要增加字段。`,
+  P04: `你是面试大纲规划助手。根据已选方向和时长输出 JSON，不要输出 Markdown 或解释。
+必须且只能使用：
+{"summary":"不超过 200 字","durationPlan":{"tier":"15m|30m|45m","budgetMinutes":正整数,"phases":[{"phase":"intro|tech|biz|hr","minutes":非负整数,"questionCount":非负整数,"focus":["方向"]}]},"outline":[{"topic":"主题","mainQuestion":"主问题","difficulty":"begin|mid|deep","followUpPlan":{"depth":1 到 5 的整数,"branches":["追问分支"]}}],"coveredDirections":["方向 id"],"confidence":0.0 到 1.0}
+summary、durationPlan、outline、confidence 必填；outline 至少 1 题；phases 的 minutes 总和不得超过 budgetMinutes；没有可选信息时返回 []，不要增加字段。`,
   P05: '你是大纲调整助手。依据自我介绍新增内容输出大纲变更 JSON。',
   P06: '你是面试官出题助手。围绕当前方向生成一道主问题 JSON。',
   P07: '你是面试评价助手。用八维量表对一个回答评分，输出评价 JSON（score 须与八维加权一致）。',
@@ -52,7 +61,8 @@ export class HttpProvider implements Provider {
   async completeTask({ task, context }: { task: TaskCode; context: unknown }): Promise<unknown> {
     const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
     const instruction = (context as { promptTemplate?: string })?.promptTemplate ?? TASK_PROMPTS[task];
-    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}\n只输出 JSON 对象。`;
+    const repair = (context as { repairInstruction?: string })?.repairInstruction;
+    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}${repair ? `\n\n额外校验要求：${repair}` : ''}\n只输出 JSON 对象。`;
 
     const res = await this.fetchImpl(url, {
       method: 'POST',
@@ -74,7 +84,8 @@ export class HttpProvider implements Provider {
   async streamTask({ task, context, onDelta }: { task: TaskCode; context: unknown; onDelta: (text: string) => void }): Promise<unknown> {
     const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
     const instruction = (context as { promptTemplate?: string })?.promptTemplate ?? TASK_PROMPTS[task];
-    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}\n只输出 JSON 对象。`;
+    const repair = (context as { repairInstruction?: string })?.repairInstruction;
+    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}${repair ? `\n\n额外校验要求：${repair}` : ''}\n只输出 JSON 对象。`;
     const res = await this.fetchImpl(url, {
       method: 'POST',
       headers: {

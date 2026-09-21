@@ -40,6 +40,8 @@ export interface AnswerInput {
   stage?: 'first' | 'after_hint';
 }
 
+export type ModelProgress = { phase: 'requesting' | 'delta' | 'validating' | 'retrying' | 'complete'; message: string };
+
 /** 面试状态机 + P01—P10 编排。MVP 直连 ComposeService + 内存仓库。 */
 @Injectable()
 export class InterviewService {
@@ -152,30 +154,33 @@ export class InterviewService {
     if (!statuses.includes(it.status)) throw new ConflictException(`当前状态不允许该操作: ${it.status}`);
   }
 
-  async analyze(id: string): Promise<PositionAnalysis> {
+  async analyze(id: string, onProgress?: (event: ModelProgress) => void): Promise<PositionAnalysis> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
     const resume = this.getResume(it.resumeId);
-    const position = (await this.compose.compose('P02', this.ctx(it, 'P02', { resume: resume.analysis, targetRole: it.targetRole, jdText: it.jdText }))) as PositionAnalysis;
+    const context = this.ctx(it, 'P02', { resume: resume.analysis, targetRole: it.targetRole, jdText: it.jdText });
+    const position = (await (onProgress ? this.compose.composeWithProgress('P02', context, onProgress) : this.compose.compose('P02', context))) as PositionAnalysis;
     it.position = position;
     this.store.saveInterview(it);
     return position;
   }
 
-  async directions(id: string, selected?: string[], extra?: string): Promise<Directions> {
+  async directions(id: string, selected?: string[], extra?: string, onProgress?: (event: ModelProgress) => void): Promise<Directions> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
-    const result = (await this.compose.compose('P03', this.ctx(it, 'P03', { position: it.position, selected, extra }))) as Directions;
+    const context = this.ctx(it, 'P03', { position: it.position, selected, extra });
+    const result = (await (onProgress ? this.compose.composeWithProgress('P03', context, onProgress) : this.compose.compose('P03', context))) as Directions;
     it.directionsResult = result;
     it.directions = selected ?? result.recommendedDirections.map((d) => d.id);
     this.store.saveInterview(it);
     return result;
   }
 
-  async outline(id: string): Promise<InterviewOutline> {
+  async outline(id: string, onProgress?: (event: ModelProgress) => void): Promise<InterviewOutline> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
-    const outline = (await this.compose.compose('P04', this.ctx(it, 'P04', { it }))) as InterviewOutline;
+    const context = this.ctx(it, 'P04', { it });
+    const outline = (await (onProgress ? this.compose.composeWithProgress('P04', context, onProgress) : this.compose.compose('P04', context))) as InterviewOutline;
     const budget = outline.durationPlan.budgetMinutes;
     const used = outline.durationPlan.phases.reduce((s, p) => s + p.minutes, 0);
     if (used > budget) throw new ConflictException(`大纲时长超预算: ${used}/${budget}`);

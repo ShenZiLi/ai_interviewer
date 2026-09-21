@@ -1,7 +1,7 @@
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
-import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport, type ResumeStreamProgress } from './api';
+import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport, type PlanStreamProgress, type ResumeStreamProgress } from './api';
 import { buildTrend } from './lib/trend';
 import { recentScores } from './lib/session-trend';
 import { filterByRole, uniqueRoles } from './lib/session-filter';
@@ -112,6 +112,7 @@ export function App() {
   const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string; audioRef?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [resumeProgress, setResumeProgress] = useState<ResumeStreamProgress[]>([]);
+  const [planProgress, setPlanProgress] = useState<PlanStreamProgress[]>([]);
   const [error, setError] = useState<string>();
 
   const run = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => { setError(String((e as Error)?.message ?? e)); throw e; });
@@ -123,6 +124,16 @@ export function App() {
         return [...previous.slice(0, -1), { ...last, message: `${last.message}${event.message}`.slice(-6_000) }];
       }
       return [...previous, event].slice(-30);
+    });
+  };
+
+  const appendPlanProgress = (event: PlanStreamProgress) => {
+    setPlanProgress((previous) => {
+      if (event.phase === 'delta' && previous.at(-1)?.phase === 'delta' && previous.at(-1)?.task === event.task) {
+        const last = previous.at(-1)!;
+        return [...previous.slice(0, -1), { ...last, message: `${last.message}${event.message}`.slice(-6_000) }];
+      }
+      return [...previous, event].slice(-45);
     });
   };
 
@@ -223,11 +234,11 @@ export function App() {
         durationTier: duration,
         style,
       }));
-      const pos = await run(api.analyze(interview.interview.id));
-      setPositionAreas(pos.position.focusAreas);
-      const d = await run(api.directions(interview.interview.id, undefined, extra || undefined));
-      setDirs(d.recommendedDirections.recommendedDirections);
-      setSelectedDirs(d.recommendedDirections.recommendedDirections.map((x) => x.id));
+      setPlanProgress([]);
+      const plan = await run(api.createPlanStream(interview.interview.id, appendPlanProgress));
+      setPositionAreas(plan.position?.focusAreas ?? []);
+      setDirs(plan.recommendedDirections.recommendedDirections);
+      setSelectedDirs(plan.recommendedDirections.recommendedDirections.map((x) => x.id));
       setInterviewId(interview.interview.id);
       setError(undefined);
     },
@@ -236,12 +247,13 @@ export function App() {
   /** 按已选方向重新推荐 + 生成大纲（不立即开考，供先预览流程/题目）。 */
   const generatePlan = useMutation({
     mutationFn: async () => {
-      const d = await run(api.directions(interviewId!, selectedDirs.length ? selectedDirs : undefined, extra || undefined));
-      setDirs(d.recommendedDirections.recommendedDirections);
-      const o = await run(api.outline(interviewId!));
-      setTopics(o.outline.outline.map((q) => q.topic));
-      setOutlinePhases(o.outline.durationPlan?.phases);
-      setOutlineQuestions(o.outline.outline);
+      setPlanProgress([]);
+      const plan = await run(api.createOutlineStream(interviewId!, selectedDirs.length ? selectedDirs : undefined, extra || undefined, appendPlanProgress));
+      setDirs(plan.recommendedDirections.recommendedDirections);
+      const outline = plan.outline!;
+      setTopics(outline.outline.map((q) => q.topic));
+      setOutlinePhases(outline.durationPlan?.phases);
+      setOutlineQuestions(outline.outline);
       setError(undefined);
     },
   });
@@ -1067,6 +1079,22 @@ export function App() {
                             )}
                           </div>
                         </>
+                      )}
+                      {(bootstrap.isPending || generatePlan.isPending || planProgress.length > 0) && (
+                        <section className="stream-panel" aria-live="polite" style={{ marginTop: 18 }}>
+                          <div className="row between">
+                            <div><b>计划生成实时进度</b><small> 岗位、方向与大纲的模型原始输出及校验状态</small></div>
+                            <span className={`tag ${bootstrap.isPending || generatePlan.isPending ? 'blue' : 'green'}`}>{bootstrap.isPending || generatePlan.isPending ? '处理中' : '已结束'}</span>
+                          </div>
+                          <div className="stream-log">
+                            {planProgress.map((event, index) => (
+                              <div className={`stream-event ${event.phase}`} key={`${event.task}-${event.phase}-${index}`}>
+                                <span>{({ P02: 'P02 岗位', P03: 'P03 方向', P04: 'P04 大纲' } as Record<string, string>)[event.task]} · {({ requesting: '请求', validating: '校验', retrying: '重试', complete: '完成', delta: '模型' } as Record<string, string>)[event.phase]}</span>
+                                <pre>{event.message}</pre>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
                       )}
                     </section>
                   </div>

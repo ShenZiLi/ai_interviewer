@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Post, Res } from '@nestjs/common';
 import { z } from 'zod';
 import { InterviewService } from '../core/interview.service.js';
 
@@ -16,6 +16,15 @@ const directionsSchema = z.object({ selectedDirections: z.array(z.string()).max(
 const turnSchema = z.object({ phase: z.enum(['intro', 'tech', 'biz', 'hr']), parentTurnId: z.string().optional() });
 const answerSchema = z.object({ transcript: z.string().min(1).max(10_000).optional(), audioRef: z.string().optional(), stage: z.enum(['first', 'after_hint']).optional() });
 const adjustSchema = z.object({ confirm: z.boolean().optional() });
+
+type SseReply = {
+  hijack?: () => void;
+  raw: { setHeader: (name: string, value: string) => void; write: (chunk: string) => void; end: () => void };
+};
+
+function writeEvent(reply: SseReply, event: string, data: unknown): void {
+  reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
 
 @Controller('interviews')
 export class InterviewsController {
@@ -57,6 +66,47 @@ export class InterviewsController {
   @Post(':id/outline')
   async outline(@Param('id') id: string) {
     return { outline: await this.service.outline(id) };
+  }
+
+  /** 首次生成计划：顺序执行 P02 岗位分析与 P03 方向推荐，并实时转发模型输出。 */
+  @Post(':id/plan/stream')
+  async createPlanStream(@Param('id') id: string, @Res() reply: SseReply): Promise<void> {
+    reply.hijack?.();
+    reply.raw.setHeader('content-type', 'text/event-stream; charset=utf-8');
+    reply.raw.setHeader('cache-control', 'no-cache, no-transform');
+    reply.raw.setHeader('connection', 'keep-alive');
+    reply.raw.setHeader('access-control-allow-origin', '*');
+    const forward = (task: 'P02' | 'P03') => (progress: { phase: string; message: string }) => writeEvent(reply, 'progress', { ...progress, task });
+    try {
+      const position = await this.service.analyze(id, forward('P02'));
+      const recommendedDirections = await this.service.directions(id, undefined, undefined, forward('P03'));
+      writeEvent(reply, 'result', { position, recommendedDirections });
+    } catch (error) {
+      writeEvent(reply, 'error', { code: 'PLAN_GENERATION_FAILED', message: '面试计划生成失败，请检查模型处理记录后重试。', detail: String((error as Error)?.message ?? error) });
+    } finally {
+      reply.raw.end();
+    }
+  }
+
+  /** 用户确认方向后：重新执行 P03 与 P04，并实时交付面试大纲。 */
+  @Post(':id/outline/stream')
+  async createOutlineStream(@Param('id') id: string, @Body() body: unknown, @Res() reply: SseReply): Promise<void> {
+    const { selectedDirections, extra } = directionsSchema.parse(body ?? {});
+    reply.hijack?.();
+    reply.raw.setHeader('content-type', 'text/event-stream; charset=utf-8');
+    reply.raw.setHeader('cache-control', 'no-cache, no-transform');
+    reply.raw.setHeader('connection', 'keep-alive');
+    reply.raw.setHeader('access-control-allow-origin', '*');
+    const forward = (task: 'P03' | 'P04') => (progress: { phase: string; message: string }) => writeEvent(reply, 'progress', { ...progress, task });
+    try {
+      const recommendedDirections = await this.service.directions(id, selectedDirections, extra, forward('P03'));
+      const outline = await this.service.outline(id, forward('P04'));
+      writeEvent(reply, 'result', { recommendedDirections, outline });
+    } catch (error) {
+      writeEvent(reply, 'error', { code: 'PLAN_GENERATION_FAILED', message: '面试流程生成失败，请检查模型处理记录后重试。', detail: String((error as Error)?.message ?? error) });
+    } finally {
+      reply.raw.end();
+    }
   }
 
   @Post(':id/start')
