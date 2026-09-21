@@ -39,6 +39,11 @@ export class ProviderRegistry implements Provider {
     return this.current.completeTask(req);
   }
 
+  async streamTask(req: { task: TaskCode; context: unknown; onDelta: (text: string) => void }): Promise<unknown> {
+    if (this.current.streamTask) return this.current.streamTask(req);
+    return this.current.completeTask(req);
+  }
+
   /** 运行期切换供应商；custom 缺 baseUrl/model 时报错回滚为当前值。 */
   setConfig(input: SetModelConfigInput): ModelConfigState {
     if (input.mode === 'custom') {

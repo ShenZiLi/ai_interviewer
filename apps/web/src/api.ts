@@ -32,6 +32,23 @@ export interface InterviewDetail extends InterviewSummary {
   turns?: { id: string; phase: string; question: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; audioRef?: string; evaluation?: { score: number; grade?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] } }[] }[];
 }
 
+export interface ResumeAnalysis {
+  summary: string;
+  candidateName?: string;
+  skills?: { name: string; level?: string }[];
+  experiences?: { company: string; role: string; period: string; bullets: string[] }[];
+  projects?: { name: string; role: string; stack: string[]; points: string[] }[];
+}
+
+export interface ResumeCreateResponse {
+  resume: { id: string; status: string; analysis: ResumeAnalysis };
+}
+
+export interface ResumeStreamProgress {
+  phase: 'requesting' | 'delta' | 'validating' | 'retrying' | 'complete';
+  message: string;
+}
+
 /** 录音回听地址（保留策略决定音频是否存在，不存在时播放器自然报错）。 */
 export const audioSrc = (ref: string): string => `${API_BASE}/files/audio/${ref}`;
 
@@ -55,6 +72,46 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   return (await res.json()) as T;
 }
 
+/** 读取 POST SSE：模型 token 与校验阶段即时回调，result 事件返回最终简历。 */
+async function streamResume(text: string, title: string | undefined, onProgress: (event: ResumeStreamProgress) => void): Promise<ResumeCreateResponse> {
+  const res = await fetch(`${API_BASE}/resumes/stream`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+    body: JSON.stringify({ text, title }),
+  });
+  if (!res.ok || !res.body) {
+    const body = await res.text();
+    throw new Error(`HTTP ${res.status}: ${body || '无法建立流式连接'}`);
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: ResumeCreateResponse | undefined;
+  const consume = (block: string) => {
+    const event = /^event:\s*(.+)$/m.exec(block)?.[1]?.trim() ?? 'message';
+    const raw = /^data:\s*(.+)$/m.exec(block)?.[1];
+    if (!raw) return;
+    const data = JSON.parse(raw) as ResumeStreamProgress | ResumeCreateResponse | { code?: string; message?: string; detail?: string };
+    if (event === 'progress') onProgress(data as ResumeStreamProgress);
+    if (event === 'result') result = data as ResumeCreateResponse;
+    if (event === 'error') {
+      const error = data as { code?: string; message?: string; detail?: string };
+      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? '简历解析失败'}`);
+    }
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const blocks = buffer.split(/\r?\n\r?\n/);
+    buffer = blocks.pop() ?? '';
+    blocks.forEach(consume);
+    if (done) break;
+  }
+  if (buffer.trim()) consume(buffer);
+  if (!result) throw new Error('流式解析结束，但未收到结构化简历结果');
+  return result;
+}
+
 export type AnswerResult =
   | { recorded: true }
   | {
@@ -65,7 +122,9 @@ export type AnswerResult =
 
 export const api = {
   createResume: (text: string, title?: string) =>
-    req<{ resume: { id: string; status: string; analysis: { summary: string; candidateName?: string; skills?: { name: string; level?: string }[]; experiences?: { company: string; role: string; period: string; bullets: string[] }[]; projects?: { name: string; role: string; stack: string[]; points: string[] }[] } } }>('POST', '/resumes', { text, title }),
+    req<ResumeCreateResponse>('POST', '/resumes', { text, title }),
+  createResumeStream: (text: string, onProgress: (event: ResumeStreamProgress) => void, title?: string) =>
+    streamResume(text, title, onProgress),
   createInterview: (resumeId: string, opts: { kind?: 'coach' | 'mock'; keepAudio?: boolean; jdText?: string; role?: string; level?: 'junior' | 'mid' | 'senior'; durationTier?: '15m' | '30m' | '45m'; style?: 'professional' | 'coaching' | 'concise' } = {}) =>
     req<{ interview: { id: string; status: string } }>('POST', '/interviews', {
       resumeId,

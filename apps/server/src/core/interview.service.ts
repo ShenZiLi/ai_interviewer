@@ -65,6 +65,23 @@ export class InterviewService {
     return resume;
   }
 
+  async parseResumeWithProgress(
+    text: string,
+    title: string,
+    onProgress: (event: { phase: 'requesting' | 'delta' | 'validating' | 'retrying' | 'complete'; message: string }) => void,
+  ) {
+    const analysis = (await this.compose.composeWithProgress('P01', { text }, onProgress)) as ResumeUnderstanding;
+    const resume = this.store.saveResume({
+      id: newId('resume'),
+      title,
+      text,
+      status: 'parsed',
+      analysis,
+      createdAt: now(),
+    });
+    return resume;
+  }
+
   getResume(id: string) {
     const r = this.store.getResume(id);
     if (!r) throw new NotFoundException('简历不存在');

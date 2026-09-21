@@ -65,4 +65,23 @@ describe('HttpProvider (OpenAI 兼容)', () => {
     await p.completeTask({ task: 'P06', context: {} });
     expect(sentBody).toContain('主问题');
   });
+
+  it('透传 SSE delta 并在流结束后解析 JSON', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"{\\"summary\\":\\"ok\\"}"}}]}\n\n'));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      },
+    });
+    const p = new HttpProvider({
+      baseUrl: 'http://x', model: 'm',
+      fetchImpl: async () => ({ ok: true, status: 200, body, json: async () => ({}) }) as never,
+    });
+    const deltas: string[] = [];
+    const out = await p.streamTask({ task: 'P01', context: {}, onDelta: (text) => deltas.push(text) });
+    expect(out).toEqual({ summary: 'ok' });
+    expect(deltas).toEqual(['{"summary":"ok"}']);
+  });
 });

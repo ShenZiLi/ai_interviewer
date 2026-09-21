@@ -8,6 +8,8 @@ export interface Provider {
   readonly name: string;
   /** 对给定任务输出原始结果。MVP 的 Mock 返回合法样本；真实实现在此调用 vendor API。 */
   completeTask(_: { task: TaskCode; context: unknown }): Promise<unknown>;
+  /** 可选的增量输出通道；HTTP Provider 用它转发模型 SSE 文本，Mock 可省略。 */
+  streamTask?(_: { task: TaskCode; context: unknown; onDelta: (text: string) => void }): Promise<unknown>;
 }
 
 export interface VoiceGateway {

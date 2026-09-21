@@ -49,6 +49,15 @@ describe('ComposeService（校验→重试一次→失败降级）', () => {
     expect(p.calls).toBe(2);
   });
 
+  it('流式编排会暴露请求、校验和完成阶段', async () => {
+    const p = fakeProvider([validP01]);
+    const svc = new ComposeService(p);
+    const events: string[] = [];
+    const out = await svc.composeWithProgress('P01', {}, (event) => events.push(event.phase));
+    expect(out).toEqual(validP01);
+    expect(events).toEqual(['requesting', 'validating', 'complete']);
+  });
+
   it('Provider 抛异常 → 直接抛 ComposeValidationError（不重试）', async () => {
     const p = fakeProvider([new Error('upstream down')]);
     const svc = new ComposeService(p);

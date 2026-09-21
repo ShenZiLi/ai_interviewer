@@ -1,7 +1,7 @@
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
-import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport } from './api';
+import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport, type ResumeStreamProgress } from './api';
 import { buildTrend } from './lib/trend';
 import { recentScores } from './lib/session-trend';
 import { filterByRole, uniqueRoles } from './lib/session-filter';
@@ -111,9 +111,20 @@ export function App() {
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[]; keepAudio?: boolean; highlight?: { best: { q?: string; why: string }; improve: { q?: string; why: string } } }>();
   const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string; audioRef?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
+  const [resumeProgress, setResumeProgress] = useState<ResumeStreamProgress[]>([]);
   const [error, setError] = useState<string>();
 
   const run = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => { setError(String((e as Error)?.message ?? e)); throw e; });
+
+  const appendResumeProgress = (event: ResumeStreamProgress) => {
+    setResumeProgress((previous) => {
+      if (event.phase === 'delta' && previous.at(-1)?.phase === 'delta') {
+        const last = previous.at(-1)!;
+        return [...previous.slice(0, -1), { ...last, message: `${last.message}${event.message}`.slice(-6_000) }];
+      }
+      return [...previous, event].slice(-30);
+    });
+  };
 
   /** 从面试 turns 汇总「回答转写回顾」：逐题保留各次作答（首次/复发并列，不以提示后最高分计入）。 */
   const buildReview = (turns: NonNullable<InterviewDetail['turns']>) =>
@@ -145,7 +156,9 @@ export function App() {
 
   const parseResume = useMutation({
     mutationFn: async () => {
-      const r = await run(api.createResume(text));
+      setError(undefined);
+      setResumeProgress([{ phase: 'requesting', message: '已连接解析服务，等待模型开始输出…' }]);
+      const r = await run(api.createResumeStream(text, appendResumeProgress));
       setResumeId(r.resume.id);
       setAnalysis(r.resume.analysis.summary);
       setStructured(r.resume.analysis);
@@ -888,9 +901,25 @@ export function App() {
                     </div>
                     <div className="actions">
                       <button className="primary" onClick={() => parseResume.mutate()} disabled={parseResume.isPending}>
-                        {parseResume.isPending ? '解析中…' : '载入示例分析 →'}
+                        {parseResume.isPending ? '正在流式解析…' : '载入示例分析 →'}
                       </button>
                     </div>
+                    {(parseResume.isPending || resumeProgress.length > 0) && (
+                      <section className="stream-panel" aria-live="polite">
+                        <div className="row between">
+                          <div><b>解析实时进度</b><small> 模型原始输出与结构校验状态</small></div>
+                          <span className={`tag ${parseResume.isPending ? 'blue' : 'green'}`}>{parseResume.isPending ? '处理中' : '已结束'}</span>
+                        </div>
+                        <div className="stream-log">
+                          {resumeProgress.map((event, index) => (
+                            <div className={`stream-event ${event.phase}`} key={`${event.phase}-${index}`}>
+                              <span>{({ requesting: '请求', validating: '校验', retrying: '重试', complete: '完成', delta: '模型' } as Record<string, string>)[event.phase]}</span>
+                              <pre>{event.message}</pre>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
                   </section>
                   <section className="card">
                     <div className="row between"><h2>确认分析结果</h2><span className="tag blue">{structured ? '待你确认' : '示例'}</span></div>
