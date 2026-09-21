@@ -81,7 +81,14 @@ async function streamResume(text: string, title: string | undefined, onProgress:
   });
   if (!res.ok || !res.body) {
     const body = await res.text();
-    throw new Error(`HTTP ${res.status}: ${body || '无法建立流式连接'}`);
+    let reason = body || '无法建立流式连接';
+    try {
+      const envelope = JSON.parse(body) as { error?: { code?: string; message?: string } };
+      if (envelope.error?.message) reason = `${envelope.error.code ? `${envelope.error.code} · ` : ''}${envelope.error.message}`;
+    } catch {
+      /* 非 JSON 错误体，保留原始信息。 */
+    }
+    throw new Error(`HTTP ${res.status}: ${reason}`);
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

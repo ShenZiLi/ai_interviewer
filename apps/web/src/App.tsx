@@ -126,6 +126,16 @@ export function App() {
     });
   };
 
+  /** 输入变化后，旧简历的分析不再对应当前文本，必须立即清除。 */
+  const updateResumeText = (value: string) => {
+    setText(value);
+    setResumeId(undefined);
+    setAnalysis(undefined);
+    setStructured(undefined);
+    setResumeProgress([]);
+    setError(undefined);
+  };
+
   /** 从面试 turns 汇总「回答转写回顾」：逐题保留各次作答（首次/复发并列，不以提示后最高分计入）。 */
   const buildReview = (turns: NonNullable<InterviewDetail['turns']>) =>
     turns
@@ -156,6 +166,9 @@ export function App() {
 
   const parseResume = useMutation({
     mutationFn: async () => {
+      if (modelQuery.data?.status.mode === 'mock') {
+        throw new Error('请先在“设置 → 模型配置”中保存并测试真实大模型，再进行简历分析。');
+      }
       setError(undefined);
       setResumeProgress([{ phase: 'requesting', message: '已连接解析服务，等待模型开始输出…' }]);
       const r = await run(api.createResumeStream(text, appendResumeProgress));
@@ -194,7 +207,7 @@ export function App() {
     }
     const reader = new FileReader();
     setFileName(f.name);
-    reader.onload = () => setText(String(reader.result ?? ''));
+    reader.onload = () => updateResumeText(String(reader.result ?? ''));
     reader.readAsText(f);
   };
 
@@ -707,7 +720,7 @@ export function App() {
   const [draftText, setDraftText] = useState('');
 
   // ---- 模型供应商设置 ----
-  const modelQuery = useQuery({ queryKey: ['modelSettings'], queryFn: api.getModelSettings, enabled: page === 'settings' });
+  const modelQuery = useQuery({ queryKey: ['modelSettings'], queryFn: api.getModelSettings, enabled: page === 'settings' || page === 'resume' });
   const [cfgMode, setCfgMode] = useState<{ baseUrl: string; model: string; apiKey: string; mode: 'platform' | 'custom' }>({ baseUrl: '', model: '', apiKey: '', mode: 'custom' });
   useEffect(() => {
     const s = modelQuery.data?.status;
@@ -890,7 +903,7 @@ export function App() {
                       <div className="upload-icon">↥</div>
                       <h3>粘贴简历内容 或 上传 .md/.txt</h3>
                       <p>PDF、DOCX、Markdown、TXT（MVP 读取 .md/.txt，其余请粘贴）</p>
-                      <textarea data-field="resumeText" value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="粘贴你的项目经历、技术栈与工作经历…" />
+                      <textarea data-field="resumeText" value={text} onChange={(e) => updateResumeText(e.target.value)} rows={6} placeholder="粘贴你的项目经历、技术栈与工作经历…" />
                       <div className="row" style={{ marginTop: 14, justifyContent: 'center' }}>
                         <label className="file-picker">
                           <input type="file" accept=".md,.txt,.pdf,.docx" onChange={pickResumeFile} aria-label="选择简历文件" />
@@ -900,10 +913,15 @@ export function App() {
                       </div>
                     </div>
                     <div className="actions">
-                      <button className="primary" onClick={() => parseResume.mutate()} disabled={parseResume.isPending}>
-                        {parseResume.isPending ? '正在流式解析…' : '载入示例分析 →'}
+                      <button className="primary" onClick={() => parseResume.mutate()} disabled={parseResume.isPending || modelQuery.isLoading || modelQuery.data?.status.mode === 'mock'}>
+                        {parseResume.isPending ? '正在流式解析…' : '使用真实模型分析 →'}
                       </button>
                     </div>
+                    {modelQuery.data?.status.mode === 'mock' && (
+                      <div className="notice" style={{ marginTop: 14, background: '#fff7e8', color: '#9a5a05' }}>
+                        当前尚未配置真实大模型，无法执行简历分析。<button className="ghost" onClick={() => setPage('settings')}>前往模型配置 →</button>
+                      </div>
+                    )}
                     {(parseResume.isPending || resumeProgress.length > 0) && (
                       <section className="stream-panel" aria-live="polite">
                         <div className="row between">
@@ -922,8 +940,8 @@ export function App() {
                     )}
                   </section>
                   <section className="card">
-                    <div className="row between"><h2>确认分析结果</h2><span className="tag blue">{structured ? '待你确认' : '示例'}</span></div>
-                    <div className="profile-summary"><span className="eyebrow">候选人概况</span><strong>{analysis ?? '林同学 · Java 后端 · 3 年'}</strong></div>
+                    <div className="row between"><h2>确认分析结果</h2><span className={`tag ${structured ? 'blue' : modelQuery.data?.status.mode === 'mock' ? '' : 'blue'}`}>{structured ? '待你确认' : modelQuery.data?.status.mode === 'mock' ? '需配置模型' : '等待分析'}</span></div>
+                    <div className="profile-summary"><span className="eyebrow">候选人概况</span><strong>{analysis ?? '尚未完成分析'}</strong></div>
                     {structured ? (
                       <>
                         {(structured.skills ?? []).map((s) => <span className="tag" key={s.name} style={{ marginRight: 6 }}>{s.name}{s.level ? ` · ${s.level}` : ''}</span>)}
@@ -942,9 +960,7 @@ export function App() {
                           </div>
                         ))}
                       </>
-                    ) : (
-                      <div className="resume-block"><h3>电商订单与库存服务</h3><p>负责订单接口与促销库存扣减改造，参与压测及重复下单处理方案讨论。</p></div>
-                    )}
+                    ) : <div className="resume-block"><p>配置真实模型后提交简历，右侧将仅展示本次模型解析出的经历、项目与技能。</p></div>}
                     <div className="actions">
                       <button className="primary" onClick={() => setPage('prepare')} disabled={!resumeId}>确认分析，进入准备 →</button>
                     </div>
