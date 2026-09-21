@@ -9,6 +9,7 @@ export class ComposeValidationError extends Error {
   constructor(
     public readonly task: TaskCode,
     cause: unknown,
+    public readonly kind: 'output' | 'upstream' = 'output',
   ) {
     super(`任务 ${task} 输出未通过契约校验`);
     this.name = 'ComposeValidationError';
@@ -48,18 +49,25 @@ export class ComposeService {
     };
     const label = taskLabel[task] ?? task;
     let firstError: unknown;
+    let repairInstruction: string | undefined;
+    let previousOutput: unknown;
     for (let attempt = 1; attempt <= 2; attempt++) {
       onProgress?.({ phase: 'requesting', message: attempt === 1 ? `正在请求模型处理${label}…` : `正在按结构要求重新生成${label}…` });
       let raw: unknown;
       try {
         const attemptContext = attempt === 2 && context && typeof context === 'object' && !Array.isArray(context)
-          ? { ...context as Record<string, unknown>, repairInstruction: '上一次 JSON 未通过字段校验。请严格逐项检查必填字段、枚举值、数组长度和数字类型后重新输出完整 JSON。' }
+          ? { ...context as Record<string, unknown>, repairInstruction, previousOutput }
           : context;
         raw = this.provider.streamTask
           ? await this.provider.streamTask({ task, context: attemptContext, onDelta: (text) => onProgress?.({ phase: 'delta', message: text }) })
           : await this.provider.completeTask({ task, context: attemptContext });
       } catch (err) {
-        throw new ComposeValidationError(task, err);
+        if (attempt === 1) {
+          repairInstruction = `上一轮请求失败：${String((err as Error)?.message ?? err).slice(0, 500)}。请重新生成完整 JSON。`;
+          onProgress?.({ phase: 'retrying', message: '模型请求异常，正在自动重试一次…' });
+          continue;
+        }
+        throw new ComposeValidationError(task, err, 'upstream');
       }
       onProgress?.({ phase: 'validating', message: `${label}返回完成，正在校验结构…` });
       const parsed = schema.safeParse(raw);
@@ -68,6 +76,8 @@ export class ComposeService {
         return parsed.data;
       }
       firstError ??= parsed.error;
+      previousOutput = raw;
+      repairInstruction = `上一次 JSON 未通过字段校验。错误清单：${parsed.error.issues.slice(0, 8).map((issue) => `${issue.path.join('.') || '根对象'}：${issue.message}`).join('；')}。请保留已有正确字段，修正后输出完整 JSON。`;
       if (attempt === 1) {
         onProgress?.({ phase: 'retrying', message: '返回结构不完整，已自动发起一次修正。' });
       }

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { DIMS, PHASES, TASK_CODES, type TaskCode } from './types.js';
 import { DIM_MAX, toDisplay } from './scale.js';
 
@@ -253,6 +254,20 @@ export const taskSchemas: Record<TaskCode, z.ZodTypeAny> = {
 export function taskSchema(code: TaskCode): z.ZodTypeAny {
   if (!TASK_CODES.includes(code)) throw new Error(`未知任务编码: ${code}`);
   return taskSchemas[code];
+}
+
+/**
+ * 将运行时校验契约原样提供给模型，避免提示词与 Zod schema 演化后发生漂移。
+ * 缓存序列化结果，所有调用方共享同一份任务输出约束。
+ */
+const taskOutputSchemaCache = new Map<TaskCode, string>();
+export function taskOutputSchemaHint(task: TaskCode): string {
+  const cached = taskOutputSchemaCache.get(task);
+  if (cached) return cached;
+  const json = zodToJsonSchema(taskSchemas[task], { name: `${task}Output`, $refStrategy: 'none' });
+  const serialized = JSON.stringify(json);
+  taskOutputSchemaCache.set(task, serialized);
+  return serialized;
 }
 
 /** 便捷：按八维分（DIMS 序，0–5）构造 P07 dims 条目。 */

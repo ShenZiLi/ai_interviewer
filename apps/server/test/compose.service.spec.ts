@@ -3,13 +3,15 @@ import { ComposeService, ComposeValidationError } from '../src/ai/compose.servic
 import { ComposeErrorFilter } from '../src/app-exception.filter.js';
 import type { Provider } from '../src/ai/provider.interface.js';
 
-function fakeProvider(results: (unknown | Error)[]): Provider & { calls: number } {
+function fakeProvider(results: (unknown | Error)[]): Provider & { calls: number; contexts: unknown[] } {
   let i = 0;
   return {
     name: 'fake',
     calls: 0,
-    async completeTask() {
+    contexts: [],
+    async completeTask({ context }) {
       this.calls++;
+      this.contexts.push(context);
       const r = results[i++];
       if (r instanceof Error) throw r;
       return r;
@@ -40,6 +42,8 @@ describe('ComposeService（校验→重试一次→失败降级）', () => {
     const out = await svc.compose('P01', {});
     expect(out).toEqual(validP01);
     expect(p.calls).toBe(2);
+    expect(p.contexts[1]).toMatchObject({ previousOutput: { summary: '' } });
+    expect((p.contexts[1] as { repairInstruction: string }).repairInstruction).toContain('summary');
   });
 
   it('重试后仍非法 → 抛 ComposeValidationError（调用两次）', async () => {
@@ -58,11 +62,11 @@ describe('ComposeService（校验→重试一次→失败降级）', () => {
     expect(events).toEqual(['requesting', 'validating', 'complete']);
   });
 
-  it('Provider 抛异常 → 直接抛 ComposeValidationError（不重试）', async () => {
-    const p = fakeProvider([new Error('upstream down')]);
+  it('Provider 抛异常 → 自动重试一次后标记为上游失败', async () => {
+    const p = fakeProvider([new Error('upstream down'), new Error('upstream down')]);
     const svc = new ComposeService(p);
-    await expect(svc.compose('P01', {})).rejects.toBeInstanceOf(ComposeValidationError);
-    expect(p.calls).toBe(1);
+    await expect(svc.compose('P01', {})).rejects.toMatchObject({ kind: 'upstream' });
+    expect(p.calls).toBe(2);
   });
 });
 
@@ -85,5 +89,13 @@ describe('ComposeErrorFilter：compose 失败降级为 502 而非裸 500', () =>
     expect(res.statusCode).toBe(502);
     expect(res.body.error.code).toBe('PROMPT_OUTPUT_FAILED');
     expect(res.body.error.task).toBe('P07');
+  });
+
+  it('上游 ComposeValidationError → 502 UPSTREAM_UNAVAILABLE', () => {
+    const f = new ComposeErrorFilter();
+    const { res, host } = hostFor() as unknown as { res: { statusCode: number; body: { error: { code: string } } }; host: { switchToHttp: () => { getResponse: () => { status: (n: number) => { send: (b: unknown) => void }; send: (b: unknown) => void } } } };
+    f.catch(new ComposeValidationError('P07', new Error('down'), 'upstream'), host as never);
+    expect(res.statusCode).toBe(502);
+    expect(res.body.error.code).toBe('UPSTREAM_UNAVAILABLE');
   });
 });

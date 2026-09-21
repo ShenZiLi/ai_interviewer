@@ -1,6 +1,5 @@
-import { Body, ConflictException, Controller, Get, Inject, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Res } from '@nestjs/common';
 import { InterviewService } from '../core/interview.service.js';
-import { ProviderRegistry } from '../ai/provider-registry.js';
 import { z } from 'zod';
 
 const importResumeSchema = z.object({ text: z.string().min(1).max(200_000), title: z.string().min(1).max(80).optional() });
@@ -16,23 +15,12 @@ function writeEvent(reply: SseReply, event: string, data: unknown): void {
 
 @Controller('resumes')
 export class ResumesController {
-  constructor(
-    @Inject(InterviewService) private readonly service: InterviewService,
-    @Inject(ProviderRegistry) private readonly providers: ProviderRegistry,
-  ) {}
-
-  /** 简历理解是用户可见的正式结果，不允许用固定 Mock 样本冒充模型分析。 */
-  private requireRealModel(): void {
-    if (this.providers.status().mode === 'mock') {
-      throw new ConflictException('请先在“设置 → 模型配置”中保存并测试真实大模型，再进行简历分析。');
-    }
-  }
+  constructor(@Inject(InterviewService) private readonly service: InterviewService) {}
 
   /** 粘贴文本创建简历（对应 api-spec 2.2）。 */
   @Post()
   async create(@Body() body: unknown) {
     const input = importResumeSchema.parse(body);
-    this.requireRealModel();
     return { resume: await this.service.parseResume(input.text, input.title ?? '未命名简历') };
   }
 
@@ -40,7 +28,6 @@ export class ResumesController {
   @Post('stream')
   async createStream(@Body() body: unknown, @Res() reply: SseReply): Promise<void> {
     const input = importResumeSchema.parse(body);
-    this.requireRealModel();
     reply.hijack?.();
     reply.raw.setHeader('content-type', 'text/event-stream; charset=utf-8');
     reply.raw.setHeader('cache-control', 'no-cache, no-transform');

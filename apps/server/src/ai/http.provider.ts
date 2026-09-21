@@ -1,4 +1,4 @@
-import type { TaskCode } from '@ai-interviewer/contracts';
+import { taskOutputSchemaHint, type TaskCode } from '@ai-interviewer/contracts';
 import type { Provider } from './provider.interface.js';
 
 type FetchLike = (url: string, init: RequestInit) => Promise<Pick<Response, 'ok' | 'json' | 'status' | 'body'>>;
@@ -62,7 +62,7 @@ export class HttpProvider implements Provider {
     const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
     const instruction = (context as { promptTemplate?: string })?.promptTemplate ?? TASK_PROMPTS[task];
     const repair = (context as { repairInstruction?: string })?.repairInstruction;
-    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}${repair ? `\n\n额外校验要求：${repair}` : ''}\n只输出 JSON 对象。`;
+    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}${repair ? `\n\n额外校验要求：${repair}` : ''}\n\n最终输出必须严格符合以下 JSON Schema（不得添加字段）：${taskOutputSchemaHint(task)}\n只输出 JSON 对象。`;
 
     const res = await this.fetchImpl(url, {
       method: 'POST',
@@ -85,7 +85,7 @@ export class HttpProvider implements Provider {
     const url = `${this.config.baseUrl.replace(/\/$/, '')}/chat/completions`;
     const instruction = (context as { promptTemplate?: string })?.promptTemplate ?? TASK_PROMPTS[task];
     const repair = (context as { repairInstruction?: string })?.repairInstruction;
-    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}${repair ? `\n\n额外校验要求：${repair}` : ''}\n只输出 JSON 对象。`;
+    const conversation = `历史/上下文（JSON）：${safeStringify(context)}\n\n请完成以下任务：${instruction}${repair ? `\n\n额外校验要求：${repair}` : ''}\n\n最终输出必须严格符合以下 JSON Schema（不得添加字段）：${taskOutputSchemaHint(task)}\n只输出 JSON 对象。`;
     const res = await this.fetchImpl(url, {
       method: 'POST',
       headers: {

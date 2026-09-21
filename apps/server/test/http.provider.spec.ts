@@ -64,6 +64,8 @@ describe('HttpProvider (OpenAI 兼容)', () => {
     });
     await p.completeTask({ task: 'P06', context: {} });
     expect(sentBody).toContain('主问题');
+    expect(sentBody).toContain('JSON Schema');
+    expect(sentBody).toContain('questionText');
   });
 
   it('透传 SSE delta 并在流结束后解析 JSON', async () => {
