@@ -1185,14 +1185,16 @@ export function App() {
                             <b>{h.targetRole} · {h.level === 'mid' ? '中级' : h.level === 'junior' ? '初级' : '高级'}</b>
                             <p>{h.kind === 'coach' ? '陪练' : '模拟'} · {h.status === 'finished' ? `报告 ${h.report?.overview.avgScore} 分 · 完成 ${h.report?.overview.completedAnswers} 题` : h.status === 'active' ? `进行中${h.currentPhase ? ` · ${phaseLabel[h.currentPhase]}` : ''}` : '草稿'} · {new Date(h.updatedAt).toLocaleString()}</p>
                           </div>
-                          {h.status === 'finished' ? (
-                            <button onClick={() => openHistory.mutate(h.id)} disabled={openHistory.isPending}>查看报告</button>
-                          ) : h.status === 'active' ? (
-                            <button onClick={() => resumeInterview.mutate(h.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续'}</button>
-                          ) : (
-                            <button onClick={() => resumePreparation.mutate(h.id)} disabled={resumePreparation.isPending}>{resumePreparation.isPending ? '载入中…' : '继续准备'}</button>
-                          )}
-                          <button className="danger ghost" onClick={() => askConfirm({ danger: true, title: '删除面试记录', message: '删除这场面试记录？删除后不可恢复。', confirmText: '删除', cancelText: '保留' }, () => deleteInterview.mutate(h.id))} disabled={deleteInterview.isPending}>删除</button>
+                          <div className="row" style={{ gap: 6 }}>
+                            {h.status === 'finished' ? (
+                              <button onClick={() => openHistory.mutate(h.id)} disabled={openHistory.isPending}>查看报告</button>
+                            ) : h.status === 'active' ? (
+                              <button onClick={() => resumeInterview.mutate(h.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续'}</button>
+                            ) : (
+                              <button onClick={() => resumePreparation.mutate(h.id)} disabled={resumePreparation.isPending}>{resumePreparation.isPending ? '载入中…' : '继续准备'}</button>
+                            )}
+                            <button className="danger ghost" onClick={() => askConfirm({ danger: true, title: '删除面试记录', message: '删除这场面试记录？删除后不可恢复。', confirmText: '删除', cancelText: '保留' }, () => deleteInterview.mutate(h.id))} disabled={deleteInterview.isPending}>删除</button>
+                          </div>
                         </div>
                       ))}
                     </section>
