@@ -735,6 +735,9 @@ export function App() {
   // ---- 模型供应商设置 ----
   const modelQuery = useQuery({ queryKey: ['modelSettings'], queryFn: api.getModelSettings, enabled: page === 'settings' || page === 'resume' });
   const savedResumesQuery = useQuery({ queryKey: ['savedResumes'], queryFn: api.listResumes, enabled: page === 'resume' });
+  const [renamingResumeId, setRenamingResumeId] = useState<string>();
+  const [resumeTitleDraft, setResumeTitleDraft] = useState('');
+  const renameSubmittingRef = useRef<string>();
   const loadSavedResume = useMutation({
     mutationFn: async (id: string) => {
       const { resume } = await run(api.getResume(id));
@@ -772,6 +775,21 @@ export function App() {
       await savedResumesQuery.refetch();
     },
   });
+  const renameSavedResume = useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const normalized = title.trim();
+      if (!normalized) throw new Error('简历名称不能为空');
+      const { resume } = await run(api.renameResume(id, normalized));
+      if (resumeId === id) setFileName(`已保存 · ${resume.title}`);
+      setRenamingResumeId(undefined);
+      await savedResumesQuery.refetch();
+    },
+  });
+  const commitResumeRename = (id: string, title: string) => {
+    if (renameSubmittingRef.current === id) return;
+    renameSubmittingRef.current = id;
+    renameSavedResume.mutate({ id, title }, { onSettled: () => { renameSubmittingRef.current = undefined; } });
+  };
   const [cfgMode, setCfgMode] = useState<{ baseUrl: string; model: string; apiKey: string; mode: 'platform' | 'custom' }>({ baseUrl: '', model: '', apiKey: '', mode: 'custom' });
   useEffect(() => {
     const s = modelQuery.data?.status;
@@ -956,13 +974,24 @@ export function App() {
                         <div className="saved-resume-list">
                           {savedResumesQuery.data!.items.map((saved) => (
                             <div className={`saved-resume-row ${resumeId === saved.id ? 'active' : ''}`} key={saved.id}>
-                              <div>
-                                <b>{saved.title}</b>
+                              <div className="saved-resume-content">
+                                {renamingResumeId === saved.id ? (
+                                  <input
+                                    className="saved-resume-title-input"
+                                    autoFocus
+                                    value={resumeTitleDraft}
+                                    maxLength={80}
+                                    aria-label="简历名称"
+                                    onChange={(e) => setResumeTitleDraft(e.target.value)}
+                                    onBlur={() => commitResumeRename(saved.id, resumeTitleDraft)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitResumeRename(saved.id, resumeTitleDraft); } if (e.key === 'Escape') setRenamingResumeId(undefined); }}
+                                  />
+                                ) : <b className="saved-resume-title" title="双击重命名" onDoubleClick={() => { setRenamingResumeId(saved.id); setResumeTitleDraft(saved.title); }}>{saved.title}</b>}
                                 <small>{saved.analysis?.summary ?? '已保存'} · {new Date(saved.createdAt).toLocaleString()}</small>
                               </div>
-                              <div className="row" style={{ gap: 6 }}>
-                                <button onClick={() => loadSavedResume.mutate(saved.id)} disabled={loadSavedResume.isPending}>{loadSavedResume.isPending ? '载入中…' : '使用'}</button>
-                                <button className="danger ghost" onClick={() => { if (window.confirm(`删除已保存简历“${saved.title}”？`)) deleteSavedResume.mutate(saved.id); }} disabled={deleteSavedResume.isPending}>删除</button>
+                              <div className="saved-resume-actions">
+                                <button className="saved-resume-action use" onClick={() => loadSavedResume.mutate(saved.id)} disabled={loadSavedResume.isPending}>{loadSavedResume.isPending ? '载入中' : '使用'}</button>
+                                <button className="saved-resume-action delete" onClick={() => { if (window.confirm(`删除已保存简历“${saved.title}”？`)) deleteSavedResume.mutate(saved.id); }} disabled={deleteSavedResume.isPending}>删除</button>
                               </div>
                             </div>
                           ))}

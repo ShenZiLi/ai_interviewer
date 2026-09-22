@@ -1,8 +1,9 @@
-import { Body, Controller, Delete, Get, Inject, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Res } from '@nestjs/common';
 import { InterviewService } from '../core/interview.service.js';
 import { z } from 'zod';
 
 const importResumeSchema = z.object({ text: z.string().min(1).max(200_000), title: z.string().min(1).max(80).optional() });
+const renameResumeSchema = z.object({ title: z.string().trim().min(1).max(80) });
 
 type SseReply = {
   hijack?: () => void;
@@ -62,6 +63,12 @@ export class ResumesController {
   @Get(':id')
   get(@Param('id') id: string) {
     return { resume: this.service.getResume(id) };
+  }
+
+  @Patch(':id')
+  rename(@Param('id') id: string, @Body() body: unknown) {
+    const { title } = renameResumeSchema.parse(body);
+    return { resume: this.service.renameResume(id, title) };
   }
 
   @Delete(':id')

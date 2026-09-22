@@ -204,14 +204,18 @@ section.card.section-title{padding:22px 24px 24px;}
 .stream-panel{margin-top:18px;padding:14px;border:1px solid #dce6f7;border-radius:12px;background:linear-gradient(180deg,#fbfdff,#f5f8ff)}
 .saved-resumes{margin:16px 0;padding:14px;border:1px solid #dfe8fb;border-radius:14px;background:#f8faff}
 .saved-resume-list{display:grid;gap:8px;margin-top:10px}
-.saved-resume-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px;border:1px solid #e6ecf7;border-radius:10px;background:#fff}
+.saved-resume-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 10px 11px;border:1px solid #e6ecf7;border-radius:10px;background:#fff}
 .saved-resume-row.active{border-color:#3867e8;box-shadow:0 0 0 2px #eaf0ff}.saved-resume-row small{display:block;margin-top:3px}
+.saved-resume-content{min-width:0;flex:1}.saved-resume-title{display:inline-block;max-width:100%;cursor:text;color:#243451;font-size:13px}.saved-resume-title:hover{color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+.saved-resume-title-input{width:min(260px,100%);height:27px;padding:3px 7px;border:1px solid #7f9df5;border-radius:6px;background:#fff;color:#243451;font:600 13px/1.2 inherit;outline:none}
+.saved-resume-actions{display:flex;flex-direction:row;align-items:center;gap:5px;flex:none;margin-left:auto}
+.saved-resume-action{min-width:0!important;padding:4px 8px!important;border-radius:6px!important;font-size:11px!important;line-height:1.2!important;box-shadow:none!important}.saved-resume-action.use{color:#2d5dde;border-color:#cbd9fd;background:#f4f7ff}.saved-resume-action.delete{color:#cf4c4c;border-color:#f5d4d4;background:#fff8f8}
 .stream-panel b{font-size:13px}.stream-panel small{font-size:11px}
 .stream-log{max-height:230px;overflow:auto;margin-top:12px;padding:9px 10px;border-radius:9px;background:#17253a;color:#dbe7ff;font:11px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 .stream-event{display:grid;grid-template-columns:34px minmax(0,1fr);gap:8px;padding:4px 0;border-bottom:1px solid rgba(218,231,255,.11)}
 .stream-event:last-child{border-bottom:0}.stream-event>span{color:#9cb6ef;font-weight:700}.stream-event pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}.stream-event.retrying>span{color:#ffd38d}.stream-event.complete>span{color:#75dfb8}.stream-event.delta>span{color:#c0d0fb}
 @container (max-width:700px){.stream-panel{padding:12px}.stream-log{max-height:190px}}
-@media (max-width:640px){.saved-resume-row{align-items:flex-start;flex-direction:column}}
+@media (max-width:640px){.saved-resume-row{align-items:flex-start;flex-direction:column}.saved-resume-actions{margin-left:0}}
 
 /* Hero — tighter, more purposeful, motion on the waveforms */
 .hero{min-height:238px;padding:38px 42px;border-radius:20px;background:linear-gradient(118deg,#eef3ff 0%,#f0f4ff 55%,#e8eeff 100%);border-color:#d9e4fb;}

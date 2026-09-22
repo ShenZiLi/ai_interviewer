@@ -196,6 +196,7 @@ export const api = {
     streamResume(text, title, onProgress),
   listResumes: () => req<{ items: SavedResumeSummary[] }>('GET', '/resumes'),
   getResume: (id: string) => req<{ resume: SavedResume }>('GET', `/resumes/${id}`),
+  renameResume: (id: string, title: string) => req<{ resume: SavedResume }>('PATCH', `/resumes/${id}`, { title }),
   deleteResume: (id: string) => req<{ ok: boolean }>('DELETE', `/resumes/${id}`),
   createPlanStream: (id: string, onProgress: (event: PlanStreamProgress) => void) =>
     streamPlan<PlanStreamResult>(`/interviews/${id}/plan/stream`, undefined, onProgress),

@@ -102,6 +102,12 @@ export class InterviewService {
     this.store.deleteResume(id);
   }
 
+  renameResume(id: string, title: string) {
+    const resume = this.getResume(id);
+    resume.title = title;
+    return this.store.saveResume(resume);
+  }
+
   /* ---------- 面试创建与推进 ---------- */
 
   create(input: CreateInterviewInput): InterviewRecord {
