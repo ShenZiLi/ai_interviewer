@@ -417,6 +417,18 @@ export function App() {
   /** 本环节计划题数（来自大纲；无计划时不提示）。 */
   const plannedOf = (p: Phase) => outlinePhases?.find((x) => x.phase === p)?.questionCount;
 
+  /**
+   * 是否已到「本场最后一题」——决定是否展示「完成面试，查看报告」入口。
+   * 判定：位于最后环节（hr）+ 本环节计划题数已答满；无大纲计划时视为已答满（兜底，避免收尾入口永不出现）。
+   * 追问轮不占用主问题计数，故不算收尾点。
+   */
+  const isLastQuestion = (() => {
+    if (!turn?.answered || turn.followup) return false;
+    if (phase !== PHASES[PHASES.length - 1]) return false;
+    const planned = plannedOf(phase);
+    return !planned || (phaseProgress[phase] ?? 0) >= planned;
+  })();
+
   /** 结束面试：本环节未答满计划题数时先确认，避免误提交过早报告。 */
   const goFinish = () => {
     const planned = plannedOf(phase);
@@ -1558,8 +1570,15 @@ export function App() {
                           {phase !== 'intro' && (
                             <button onClick={() => beginTurn.mutate()} disabled={beginTurn.isPending}>同环节再问一题</button>
                           )}
-                          <button onClick={advance}>{phase === 'hr' ? '完成面试' : '下一环节 →'}</button>
-                          <button className="primary" onClick={goFinish} disabled={finish.isPending} style={startedAt && Math.floor((clock - new Date(startedAt).getTime()) / 60000) >= parseInt(duration, 10) ? { background: '#b34545', borderColor: '#b34545' } : undefined}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
+                          {/* 收尾入口二选一：未到最后一题时给「下一环节 / 提前完成」，到最后一题才升级为高亮「完成面试，查看报告」。 */}
+                          {!isLastQuestion && (
+                            phase === 'hr'
+                              ? <button onClick={goFinish} disabled={finish.isPending}>完成面试</button>
+                              : <button onClick={advance}>下一环节 →</button>
+                          )}
+                          {isLastQuestion && (
+                            <button className="primary" onClick={goFinish} disabled={finish.isPending} style={startedAt && Math.floor((clock - new Date(startedAt).getTime()) / 60000) >= parseInt(duration, 10) ? { background: '#b34545', borderColor: '#b34545' } : undefined}>{finish.isPending ? '生成报告…' : '完成面试，查看报告 →'}</button>
+                          )}
                         </div>
                       )}
                     </div>
