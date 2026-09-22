@@ -1,4 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { TaskCode } from '@ai-interviewer/contracts';
 import { HttpProvider } from './http.provider.js';
 import { MockProvider } from './mock.provider.js';
@@ -18,6 +20,13 @@ export interface SetModelConfigInput {
   apiKey?: string;
 }
 
+type PersistedModelConfig = {
+  mode: 'platform' | 'custom';
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
+};
+
 /**
  * 运行期可切换的文本模型供应商：本身实现 Provider，把请求委托给当前选中的实现。
  * compose 只依赖 LLM_PROVIDER token，因此热切换无需重启即可对后续请求生效
@@ -28,9 +37,11 @@ export class ProviderRegistry implements Provider {
   readonly name = 'registry';
   private current: Provider;
   private state: ModelConfigState;
+  private readonly configFile?: string;
 
-  constructor() {
-    const boot = this.fromEnv();
+  constructor(configFile?: string) {
+    this.configFile = configFile ?? this.defaultConfigFile();
+    const boot = this.fromPersisted() ?? this.fromEnv();
     this.current = boot.provider;
     this.state = boot.state;
   }
@@ -52,11 +63,13 @@ export class ProviderRegistry implements Provider {
       }
       this.current = new HttpProvider({ baseUrl: input.baseUrl.trim(), model: input.model.trim(), apiKey: input.apiKey });
       this.state = { mode: 'custom', baseUrl: input.baseUrl.trim(), model: input.model.trim() };
+      this.persistConfig({ mode: 'custom', baseUrl: input.baseUrl.trim(), model: input.model.trim(), apiKey: input.apiKey });
       return this.state;
     }
     const boot = this.fromEnv();
     this.current = boot.provider;
     this.state = boot.state;
+    this.persistConfig({ mode: 'platform' });
     return this.state;
   }
 
@@ -97,5 +110,41 @@ export class ProviderRegistry implements Provider {
       };
     }
     return { provider: new MockProvider(), state: { mode: 'mock' } };
+  }
+
+  /** 测试默认不碰本机配置；生产/本地开发可用 MODEL_CONFIG_FILE 覆盖默认路径。 */
+  private defaultConfigFile(): string | undefined {
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    if (isTest) return undefined;
+    return process.env.MODEL_CONFIG_FILE?.trim() || join(process.cwd(), '.data', 'model-config.json');
+  }
+
+  private fromPersisted(): { provider: Provider; state: ModelConfigState } | undefined {
+    if (!this.configFile || !existsSync(this.configFile)) return undefined;
+    try {
+      const config = JSON.parse(readFileSync(this.configFile, 'utf8')) as PersistedModelConfig;
+      if (config.mode === 'custom' && config.baseUrl?.trim() && config.model?.trim()) {
+        return {
+          provider: new HttpProvider({ baseUrl: config.baseUrl.trim(), model: config.model.trim(), apiKey: config.apiKey }),
+          state: { mode: 'custom', baseUrl: config.baseUrl.trim(), model: config.model.trim() },
+        };
+      }
+      if (config.mode === 'platform') return this.fromEnv();
+    } catch {
+      /* 配置损坏或不可读时安全回退到环境变量/Mock。 */
+    }
+    return undefined;
+  }
+
+  /** 本机开发配置仅写入被 Git 忽略的 .data，文件权限收紧至当前用户可读写。 */
+  private persistConfig(config: PersistedModelConfig): void {
+    if (!this.configFile) return;
+    try {
+      mkdirSync(dirname(this.configFile), { recursive: true });
+      writeFileSync(this.configFile, JSON.stringify(config), { encoding: 'utf8', mode: 0o600 });
+      chmodSync(this.configFile, 0o600);
+    } catch {
+      /* 配置持久化失败不影响当前已生效的运行时模型。 */
+    }
   }
 }

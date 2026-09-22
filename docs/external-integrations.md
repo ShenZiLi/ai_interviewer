@@ -92,7 +92,7 @@ curl http://127.0.0.1:3000/health
 curl http://127.0.0.1:3000/settings/model
 ```
 
-也可以在 Web「设置 → 模型配置」中使用 GLM、DeepSeek、Qwen 预设或自定义 OpenAI 兼容 API。当前 `AI_API_KEY`、自定义 API Key 只在服务端内存/环境中使用；M2 上线前必须改为加密密钥管理，并禁止接口回显密钥。
+也可以在 Web「设置 → 模型配置」中使用 GLM、DeepSeek、Qwen 预设或自定义 OpenAI 兼容 API。自定义配置会持久化在本机被 Git 忽略且权限为仅当前用户可读写的 `.data/model-config.json`，重启后自动恢复；接口永不回显密钥。M2 上线前必须改为加密密钥管理。
 
 ### 2. 文本 LLM 对接操作
 
@@ -231,4 +231,3 @@ OBJECT_STORAGE_SECRET_KEY=由密钥管理注入
 | Web OAuth 回调失败 | redirect URI 是否完全一致、state 是否过期、开放平台网站应用配置 |
 | 重启后数据丢失 | 是否仍使用 `DATA_FILE`、DATABASE_URL 是否生效、migration 是否执行 |
 | 音频无法播放 | Content-Type、签名 URL 过期、跨域/合法下载域名、对象是否被生命周期删除 |
-
