@@ -1134,12 +1134,9 @@ export function App() {
 
                   {scores.length > 0 && (
                     <section className="card" style={{ marginTop: 18 }}>
-                      <div className="row between" style={{ marginBottom: 2 }}>
+                      <div className="row between" style={{ marginBottom: 10 }}>
                         <h3 style={{ margin: 0 }}>成绩走势</h3>
                         {scores.length >= 2 && (() => { const d = scores[scores.length - 1].value - scores[0].value; return <span className={`tag ${d > 0 ? 'green' : d < 0 ? 'amber' : ''}`}>{d >= 0 ? '▲' : '▼'} 首尾 {Math.abs(d)} 分</span>; })()}
-                      </div>
-                      <div className="row" style={{ gap: 6, marginBottom: 4 }}>
-                        {scores.map((s, i) => <span className="tag" key={i}>{s.value}<small>/100</small></span>)}
                       </div>
                       <div className="trend-chart"><TrendChart data={scores} /></div>
                     </section>
