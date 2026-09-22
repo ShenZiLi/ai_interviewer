@@ -145,7 +145,7 @@ async function streamResume(text: string, title: string | undefined, onProgress:
 async function streamPlan<T extends PlanStreamResult>(path: string, body: unknown, onProgress: (event: PlanStreamProgress) => void): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+    headers: { accept: 'text/event-stream', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok || !res.body) {
