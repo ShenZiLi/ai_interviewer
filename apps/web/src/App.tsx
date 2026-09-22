@@ -1121,9 +1121,16 @@ export function App() {
                           </div>
                           <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向</small></div>
                           <label className="field" style={{ marginTop: 12 }}>补充诉求（可选）<input type="text" value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="例如：更看重原理深度、多考察分布式事务…" /></label>
-                          <h3 style={{ marginTop: 18 }}>目标岗位：{role} · {level}</h3>
+                          <h3 style={{ marginTop: 18 }}>侧重方向：<span className="tag blue">点击可切换</span></h3>
+                          <div className="row" style={{ marginTop: 8 }}>
+                            {dirs.map((d) => {
+                              const onDir = selectedDirs.includes(d.id);
+                              return <button key={d.id} type="button" className={`dir-tag${onDir ? ' on' : ''}`} aria-pressed={onDir} onClick={() => setSelectedDirs((s) => (onDir ? s.filter((x) => x !== d.id) : [...s, d.id]))}>{d.name}</button>;
+                            })}
+                          </div>
+                          <h3 style={{ marginTop: 16 }}>目标岗位：{role} · {level}</h3>
                           {positionAreas.length > 0 && (
-                            <div className="row" style={{ marginTop: 8 }}><small style={{ marginRight: 4 }}>岗位考察重点：</small>{positionAreas.map((a) => <span className="summary-chip" key={a}>{a}</span>)}</div>
+                            <div className="row" style={{ marginTop: 8 }}><small style={{ marginRight: 4 }}>岗位考察重点（仅供参考）：</small>{positionAreas.map((a) => <span className="summary-chip" key={a}>{a}</span>)}</div>
                           )}
                           <div className="row">{topics.map((t) => <span className="summary-chip" key={t}>{t}</span>)}</div>
                           {outlinePhases && outlinePhases.length > 0 && (
