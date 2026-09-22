@@ -15,7 +15,13 @@ const createSchema = z.object({
 const directionsSchema = z.object({ selectedDirections: z.array(z.string()).max(12).optional(), extra: z.string().max(500).optional() });
 const turnSchema = z.object({ phase: z.enum(['intro', 'tech', 'biz', 'hr']), parentTurnId: z.string().optional() });
 const answerSchema = z.object({ transcript: z.string().min(1).max(10_000).optional(), audioRef: z.string().optional(), stage: z.enum(['first', 'after_hint']).optional() });
-const adjustSchema = z.object({ confirm: z.boolean().optional() });
+const adjustSchema = z.object({
+  /** preview: 展示并持久化待确认结果；apply: 应用已展示结果；discard: 丢弃待确认结果。 */
+  action: z.enum(['preview', 'apply', 'discard']).optional(),
+  /** 兼容已有客户端。 */
+  confirm: z.boolean().optional(),
+  discard: z.boolean().optional(),
+});
 
 type SseReply = {
   hijack?: () => void;
@@ -135,8 +141,9 @@ export class InterviewsController {
 
   @Post(':id/outline/adjust')
   async adjust(@Param('id') id: string, @Body() body: unknown) {
-    const { confirm } = adjustSchema.parse(body ?? {});
-    return { adjustment: await this.service.adjust(id, confirm) };
+    const { action, confirm, discard } = adjustSchema.parse(body ?? {});
+    const resolvedAction = action ?? (discard ? 'discard' : confirm ? 'apply' : 'preview');
+    return { adjustment: await this.service.adjust(id, resolvedAction) };
   }
 
   @Post(':id/finish')

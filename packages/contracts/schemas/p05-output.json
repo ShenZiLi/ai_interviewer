@@ -71,6 +71,45 @@
           },
           "maxItems": 20
         },
+        "followups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "phase": {
+                "type": "string",
+                "enum": [
+                  "tech",
+                  "biz",
+                  "hr"
+                ]
+              },
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "reason": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "keypoint",
+                  "deepen",
+                  "contradiction"
+                ]
+              }
+            },
+            "required": [
+              "phase",
+              "question"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 6
+        },
         "mode": {
           "type": "string",
           "enum": [

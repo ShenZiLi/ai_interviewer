@@ -186,6 +186,8 @@ export class InterviewService {
   async analyze(id: string, onProgress?: (event: ModelProgress) => void): Promise<PositionAnalysis> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
+    // 中断后继续准备时复用已持久化的岗位分析，不重复调用模型。
+    if (it.position) return it.position as PositionAnalysis;
     const resume = this.getResume(it.resumeId);
     const context = this.ctx(it, 'P02', { resume: resume.analysis, targetRole: it.targetRole, jdText: it.jdText });
     const position = (await (onProgress ? this.compose.composeWithProgress('P02', context, onProgress) : this.compose.compose('P02', context))) as PositionAnalysis;
@@ -197,6 +199,9 @@ export class InterviewService {
   async directions(id: string, selected?: string[], extra?: string, onProgress?: (event: ModelProgress) => void): Promise<Directions> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
+    if (!it.position) throw new ConflictException('尚未完成岗位分析，无法推荐考察方向');
+    // 初次计划流重连时复用 P03；用户调整方向或补充诉求后才重新生成。
+    if (selected === undefined && extra === undefined && it.directionsResult) return it.directionsResult as Directions;
     const context = this.ctx(it, 'P03', { position: it.position, selected, extra });
     const result = (await (onProgress ? this.compose.composeWithProgress('P03', context, onProgress) : this.compose.compose('P03', context))) as Directions;
     it.directionsResult = result;
@@ -208,6 +213,7 @@ export class InterviewService {
   async outline(id: string, onProgress?: (event: ModelProgress) => void): Promise<InterviewOutline> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['draft']);
+    if (!it.directionsResult) throw new ConflictException('尚未完成考察方向推荐，无法生成大纲');
     const context = this.ctx(it, 'P04', { it });
     const outline = (await (onProgress ? this.compose.composeWithProgress('P04', context, onProgress) : this.compose.compose('P04', context))) as InterviewOutline;
     const budget = outline.durationPlan.budgetMinutes;
@@ -257,6 +263,19 @@ export class InterviewService {
         difficulty = q0.difficulty;
       }
     }
+    // 自我介绍后确认的分环节延伸追问：仅在新主问题时优先下发，不能覆盖 P08 的指定追问。
+    let pendingFollowupIndex: number | undefined;
+    if (!parentTurnId && phase !== 'intro' && it.followups?.length) {
+      const followupIdx = it.followups.findIndex((f) => f.phase === phase);
+      if (followupIdx >= 0) {
+        const f = it.followups[followupIdx];
+        questionText = f.question;
+        topic = '自我介绍延伸';
+        difficulty = 'mid';
+        targetAspect = ({ keypoint: '要点深挖', deepen: '深度追问', contradiction: '澄清矛盾' } as Record<string, string>)[f.kind ?? 'deepen'] ?? '延伸追问';
+        pendingFollowupIndex = followupIdx;
+      }
+    }
     if (!questionText) {
       if (phase === 'intro') {
         // 环节业务逻辑：开场固定为自我介绍引导（确定性，不依赖模型），保证与环节标签一致。
@@ -287,6 +306,8 @@ export class InterviewService {
       createdAt: now(),
     };
     it.turns.push(turn);
+    // 语音合成成功、题目真正写入本场后才消费队列，避免失败重试时丢失已确认的问题。
+    if (pendingFollowupIndex !== undefined) it.followups?.splice(pendingFollowupIndex, 1);
     this.store.saveInterview(it);
     return turn;
   }
@@ -333,16 +354,34 @@ export class InterviewService {
     return (await this.compose.compose('P09', this.ctx(it, 'P09', { it, turn, transcript }))) as Coaching;
   }
 
-  async adjust(id: string, confirm?: boolean): Promise<OutlineAdjustment> {
+  async adjust(id: string, action: 'preview' | 'apply' | 'discard' = 'preview'): Promise<OutlineAdjustment | undefined> {
     const it = this.mustGet(id);
     this.assertStatus(it, ['active']);
-    const adj = (await this.compose.compose('P05', this.ctx(it, 'P05', { it }))) as OutlineAdjustment;
-    // 模拟模式自动应用；陪练模式仅在用户确认后应用（不因模型 mode=auto 而静默改动大纲）。
-    const apply = it.kind === 'mock' || confirm === true;
-    if (apply) {
-      it.outlineAdjustedAt = now();
-      this.store.saveInterview(it);
+    const introCompleted = it.turns.some((turn) => turn.phase === 'intro' && turn.attempts.length > 0);
+    if (!introCompleted) throw new ConflictException('完成自我介绍后才能调整后续大纲');
+    if (action === 'discard') {
+      if (it.pendingAdjustment) {
+        delete it.pendingAdjustment;
+        this.store.saveInterview(it);
+      }
+      return undefined;
     }
+    if (it.outlineAdjustedAt) throw new ConflictException('自我介绍后的大纲已调整，不能重复应用');
+
+    // 陪练先持久化预览，用户确认时必定应用同一份结果，避免“看到 A、实际应用 B”。
+    const adj = it.pendingAdjustment ?? ((await this.compose.compose('P05', this.ctx(it, 'P05', { it }))) as OutlineAdjustment);
+    if (action === 'preview') {
+      if (!it.pendingAdjustment) {
+        it.pendingAdjustment = adj;
+        this.store.saveInterview(it);
+      }
+      return adj;
+    }
+
+    it.outlineAdjustedAt = now();
+    it.followups = (adj.followups ?? []).map((f) => ({ id: newId('followup'), phase: f.phase, question: f.question, reason: f.reason, kind: f.kind }));
+    delete it.pendingAdjustment;
+    this.store.saveInterview(it);
     return adj;
   }
 

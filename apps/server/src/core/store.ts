@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import type { OutlineAdjustment } from '@ai-interviewer/contracts';
 
 export const now = () => new Date().toISOString();
 
@@ -72,7 +73,11 @@ export interface InterviewRecord {
   position?: Record<string, unknown>;
   directionsResult?: Record<string, unknown>;
   outline?: Record<string, unknown>;
+  /** 陪练模式中已展示、尚待用户确认或跳过的 P05 结果；确认时必须应用同一份结果。 */
+  pendingAdjustment?: OutlineAdjustment;
   outlineAdjustedAt?: string;
+  /** 自我介绍后确认的分环节延伸追问：进入对应环节时优先作为主问题下发（消费一条少一条）。 */
+  followups?: { id: string; phase: 'tech' | 'biz' | 'hr'; question: string; reason?: string; kind?: 'keypoint' | 'deepen' | 'contradiction' }[];
   /** 开考时间戳（时长预算的起点；用于「到时提示收尾」）。 */
   startedAt?: string;
   promptLocks: Record<string, ConfigLock>;

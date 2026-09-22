@@ -24,11 +24,16 @@ export interface InterviewReport {
 }
 
 export interface InterviewDetail extends InterviewSummary {
+  resumeId: string;
+  jdText?: string;
+  style?: 'professional' | 'coaching' | 'concise';
   directions: string[];
+  directionsResult?: { recommendedDirections: { id: string; name: string; weight: number; reason?: string }[] };
   keepAudio?: boolean;
   startedAt?: string;
   promptLocks: Record<string, { versionId: string; versionNo: number }>;
-  outline?: { durationPlan?: { tier: string; budgetMinutes: number; phases: { phase: string; minutes: number; questionCount: number; focus: string[] }[] }; outline: { topic: string; mainQuestion: string }[] };
+  outline?: { durationPlan?: { tier: string; budgetMinutes: number; phases: { phase: string; minutes: number; questionCount: number; focus: string[] }[] }; outline: { topic: string; mainQuestion: string; difficulty?: string }[] };
+  pendingAdjustment?: { changes?: { type: string; after: string }[]; followups?: { phase: string; question: string; reason?: string; kind?: string }[] };
   turns?: { id: string; phase: string; question: string; topic?: string; difficulty?: string; targetAspect?: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; audioRef?: string; evaluation?: { score: number; grade?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] } }[] }[];
 }
 
@@ -219,8 +224,8 @@ export const api = {
   start: (id: string) => req<{ interview: { id: string; status: string; startedAt?: string } }>('POST', `/interviews/${id}/start`),
   newTurn: (id: string, phase?: 'intro' | 'tech' | 'biz' | 'hr', parentTurnId?: string) =>
     req<{ turn: { id: string; phase: string; question: string; topic?: string; difficulty?: string; targetAspect?: string } }>('POST', `/interviews/${id}/turns`, { phase: phase ?? 'tech', parentTurnId }),
-  adjustOutline: (id: string, confirm?: boolean) =>
-    req<{ adjustment: { mode: string; changes?: { type: string; after: string }[] } }>('POST', `/interviews/${id}/outline/adjust`, { confirm }),
+  adjustOutline: (id: string, action: 'preview' | 'apply' | 'discard' = 'preview') =>
+    req<{ adjustment?: { mode: string; changes?: { type: string; after: string }[]; followups?: { phase: string; question: string; reason?: string; kind?: string }[] } }>('POST', `/interviews/${id}/outline/adjust`, { action }),
   answer: (
     id: string,
     turnId: string,

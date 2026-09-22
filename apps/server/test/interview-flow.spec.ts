@@ -51,14 +51,15 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(outline.body.outline.outline.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('AC3: 开始面试 + 生成主问题 P06', async () => {
+  it('AC3: 开始面试 + 固定开场自我介绍题', async () => {
     await request(app.getHttpServer()).post(`/interviews/${interviewId}/start`).expect(201);
     const turn = await request(app.getHttpServer())
       .post(`/interviews/${interviewId}/turns`)
-      .send({ phase: 'tech' })
+      .send({ phase: 'intro' })
       .expect(201);
     turnId = turn.body.turn.id;
     expect(turn.body.turn.question).toBeTruthy();
+    expect(turn.body.turn.phase).toBe('intro');
   });
 
   it('AC4: 作答 → 陪练返回评价 P07 + 追问 P08', async () => {
@@ -71,12 +72,34 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(res.body.next).toBeDefined();
   });
 
-  it('AC5: 自我介绍后大纲调整（陪练需 confirm）', async () => {
-    const res = await request(app.getHttpServer())
+  it('AC5: 自我介绍后先持久化调整预览，确认后应用同一份延伸追问', async () => {
+    const preview = await request(app.getHttpServer())
       .post(`/interviews/${interviewId}/outline/adjust`)
-      .send({ confirm: true })
+      .send({ action: 'preview' })
       .expect(201);
-    expect(res.body.adjustment.mode).toBe('auto');
+    expect(preview.body.adjustment.followups.length).toBeGreaterThan(0);
+
+    let got = await request(app.getHttpServer()).get(`/interviews/${interviewId}`).expect(200);
+    expect(got.body.interview.pendingAdjustment.followups).toEqual(preview.body.adjustment.followups);
+
+    const applied = await request(app.getHttpServer())
+      .post(`/interviews/${interviewId}/outline/adjust`)
+      .send({ action: 'apply' })
+      .expect(201);
+    expect(applied.body.adjustment.followups).toEqual(preview.body.adjustment.followups);
+    got = await request(app.getHttpServer()).get(`/interviews/${interviewId}`).expect(200);
+    expect(got.body.interview.pendingAdjustment).toBeUndefined();
+    expect(got.body.interview.followups).toHaveLength(preview.body.adjustment.followups.length);
+
+    // P05 延伸追问只在对应环节的新主问题中优先消费；P08 指定追问不得被其覆盖。
+    const tech = await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns`).send({ phase: 'tech' }).expect(201);
+    expect(tech.body.turn.question).toBe(preview.body.adjustment.followups.find((x: { phase: string }) => x.phase === 'tech').question);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${tech.body.turn.id}/answer`).send({ transcript: '我会先梳理并发边界，再选择一致性方案。' }).expect(201);
+    const p08 = await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns`).send({ phase: 'tech', parentTurnId: tech.body.turn.id }).expect(201);
+    expect(p08.body.turn.parentTurnId).toBe(tech.body.turn.id);
+    expect(p08.body.turn.question).toBe('如果并发再翻一倍呢？');
+    const biz = await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns`).send({ phase: 'biz' }).expect(201);
+    expect(biz.body.turn.question).toBe(preview.body.adjustment.followups.find((x: { phase: string }) => x.phase === 'biz').question);
   });
 
   it('AC6: 整场报告 P10', async () => {
@@ -183,7 +206,7 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(st2.body.interview.startedAt).toBe(st.body.interview.startedAt);
   });
 
-  it('大纲调整模式隔离：模拟自动应用，陪练未确认不应用', async () => {
+  it('大纲调整模式隔离：陪练预览不应用，模拟由客户端直接应用', async () => {
     // 陪练未确认 → 不静默应用
     const coach = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
     const cid = coach.body.interview.id;
@@ -191,7 +214,9 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     await request(app.getHttpServer()).post(`/interviews/${cid}/directions`).send({}).expect(201);
     await request(app.getHttpServer()).post(`/interviews/${cid}/outline`).expect(201);
     await request(app.getHttpServer()).post(`/interviews/${cid}/start`).expect(201);
-    await request(app.getHttpServer()).post(`/interviews/${cid}/outline/adjust`).send({}).expect(201);
+    const coachIntro = await request(app.getHttpServer()).post(`/interviews/${cid}/turns`).send({ phase: 'intro' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/turns/${coachIntro.body.turn.id}/answer`).send({ transcript: '这是我的自我介绍。' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/outline/adjust`).send({ action: 'preview' }).expect(201);
     let got = await request(app.getHttpServer()).get(`/interviews/${cid}`).expect(200);
     expect(got.body.interview.outlineAdjustedAt).toBeUndefined();
 
@@ -202,7 +227,9 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
     await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
     await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
-    await request(app.getHttpServer()).post(`/interviews/${mid}/outline/adjust`).send({}).expect(201);
+    const mockIntro = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'intro' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/turns/${mockIntro.body.turn.id}/answer`).send({ transcript: '这是我的自我介绍。' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline/adjust`).send({ action: 'apply' }).expect(201);
     got = await request(app.getHttpServer()).get(`/interviews/${mid}`).expect(200);
     expect(got.body.interview.outlineAdjustedAt).toBeTruthy();
 

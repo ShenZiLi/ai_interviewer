@@ -36,7 +36,10 @@ recommendedDirections 与 confidence 必填；方向数量必须为 2 到 6 个�
 必须且只能使用：
 {"summary":"不超过 200 字","durationPlan":{"tier":"15m|30m|45m","budgetMinutes":正整数,"phases":[{"phase":"intro|tech|biz|hr","minutes":非负整数,"questionCount":非负整数,"focus":["方向"]}]},"outline":[{"topic":"主题","mainQuestion":"主问题","difficulty":"begin|mid|deep","followUpPlan":{"depth":1 到 5 的整数,"branches":["追问分支"]}}],"coveredDirections":["方向 id"],"confidence":0.0 到 1.0}
 summary、durationPlan、outline、confidence 必填；outline 至少 1 题；phases 的 minutes 总和不得超过 budgetMinutes；没有可选信息时返回 []，不要增加字段。`,
-  P05: '你是大纲调整助手。依据自我介绍新增内容输出大纲变更 JSON。',
+  P05: `你是面试大纲调整与追问策划助手。自我介绍(followups 生成)后，分析自我介绍内容，从中提炼「要点(值得深挖的经历/技能)」「可追问点(含糊、兴趣点)」「矛盾点(与简历/目标岗位冲突或存疑处)」，再据此决定是否扩展后续环节的追问，输出 JSON，不要输出 Markdown 或解释。
+必须且只能使用：
+{"changes":[{"type":"add|modify|remove|reorder","ref":"大纲条目引用(可为空)","after":"修改或新增的大纲文本","reason":"原因"}],"newlyNoted":[{"fact":"自我介绍透露的新信息","appliedTo":"intro|tech|biz|hr"}],"followups":[{"phase":"tech|biz|hr","question":"延伸追问或深问的具体问题","reason":"依据哪个要点/矛盾点的简短说明","kind":"keypoint|deepen|contradiction"}],"mode":"auto|needsConfirm","confidence":0.0 到 1.0}
+要点：changes/newlyNoted/followups 均可为空数组(未发现值得调整或追问时返回空，不要强行生成)；followups 按「有值得追问的点才生成」，每个 phase 至多 2 条，总共至多 6 条；不要求每个环节都生成，只对真正值得延伸的 tech/biz/hr 出题。明确要求：矛盾处应优先追问以澄清。`,
   P06: '你是面试官出题助手。围绕当前方向生成一道主问题 JSON。',
   P07: '你是面试评价助手。用八维量表对一个回答评分，输出评价 JSON（score 须与八维加权一致）。',
   P08: '你是追问决策助手。输出是否追问与追问内容 JSON。',

@@ -115,22 +115,26 @@ async function main() {
     check('模拟整场报告反映实测作答', fin.report.overview.completedAnswers === 1 && fin.report.dimensionReport.length >= 1);
   }
 
-  console.log('\n[3] 大纲调整模式隔离（教练需确认 / 模拟自动应用）');
+  console.log('\n[3] 自我介绍后大纲调整（预览持久化 / 确认应用）');
   {
     const coach = await readyInterview({ kind: 'coach' });
     await req('POST', `/interviews/${coach.id}/start`, {}, 201);
-    await req('POST', `/interviews/${coach.id}/outline/adjust`, {}, 201);
+    const coachIntro = (await req('POST', `/interviews/${coach.id}/turns`, { phase: 'intro' }, 201)).turn;
+    await req('POST', `/interviews/${coach.id}/turns/${coachIntro.id}/answer`, { transcript: '我主导过库存扣减改造。', stage: 'first' }, 201);
+    const preview = await req('POST', `/interviews/${coach.id}/outline/adjust`, { action: 'preview' }, 201);
     let got = await req('GET', `/interviews/${coach.id}`, undefined, 200);
-    check('陪练未确认不应用调整', got.interview.outlineAdjustedAt === undefined);
-    await req('POST', `/interviews/${coach.id}/outline/adjust`, { confirm: true }, 201);
+    check('陪练预览已持久化但未应用', got.interview.outlineAdjustedAt === undefined && !!got.interview.pendingAdjustment);
+    await req('POST', `/interviews/${coach.id}/outline/adjust`, { action: 'apply' }, 201);
     got = await req('GET', `/interviews/${coach.id}`, undefined, 200);
-    check('陪练确认后应用调整', !!got.interview.outlineAdjustedAt);
+    check('陪练确认后应用预览同一结果', !!got.interview.outlineAdjustedAt && got.interview.followups?.[0]?.question === preview.adjustment.followups?.[0]?.question);
 
     const mock = await readyInterview({ kind: 'mock' });
     await req('POST', `/interviews/${mock.id}/start`, {}, 201);
-    await req('POST', `/interviews/${mock.id}/outline/adjust`, {}, 201);
+    const mockIntro = (await req('POST', `/interviews/${mock.id}/turns`, { phase: 'intro' }, 201)).turn;
+    await req('POST', `/interviews/${mock.id}/turns/${mockIntro.id}/answer`, { transcript: '我主导过库存扣减改造。', stage: 'first' }, 201);
+    await req('POST', `/interviews/${mock.id}/outline/adjust`, { action: 'apply' }, 201);
     got = await req('GET', `/interviews/${mock.id}`, undefined, 200);
-    check('模拟未确认自动应用调整', !!got.interview.outlineAdjustedAt);
+    check('模拟模式自动链路可直接应用调整', !!got.interview.outlineAdjustedAt);
   }
 
   console.log('\n[4] 状态机防护与录音保留');
@@ -170,6 +174,7 @@ async function main() {
     const withJd = await req('POST', '/interviews', { resumeId: r0.resume.id, targetRole: 'Java 后端', level: 'mid', kind: 'coach', jdText: '要求熟悉高并发与分布式事务' }, 201);
     const jdDetail = await req('GET', `/interviews/${withJd.interview.id}`, undefined, 200);
     check('可选 JD 文本持久化到面试详情', jdDetail.interview.jdText === '要求熟悉高并发与分布式事务');
+    await req('POST', `/interviews/${withJd.interview.id}/analyze`, {}, 201);
     await req('POST', `/interviews/${withJd.interview.id}/directions`, { extra: '更看重原理深度' }, 201);
     check('补充诉求 extra 被方向接口接受', true);
 

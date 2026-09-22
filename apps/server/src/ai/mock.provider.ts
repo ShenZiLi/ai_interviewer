@@ -72,6 +72,11 @@ export class MockProvider implements Provider {
         return {
           changes: [{ type: 'add', ref: 'project_orders', after: '新增幂等设计追问', reason: '自我介绍提及重复下单处理' }],
           newlyNoted: [{ fact: '熟悉 Kafka', appliedTo: 'tech' }],
+          // 依据自我介绍的要点/矛盾点按需生成的延伸追问（可空；仅对值得追问的环节出题）。
+          followups: [
+            { phase: 'tech', question: '你提到主导过库存扣减改造，若并发翻十倍，你会怎么保证不超卖？', reason: '要点：库存扣减为自我介绍亮点', kind: 'keypoint' },
+            { phase: 'biz', question: '支付成功率提升这类指标，你如何区分技术优化与业务容忍带来的贡献？', reason: '可追问点：指标提升归因含混', kind: 'deepen' },
+          ],
           mode: 'auto',
           confidence: 0.85,
         };

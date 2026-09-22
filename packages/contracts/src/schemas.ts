@@ -118,8 +118,33 @@ export const outlineAdjustSchema = z.object({
     .max(20)
     .optional(),
   newlyNoted: z.array(z.object({ fact: z.string(), appliedTo: z.enum(PHASES) })).max(20).optional(),
+  /** 自我介绍后的分环节延伸追问：依据自我介绍的要点/可追问点/矛盾点按需生成，非强制（可空）。 */
+  followups: z
+    .array(
+      z.object({
+        phase: z.enum(['tech', 'biz', 'hr']),
+        question: z.string().min(1).max(300),
+        reason: z.string().max(120).optional(),
+        kind: z.enum(['keypoint', 'deepen', 'contradiction']).optional(),
+      }),
+    )
+    .max(6)
+    .optional(),
   mode: z.enum(['auto', 'needsConfirm']),
   confidence: confidenceSchema,
+}).superRefine((value, ctx) => {
+  const counts = new Map<string, number>();
+  for (const followup of value.followups ?? []) {
+    const count = (counts.get(followup.phase) ?? 0) + 1;
+    counts.set(followup.phase, count);
+    if (count > 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['followups'],
+        message: `每个环节最多保留 2 个延伸追问：${followup.phase}`,
+      });
+    }
+  }
 });
 export type OutlineAdjustment = z.infer<typeof outlineAdjustSchema>;
 

@@ -103,6 +103,8 @@ export function App() {
   const [phaseProgress, setPhaseProgress] = useState<Partial<Record<Phase, number>>>({});
   /** 自我介绍（陪练）后待确认的大纲调整建议。 */
   const [pendingAdjust, setPendingAdjust] = useState<{ type: string; after: string }[]>();
+  /** 自我介绍（陪练）后依据要点/可追问点/矛盾点生成的分环节延伸追问（待确认）。 */
+  const [pendingFollowups, setPendingFollowups] = useState<{ phase: string; question: string; reason?: string; kind?: string }[]>();
   const [draft, setDraft] = useState('');
   const [recording, setRecording] = useState(false);
   const [revising, setRevising] = useState(false);
@@ -194,7 +196,7 @@ export function App() {
       setPhase('intro');
       setTurn(undefined);
       setPhaseProgress({});
-      setPendingAdjust(undefined);
+      setPendingAdjust(undefined); setPendingFollowups(undefined);
       setReport(undefined);
       setTrend(undefined);
       setReview([]);
@@ -268,6 +270,14 @@ export function App() {
   const generatePlan = useMutation({
     mutationFn: async () => {
       setPlanProgress([]);
+      // 从只创建了计划记录的中断点恢复时，先补齐/复用 P02、P03，再让用户选择方向；不能跳过岗位分析直出大纲。
+      if (dirs.length === 0) {
+        const plan = await run(api.createPlanStream(interviewId!, appendPlanProgress));
+        setDirs(plan.recommendedDirections.recommendedDirections);
+        setSelectedDirs(plan.recommendedDirections.recommendedDirections.map((direction) => direction.id));
+        setError(undefined);
+        return;
+      }
       // 内置方向用 id 交给后端；自定义方向把名称拼入 extra，使其参与本次大纲生成。
       const builtInSelected = selectedDirs.filter((id) => dirs.some((d) => d.id === id));
       const customNames = customDirs.filter((c) => selectedDirs.includes(c.id)).map((c) => c.name).join('、');
@@ -292,14 +302,16 @@ export function App() {
   });
 
   const beginTurn = useMutation({
-    mutationFn: async () => {
-      const res = await run(api.newTurn(interviewId!, phase));
+    mutationFn: async (requestedPhase?: Phase) => {
+      // 不依赖 setPhase 的异步状态更新，保证“下一环节”实际向服务端请求的是下一环节的题。
+      const turnPhase = requestedPhase ?? phase;
+      const res = await run(api.newTurn(interviewId!, turnPhase));
       setDraft('');
       setScoreHistory([]);
       setCoaching(undefined);
       setRevising(false);
       reanswerStartRef.current = undefined;
-      setPendingAdjust(undefined);
+      setPendingAdjust(undefined); setPendingFollowups(undefined);
       setRecording(false);
       setFollowUpCount(0);
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: false });
@@ -316,7 +328,7 @@ export function App() {
       setCoaching(undefined);
       setRevising(false);
       reanswerStartRef.current = undefined;
-      setPendingAdjust(undefined);
+      setPendingAdjust(undefined); setPendingFollowups(undefined);
       setRecording(false);
       setFollowUpCount((c) => c + 1);
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: true });
@@ -335,45 +347,55 @@ export function App() {
   };
 
   /** 推进到下一环节（含自我介绍后的大纲调整触发）；hr 之后结束。 */
-  const advancePhase = () => {
+  const advancePhase = async () => {
     const planned = plannedOf(phase);
     const done = phaseProgress[phase] ?? 0;
     if (planned && done < planned && !window.confirm(`本环节计划 ${planned} 题，目前已答 ${done}。确定进入下一环节吗？`)) return;
     const idx = PHASES.indexOf(phase);
     if (phase === 'intro' && mode === 'mock') {
-      setAdjustNote('自我介绍后：已按新线索自动更新后续大纲。');
-      api.adjustOutline(interviewId!, true).catch(() => setAdjustNote('自我介绍后：大纲自动更新（可选）。'));
+      try {
+        await run(api.adjustOutline(interviewId!, 'apply'));
+        setAdjustNote('自我介绍后：已按新线索自动更新后续大纲。');
+      } catch {
+        setAdjustNote('自我介绍后：大纲自动更新失败（可继续）。');
+      }
     }
     const next = PHASES[idx + 1];
     if (!next) { goFinish(); return; }
     setPhase(next);
-    beginTurn.mutate();
+    await beginTurn.mutateAsync(next);
   };
 
   /** 答完一题向前推进；自我介绍（陪练）先生成大纲调整供确认，不直接推进。 */
   const advance = () => {
     if (phase === 'intro' && mode === 'coach') {
-      run(api.adjustOutline(interviewId!, false))
-        .then((adj) => setPendingAdjust(adj.adjustment.changes ?? []))
+      run(api.adjustOutline(interviewId!, 'preview'))
+        .then((adj) => { setPendingAdjust(adj.adjustment?.changes ?? []); setPendingFollowups(adj.adjustment?.followups ?? []); })
         .catch(() => setPendingAdjust([]));
       return;
     }
-    advancePhase();
+    void advancePhase();
   };
 
   /** 确认应用大纲调整后进入下一环节；模拟模式自动应用即此语义。 */
   const applyAdjustAndAdvance = () => {
-    api.adjustOutline(interviewId!, true)
-      .then(() => setAdjustNote('已按确认应用自我介绍后的大纲调整。'))
-      .catch(() => setAdjustNote('自我介绍后：大纲调整应用失败（可继续）。'));
-    setPendingAdjust(undefined);
-    advancePhase();
+    api.adjustOutline(interviewId!, 'apply')
+      .then(async () => {
+        setPendingAdjust(undefined); setPendingFollowups(undefined);
+        setAdjustNote('已按确认应用自我介绍后的大纲调整与延伸追问。');
+        await advancePhase();
+      })
+      .catch(() => setAdjustNote('自我介绍后：大纲调整应用失败，请重试确认或跳过。'));
   };
 
   /** 跳过自我介绍后的大纲调整，直接进入下一环节。 */
   const skipAdjustAndAdvance = () => {
-    setPendingAdjust(undefined);
-    advancePhase();
+    api.adjustOutline(interviewId!, 'discard')
+      .then(async () => {
+        setPendingAdjust(undefined); setPendingFollowups(undefined);
+        await advancePhase();
+      })
+      .catch(() => setAdjustNote('自我介绍后的调整尚未跳过，请重试。'));
   };
 
   const mediaRef = useRef<MediaRecorder | null>(null);
@@ -435,7 +457,7 @@ export function App() {
         const start = reanswerStartRef.current ?? answeredAt;
         reanswer = { readMs: Math.max(0, start - answeredAt), reanswerMs: Math.max(0, now - start) };
         reanswerStartRef.current = undefined;
-      setPendingAdjust(undefined);
+      setPendingAdjust(undefined); setPendingFollowups(undefined);
       }
       const patch = { answeredAt, ...(reanswer ? { reanswer } : {}) };
       // 主问题首次作答计入本环节进度（追问轮与重答不计）。
@@ -540,6 +562,8 @@ export function App() {
       });
       const prev = await fetchPrevReport(interviewId!, role);
       setTrend(prev ? buildTrend(prev, res.report.overview.avgScore, dims) : undefined);
+      setInterviewId(undefined);
+      setTurn(undefined);
       setPage('report');
     },
   });
@@ -658,7 +682,8 @@ export function App() {
   const [histFilter, setHistFilter] = useState<'all' | 'active' | 'finished'>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [modeFilter, setModeFilter] = useState<'all' | 'coach' | 'mock'>('all');
-  const histQuery = useQuery({ queryKey: ['interviews'], queryFn: api.listInterviews, enabled: page === 'home' });
+  // 工作台汇总所有场次；练习室和报告页只作为“选择一条已保存记录后继续”的入口。
+  const histQuery = useQuery({ queryKey: ['interviews'], queryFn: api.listInterviews, enabled: page === 'home' || page === 'room' || page === 'report' });
   const history = histQuery.data?.items ?? [];
   const roles = uniqueRoles(history);
   /** 目标岗位缩范围（岗位被删光时回落到「全部」，避免空列表）。 */
@@ -697,9 +722,39 @@ export function App() {
         keepAudio: detail.interview.keepAudio,
         highlight: resolveHighlight(r, detail.interview.turns ?? []),
       });
-      const prev = await fetchPrevReport(id, role);
+      const prev = await fetchPrevReport(id, detail.interview.targetRole);
       setTrend(prev ? buildTrend(prev, r.overview.avgScore, dims) : undefined);
+      setInterviewId(undefined);
+      setTurn(undefined);
       setPage('report');
+    },
+    onSuccess: () => histQuery.refetch(),
+  });
+
+  /** 从已保存的准备草稿恢复。已有 P02/P03/P04 结果直接复用，避免重复生成或另起一场。 */
+  const resumePreparation = useMutation({
+    mutationFn: async (id: string) => {
+      const detail = await run(api.getInterview(id));
+      if (detail.interview.status !== 'draft') throw new Error('只有尚未开始的面试计划可以继续准备');
+      const interview = detail.interview;
+      setResumeId(interview.resumeId);
+      setRole(interview.targetRole);
+      setJd(interview.jdText ?? '');
+      setMode(interview.kind);
+      setLevel(interview.level === 'senior' ? '高级' : interview.level === 'junior' ? '初级' : '中级');
+      setDuration(interview.durationTier as '15m' | '30m' | '45m');
+      if (interview.style) setStyle(interview.style);
+      setKeepAudio(!!interview.keepAudio);
+      setInterviewId(interview.id);
+      setDirs(interview.directionsResult?.recommendedDirections ?? []);
+      setSelectedDirs(interview.directions ?? []);
+      setTopics(interview.outline?.outline?.map((q) => q.topic) ?? []);
+      setOutlinePhases(interview.outline?.durationPlan?.phases);
+      setOutlineQuestions(interview.outline?.outline);
+      setCustomDirs([]);
+      setPlanProgress([]);
+      setError(undefined);
+      setPage('prepare');
     },
     onSuccess: () => histQuery.refetch(),
   });
@@ -729,11 +784,21 @@ export function App() {
       setCoaching(undefined);
       setRevising(false);
       reanswerStartRef.current = undefined;
-      setPendingAdjust(undefined);
+      const pending = detail.interview.pendingAdjustment;
+      setPendingAdjust(pending ? pending.changes ?? [] : undefined);
+      setPendingFollowups(pending?.followups ?? undefined);
       setRecording(false);
       setFollowUpCount(0);
 
       const lastTurn = turns[turns.length - 1];
+      // 陪练的 P05 预览已持久化但尚未确认：恢复到确认界面，不重新提问或重新生成建议。
+      if (pending) {
+        setPhase('intro');
+        setTurn(undefined);
+        setAdjustNote('已恢复自我介绍后的待确认调整。');
+        setPage('room');
+        return;
+      }
       // 上次离开前最后一题尚未作答：直接回到该题，不要派生新题（避免自我介绍阶段反复刷出进阶题）。
       if (lastTurn && (lastTurn.attempts?.length ?? 0) === 0) {
         setPhase(lastTurn.phase as Phase);
@@ -746,6 +811,8 @@ export function App() {
       const plannedOf = (p: Phase) => detail.interview.outline?.durationPlan?.phases?.find((x) => x.phase === p)?.questionCount;
       let resumePhase: Phase = 'intro';
       for (const p of PHASES) {
+        // P04 可以不单列 intro，但每场仍只进行一次开场自我介绍；恢复时不能再生成它。
+        if (p === 'intro' && turns.some((t) => t.phase === 'intro' && t.attempts.length > 0)) continue;
         const pl = plannedOf(p);
         if (pl === undefined || (progress[p] ?? 0) < pl) { resumePhase = p; break; }
       }
@@ -790,7 +857,7 @@ export function App() {
       setPhase('intro');
       setTurn(undefined);
       setPhaseProgress({});
-      setPendingAdjust(undefined);
+      setPendingAdjust(undefined); setPendingFollowups(undefined);
       setReport(undefined);
       setTrend(undefined);
       setReview([]);
@@ -989,7 +1056,7 @@ export function App() {
                           ) : h.status === 'active' ? (
                             <button onClick={() => resumeInterview.mutate(h.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续'}</button>
                           ) : (
-                            <span className="tag">{h.status}</span>
+                            <button onClick={() => resumePreparation.mutate(h.id)} disabled={resumePreparation.isPending}>{resumePreparation.isPending ? '载入中…' : '继续准备'}</button>
                           )}
                           <button className="danger ghost" onClick={() => { if (window.confirm('删除这场面试记录？')) deleteInterview.mutate(h.id); }} disabled={deleteInterview.isPending}>删除</button>
                         </div>
@@ -1207,7 +1274,7 @@ export function App() {
                           )}
                           <div className="actions">
                             {topics.length === 0 ? (
-                              <button className="primary" onClick={() => generatePlan.mutate()} disabled={generatePlan.isPending}>{generatePlan.isPending ? '生成面试流程…' : '按所选生成面试流程 →'}</button>
+                              <button className="primary" onClick={() => generatePlan.mutate()} disabled={generatePlan.isPending}>{generatePlan.isPending ? '生成面试流程…' : dirs.length === 0 ? '继续生成考察方向 →' : '按所选生成面试流程 →'}</button>
                             ) : (
                               <button className="primary" onClick={() => startInterview.mutate()} disabled={startInterview.isPending || beginTurn.isPending}>{startInterview.isPending || beginTurn.isPending ? '准备题目…' : '开始面试 →'}</button>
                             )}
@@ -1235,7 +1302,24 @@ export function App() {
                 </div>
               )}
 
-              {active === 'room' && (
+              {active === 'room' && !turn && pendingAdjust === undefined && (
+                <section className="card">
+                  <div className="eyebrow">03 / 选择进行中的面试</div>
+                  <h2>继续面试练习</h2>
+                  <p className="subtitle">为保证题目、大纲、回答与评价属于同一场练习，请先选择一条已保存的进行中记录。</p>
+                  {histQuery.isLoading ? <p className="muted">正在读取进行中的面试…</p> : history.filter((item) => item.status === 'active').length ? (
+                    history.filter((item) => item.status === 'active').map((item) => (
+                      <div className="list-row" key={item.id}>
+                        <div><b>{item.targetRole} · {item.level === 'mid' ? '中级' : item.level === 'junior' ? '初级' : '高级'}</b><p>{item.kind === 'coach' ? '陪练' : '模拟'} · {item.currentPhase ? `${phaseLabel[item.currentPhase]}进行中` : '等待开始'} · {new Date(item.updatedAt).toLocaleString()}</p></div>
+                        <button className="primary" onClick={() => resumeInterview.mutate(item.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续这场'}</button>
+                      </div>
+                    ))
+                  ) : <div className="empty"><div className="empty-icon">◎</div>暂无进行中的面试。请先在“准备面试”完成大纲并开始，或从工作台继续一场已保存记录。</div>}
+                  <div className="actions"><button className="ghost" onClick={() => setPage('prepare')}>去准备面试 →</button></div>
+                </section>
+              )}
+
+              {active === 'room' && (turn || pendingAdjust !== undefined) && (
                 <div className="room">
                   <details className="mobile-flow">
                     <summary>本场流程 · 计时</summary>
@@ -1277,6 +1361,16 @@ export function App() {
                       <div className="notice" style={{ marginTop: 10 }}>
                         <b>自我介绍后的大纲调整建议</b>
                         <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
+                        {(pendingFollowups?.length ?? 0) > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            <small style={{ color: 'var(--blue)', fontWeight: 600 }}>依据自我介绍的延伸追问（进入对应环节时下发）：</small>
+                            <ul style={{ margin: '8px 0 0', paddingLeft: 16, fontSize: 12, lineHeight: 1.7, color: '#5a6a85' }}>
+                              {pendingFollowups!.map((f, i) => (
+                                <li key={i}>〔{phaseLabel[f.phase] ?? f.phase}〕{f.question}{f.reason ? `（${f.reason}）` : ''}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                         <div className="row" style={{ marginTop: 8 }}>
                           <button style={{ padding: '4px 10px', fontSize: 12 }} onClick={applyAdjustAndAdvance}>确认应用</button>
                           <button className="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={skipAdjustAndAdvance}>跳过</button>
@@ -1311,6 +1405,16 @@ export function App() {
                       <div className="notice mobile-only" style={{ marginTop: 12 }}>
                         <b>自我介绍后的大纲调整建议</b>
                         <p style={{ marginTop: 8, marginBottom: 4 }}>{pendingAdjust.length ? pendingAdjust.map((c) => `· ${c.type === 'add' ? '新增' : c.type === 'remove' ? '移除' : '修改'}：${c.after}`).join('\n') : '暂无调整建议。'}</p>
+                        {(pendingFollowups?.length ?? 0) > 0 && (
+                          <div style={{ marginTop: 8 }}>
+                            <small style={{ color: 'var(--blue)', fontWeight: 600 }}>依据自我介绍的延伸追问（进入对应环节时下发）：</small>
+                            <ul style={{ margin: '8px 0 0', paddingLeft: 16, fontSize: 12, lineHeight: 1.7, color: '#5a6a85' }}>
+                              {pendingFollowups!.map((f, i) => (
+                                <li key={i}>〔{phaseLabel[f.phase] ?? f.phase}〕{f.question}{f.reason ? `（${f.reason}）` : ''}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                         <div className="row" style={{ marginTop: 8 }}>
                           <button style={{ padding: '4px 10px', fontSize: 12 }} onClick={applyAdjustAndAdvance}>确认应用</button>
                           <button className="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={skipAdjustAndAdvance}>跳过</button>
@@ -1514,7 +1618,7 @@ export function App() {
                   )}
                   <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined);
       setPhaseProgress({});
-      setPendingAdjust(undefined); setReport(undefined);
+      setPendingAdjust(undefined); setPendingFollowups(undefined); setReport(undefined);
       setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setCustomDirs([]); setOutlinePhases(undefined);
       setOutlineQuestions(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
@@ -1522,11 +1626,17 @@ export function App() {
 
               {active === 'report' && !report && (
                 <section className="card">
-                  <div className="empty"><div className="empty-icon">◎</div>还没有打开复盘报告。<br />完成一场面试后，整场八维报告会出现在这里；<br />也可以从「工作台」或下方按钮打开历史报告。</div>
-                  <div className="actions">
-                    <button onClick={async () => { try { const items = (await api.listInterviews()).items; const latest = items.filter((h) => h.status === 'finished' && h.report).sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))[0]; if (latest) openHistory.mutate(latest.id); else setError('还没有已完成场次'); } catch (e) { setError(String((e as Error)?.message ?? e)); } }}>打开最近一场报告 →</button>
-                    <button className="primary" onClick={() => setPage('home')}>回工作台 →</button>
-                  </div>
+                  <div className="eyebrow">04 / 已完成记录</div>
+                  <h2>历史复盘报告</h2>
+                  <p className="subtitle">选择一场已完成的面试，查看其八维表现、逐题回答与行动建议。</p>
+                  {histQuery.isLoading ? <p className="muted">正在读取历史报告…</p> : history.filter((item) => item.status === 'finished' && item.report).length ? (
+                    history.filter((item) => item.status === 'finished' && item.report).map((item) => (
+                      <div className="list-row" key={item.id}>
+                        <div><b>{item.targetRole} · {item.level === 'mid' ? '中级' : item.level === 'junior' ? '初级' : '高级'}</b><p>{item.kind === 'coach' ? '陪练' : '模拟'} · {item.report?.overview.avgScore} 分 · 完成 {item.report?.overview.completedAnswers} 题 · {new Date(item.updatedAt).toLocaleString()}</p></div>
+                        <button className="primary" onClick={() => openHistory.mutate(item.id)} disabled={openHistory.isPending}>{openHistory.isPending ? '打开中…' : '查看报告'}</button>
+                      </div>
+                    ))
+                  ) : <div className="empty"><div className="empty-icon">◎</div>还没有已完成的面试报告。完成一场练习后，整场八维报告会保存在这里。</div>}
                 </section>
               )}
 

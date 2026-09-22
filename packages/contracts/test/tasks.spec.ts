@@ -48,6 +48,7 @@ const valid = {
   P05: {
     changes: [{ type: 'add', after: '新增微服务深挖', reason: '…' }],
     newlyNoted: [{ fact: '熟悉 Kafka', appliedTo: 'tech' }],
+    followups: [{ phase: 'tech', question: '请展开说明库存扣减的并发控制。', kind: 'keypoint' }],
     mode: 'auto',
     confidence: 0.85,
   },
@@ -139,6 +140,17 @@ describe('P01—P10 schema 校验', () => {
     // P07 非法维度分
     expect(
       evaluationSchema.safeParse({ ...valid.P07, dims: [{ dim: '专业准确性', score: 4.2 }] }).success,
+    ).toBe(false);
+    // P05 仅在有明确依据时追加追问，单个环节最多两题。
+    expect(
+      outlineAdjustSchema.safeParse({
+        ...valid.P05,
+        followups: [
+          { phase: 'tech', question: '追问 1' },
+          { phase: 'tech', question: '追问 2' },
+          { phase: 'tech', question: '追问 3' },
+        ],
+      }).success,
     ).toBe(false);
   });
 });
