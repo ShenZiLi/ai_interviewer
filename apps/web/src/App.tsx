@@ -1254,7 +1254,10 @@ export function App() {
                   </aside>
                   <section className="card">
                     <div className="row between"><span className="tag blue">主问题</span><small>语音问答 · 可输入文本作答</small></div>
-                    <div className="row" style={{ marginTop: 22 }}><span className="bot">面试官</span><div><b>面试官</b><br /><small>沿着你的回答继续深入</small></div></div>
+                    <div className="interviewer">
+                      <span className="interviewer-avatar"><BrandMark /></span>
+                      <div className="interviewer-meta"><b>面试官</b><small>沿着你的回答继续深入</small></div>
+                    </div>
                     <h2 className="question">{turn?.question ?? '点击开始，面试官将提出第一题。'}</h2>
                     {turn?.answered ? null : (
                       <div className="row" style={{ marginTop: 6, gap: 6 }}>
