@@ -737,7 +737,7 @@ export function App() {
   const savedResumesQuery = useQuery({ queryKey: ['savedResumes'], queryFn: api.listResumes, enabled: page === 'resume' });
   const [renamingResumeId, setRenamingResumeId] = useState<string>();
   const [resumeTitleDraft, setResumeTitleDraft] = useState('');
-  const renameSubmittingRef = useRef<string>();
+  const renameSubmittingRef = useRef<string | undefined>(undefined);
   const loadSavedResume = useMutation({
     mutationFn: async (id: string) => {
       const { resume } = await run(api.getResume(id));
@@ -1013,7 +1013,7 @@ export function App() {
                     </div>
                     <div className="actions">
                       <button className="primary" onClick={() => parseResume.mutate()} disabled={parseResume.isPending || modelQuery.isLoading || modelQuery.data?.status.mode === 'mock'}>
-                        {parseResume.isPending ? '正在流式解析…' : '使用真实模型分析 →'}
+                        {parseResume.isPending ? '正在流式解析…' : 'AI分析 →'}
                       </button>
                     </div>
                     {modelQuery.data?.status.mode === 'mock' && (
