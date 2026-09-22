@@ -1380,7 +1380,7 @@ export function App() {
                                 <div className="flow-node" key={p.phase}>
                                   <span className="step-number">{p.phase === 'intro' ? '1' : p.phase === 'tech' ? '2' : p.phase === 'biz' ? '3' : '4'}</span>
                                   <b>{phaseLabel[p.phase] ?? p.phase}</b>
-                                  <p>{p.minutes} 分钟 · {p.questionCount} 题{p.focus?.length ? ` · ${p.focus.join('/')}` : ''}</p>
+                                  <p>{p.minutes} 分钟 · {p.questionCount} 题</p>
                                 </div>
                               ))}
                             </div>
