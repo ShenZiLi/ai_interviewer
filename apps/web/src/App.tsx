@@ -884,6 +884,14 @@ export function App() {
   // ---- 模型供应商设置 ----
   const modelQuery = useQuery({ queryKey: ['modelSettings'], queryFn: api.getModelSettings, enabled: page === 'settings' || page === 'resume' });
   const savedResumesQuery = useQuery({ queryKey: ['savedResumes'], queryFn: api.listResumes, enabled: page === 'resume' });
+  /** 当前选中简历的名称：优先取已保存简历标题，回退到本地上传文件名。 */
+  const currentResumeName = useMemo(() => {
+    if (!resumeId) return undefined;
+    const saved = savedResumesQuery.data?.items?.find((r) => r.id === resumeId);
+    if (saved?.title) return saved.title;
+    if (fileName?.startsWith('已保存 · ')) return fileName.slice(5);
+    return fileName;
+  }, [resumeId, savedResumesQuery.data, fileName]);
   const [renamingResumeId, setRenamingResumeId] = useState<string>();
   const [resumeTitleDraft, setResumeTitleDraft] = useState('');
   const renameSubmittingRef = useRef<string | undefined>(undefined);
@@ -1022,6 +1030,7 @@ export function App() {
               <div className="row">
                 {active === 'room' && <span className="tag blue">{mode === 'coach' ? '陪练模式' : '模拟面试'}</span>}
                 {active === 'report' && <span className="tag amber">复盘报告</span>}
+                {active === 'prepare' && resumeId && <span className="tag blue" title="本次练习所用简历">当前简历 · {currentResumeName ?? '已选择'}</span>}
               </div>
             </header>
             <div className="content">
