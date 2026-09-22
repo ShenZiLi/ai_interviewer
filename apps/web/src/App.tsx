@@ -1365,7 +1365,10 @@ export function App() {
                     history.filter((item) => item.status === 'active').map((item) => (
                       <div className="list-row" key={item.id}>
                         <div><b>{item.targetRole} · {item.level === 'mid' ? '中级' : item.level === 'junior' ? '初级' : '高级'}</b><p>{item.kind === 'coach' ? '陪练' : '模拟'} · {item.currentPhase ? `${phaseLabel[item.currentPhase]}进行中` : '等待开始'} · {new Date(item.updatedAt).toLocaleString()}</p></div>
-                        <button className="primary" onClick={() => resumeInterview.mutate(item.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续这场'}</button>
+                        <div className="row" style={{ gap: 6 }}>
+                          <button className="primary" onClick={() => resumeInterview.mutate(item.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续这场'}</button>
+                          <button className="danger ghost" onClick={() => { if (window.confirm(`删除这场进行中的练习（${item.targetRole} · ${item.kind === 'coach' ? '陪练' : '模拟'}）？删除后不可恢复。`)) deleteInterview.mutate(item.id); }} disabled={deleteInterview.isPending}>删除</button>
+                        </div>
                       </div>
                     ))
                   ) : <div className="empty"><div className="empty-icon">◎</div>暂无进行中的面试。请先在“准备面试”完成大纲并开始，或从工作台继续一场已保存记录。</div>}
@@ -1441,7 +1444,7 @@ export function App() {
                       <br />{topics.join(' / ')}</div>
                   </aside>
                   <section className="card">
-                    <div className="row between"><span className="tag blue">主问题</span><small>语音问答 · 可输入文本作答</small></div>
+                    <div className="row between"><span className="tag blue">主问题</span><div className="row" style={{ gap: 6 }}><small>语音问答 · 可输入文本作答</small><button className="ghost" style={{ padding: '3px 9px', fontSize: 12 }} onClick={() => { setRecording(false); stopRecording(); setTurn(undefined); setPage('home'); }}>退出练习</button></div></div>
                     <div className="interviewer">
                       <span className="interviewer-avatar"><BrandMark /></span>
                       <div className="interviewer-meta"><b>面试官</b><small>沿着你的回答继续深入</small></div>
@@ -1692,7 +1695,10 @@ export function App() {
                     history.filter((item) => item.status === 'finished' && item.report).map((item) => (
                       <div className="list-row" key={item.id}>
                         <div><b>{item.targetRole} · {item.level === 'mid' ? '中级' : item.level === 'junior' ? '初级' : '高级'}</b><p>{item.kind === 'coach' ? '陪练' : '模拟'} · {item.report?.overview.avgScore} 分 · 完成 {item.report?.overview.completedAnswers} 题 · {new Date(item.updatedAt).toLocaleString()}</p></div>
-                        <button className="primary" onClick={() => openHistory.mutate(item.id)} disabled={openHistory.isPending}>{openHistory.isPending ? '打开中…' : '查看报告'}</button>
+                        <div className="row" style={{ gap: 6 }}>
+                          <button className="primary" onClick={() => openHistory.mutate(item.id)} disabled={openHistory.isPending}>{openHistory.isPending ? '打开中…' : '查看报告'}</button>
+                          <button className="danger ghost" onClick={() => { if (window.confirm(`删除这份复盘报告（${item.targetRole} · ${item.kind === 'coach' ? '陪练' : '模拟'}）？删除后不可恢复。`)) deleteInterview.mutate(item.id); }} disabled={deleteInterview.isPending}>删除</button>
+                        </div>
                       </div>
                     ))
                   ) : <div className="empty"><div className="empty-icon">◎</div>还没有已完成的面试报告。完成一场练习后，整场八维报告会保存在这里。</div>}
