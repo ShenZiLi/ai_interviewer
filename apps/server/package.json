@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "start": "tsx src/main.ts",
+    "start": "tsx watch src/main.ts",
     "test": "vitest run"
   },
   "dependencies": {
