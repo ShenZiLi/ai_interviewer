@@ -9,7 +9,7 @@
 - [x] 前端主要页面已实现：工作台、简历、准备、流程预览、面试室、复盘、设置、提示词管理。
 - [x] 已实现运行期文本模型切换、Mock 语音网关、JSON 文件最小持久化、录音生命周期策略、提示词版本锁定。
 - [x] 已实现状态机、评分归一、模式隔离、追问链、趋势数据、错误降级等 M1 关键守卫。
-- [x] 当前验证（2026-09-22）：`pnpm run smoke` 通过；contracts 15、server 93、web 20，共 128 个测试通过；`pnpm run smoke:e2e` 在隔离 Mock 服务 27/27 通过；Web 生产构建通过。
+- [x] 当前验证（2026-09-22）：`pnpm run smoke` 通过；contracts 15、server 94、web 20，共 129 个测试通过；`pnpm run smoke:e2e` 在隔离 Mock 服务 27/27 通过；Web 生产构建通过。
 - [x] lint 工具链已补齐并通过：ESLint 9 + TypeScript ESLint + React Hooks 规则。
 - [ ] 代码知识图谱索引本仓库仍失败（daemon coordination 无法安全确认）；当前使用实际源码、文档、测试和构建结果交叉核对，待环境修复后补建索引。
 

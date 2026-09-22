@@ -51,6 +51,29 @@ describe('MVP 面试全流程 (e2e, mock provider)', () => {
     expect(outline.body.outline.outline.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('准备草稿可在中断后复用已保存的 P02/P03 结果，再继续生成大纲', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端工程师', level: 'mid', kind: 'coach' })
+      .expect(201);
+    const id = created.body.interview.id;
+
+    const position = await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    const resumedPosition = await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    expect(resumedPosition.body.position).toEqual(position.body.position);
+
+    const directions = await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    const resumedDirections = await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    expect(resumedDirections.body.recommendedDirections).toEqual(directions.body.recommendedDirections);
+
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    const detail = await request(app.getHttpServer()).get(`/interviews/${id}`).expect(200);
+    expect(detail.body.interview.status).toBe('draft');
+    expect(detail.body.interview.position).toEqual(position.body.position);
+    expect(detail.body.interview.directionsResult).toEqual(directions.body.recommendedDirections);
+    expect(detail.body.interview.outline).toBeTruthy();
+  });
+
   it('AC3: 开始面试 + 固定开场自我介绍题', async () => {
     await request(app.getHttpServer()).post(`/interviews/${interviewId}/start`).expect(201);
     const turn = await request(app.getHttpServer())

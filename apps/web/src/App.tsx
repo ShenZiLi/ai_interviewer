@@ -1616,7 +1616,7 @@ export function App() {
                       })}
                     </section>
                   )}
-                  <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined);
+                  <div className="actions"><button onClick={() => { setReport(undefined); setReview([]); setTrend(undefined); }}>全部历史报告</button><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined);
       setPhaseProgress({});
       setPendingAdjust(undefined); setPendingFollowups(undefined); setReport(undefined);
       setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setCustomDirs([]); setOutlinePhases(undefined);
