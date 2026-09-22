@@ -133,6 +133,31 @@ export class InterviewsController {
     return this.service.answer({ interviewId: id, turnId, transcript: input.transcript, audioRef: input.audioRef, stage: input.stage });
   }
 
+  /**
+   * 作答（流式）：转发 ASR 转写与 P07/P08 的模型增量，供练习室展示「大模型思考过程」。
+   * 与非流式端点共用同一 service，落库与返回结构完全一致。
+   */
+  @Post(':id/turns/:turnId/answer/stream')
+  async answerStream(@Param('id') id: string, @Param('turnId') turnId: string, @Body() body: unknown, @Res() reply: SseReply): Promise<void> {
+    const input = answerSchema.parse(body);
+    reply.hijack?.();
+    reply.raw.setHeader('content-type', 'text/event-stream; charset=utf-8');
+    reply.raw.setHeader('cache-control', 'no-cache, no-transform');
+    reply.raw.setHeader('connection', 'keep-alive');
+    reply.raw.setHeader('access-control-allow-origin', '*');
+    try {
+      const result = await this.service.answer(
+        { interviewId: id, turnId, transcript: input.transcript, audioRef: input.audioRef, stage: input.stage },
+        (progress) => writeEvent(reply, 'progress', progress),
+      );
+      writeEvent(reply, 'result', result);
+    } catch (error) {
+      writeEvent(reply, 'error', { code: 'ANSWER_FAILED', message: '回答评价失败，请检查模型处理记录后重试。', detail: String((error as Error)?.message ?? error) });
+    } finally {
+      reply.raw.end();
+    }
+  }
+
   /** 单轮辅导优化（P09）。 */
   @Post(':id/turns/:turnId/coaching')
   async coaching(@Param('id') id: string, @Param('turnId') turnId: string) {

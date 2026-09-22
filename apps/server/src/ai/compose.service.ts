@@ -45,7 +45,7 @@ export class ComposeService {
   ): Promise<Record<string, unknown> | unknown[]> {
     const schema = taskSchema(task);
     const taskLabel: Partial<Record<TaskCode, string>> = {
-      P01: '简历', P02: '岗位匹配', P03: '考察方向', P04: '面试大纲',
+      P01: '简历', P02: '岗位匹配', P03: '考察方向', P04: '面试大纲', P07: '回答评价', P08: '追问决策',
     };
     const label = taskLabel[task] ?? task;
     let firstError: unknown;

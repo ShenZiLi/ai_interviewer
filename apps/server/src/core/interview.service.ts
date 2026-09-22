@@ -42,6 +42,9 @@ export interface AnswerInput {
 
 export type ModelProgress = { phase: 'requesting' | 'delta' | 'validating' | 'retrying' | 'complete'; message: string };
 
+/** 作答链路的分阶段进度：ASR 转写 + P07 评价 + P08 追问决策，供练习室展示「大模型思考过程」。 */
+export type AnswerProgress = ModelProgress & { task: 'ASR' | 'P07' | 'P08' };
+
 /**
  * 自我介绍环节的引导问题。业务逻辑：面试开场固定为自我介绍，故不依赖模型生成，
  * 避免进阶技术题混入 intro 阶段（与当前环节标签不一致）。
@@ -312,31 +315,45 @@ export class InterviewService {
     return turn;
   }
 
-  async answer(input: AnswerInput) {
+  async answer(input: AnswerInput, onProgress?: (event: AnswerProgress) => void) {
     const it = this.mustGet(input.interviewId);
     this.assertStatus(it, ['active']);
     const turn = it.turns.find((t) => t.id === input.turnId);
     if (!turn) throw new NotFoundException('作答轮不存在');
     const stage = input.stage ?? 'first';
+    // 三个阶段各自打上 task 标签，前端据此区分「转写 / 评价 / 追问」来源。
+    const asrProgress = (event: ModelProgress) => onProgress?.({ ...event, task: 'ASR' });
+    const p07Progress = (event: ModelProgress) => onProgress?.({ ...event, task: 'P07' });
+    const p08Progress = (event: ModelProgress) => onProgress?.({ ...event, task: 'P08' });
 
     // 语音链路：提供 audioRef 时走 ASR 转写；无音频时直接用转录文本。
     let transcript = input.transcript ?? '';
     if (input.audioRef) {
+      asrProgress({ phase: 'requesting', message: '正在把录音转写为文本…' });
       const asr = await this.voice.transcribe({ audioRef: input.audioRef });
       if (!transcript) transcript = asr.text;
+      asrProgress({ phase: 'complete', message: `语音转写完成（${transcript.length} 字）。` });
     }
     if (!transcript.trim()) throw new ConflictException('需要转写文本或音频');
 
+    const p07Context = this.ctx(it, 'P07', { it, turn, transcript });
+    const evaluate = () => (onProgress
+      ? this.compose.composeWithProgress('P07', p07Context, p07Progress)
+      : this.compose.compose('P07', p07Context));
+
     if (it.kind === 'mock') {
       // 模拟：不向用户返回即时评价，但静默评估存档，供「结束后统一复盘」基于真实作答生成整场报告。
-      const ev = normalizeEvaluation((await this.compose.compose('P07', this.ctx(it, 'P07', { it, turn, transcript }))) as Evaluation);
+      const ev = normalizeEvaluation((await evaluate()) as Evaluation);
       turn.attempts.push({ id: newId('attempt'), stage, transcript, audioRef: input.audioRef, evaluation: ev, createdAt: now() });
       this.store.saveInterview(it);
       return { recorded: true } as const;
     }
 
-    const ev = normalizeEvaluation((await this.compose.compose('P07', this.ctx(it, 'P07', { it, turn, transcript }))) as Evaluation);
-    const follow = (await this.compose.compose('P08', this.ctx(it, 'P08', { it, turn, evaluation: ev }))) as FollowUpDecision;
+    const ev = normalizeEvaluation((await evaluate()) as Evaluation);
+    const followContext = this.ctx(it, 'P08', { it, turn, evaluation: ev });
+    const follow = (await (onProgress
+      ? this.compose.composeWithProgress('P08', followContext, p08Progress)
+      : this.compose.compose('P08', followContext))) as FollowUpDecision;
     turn.attempts.push({ id: newId('attempt'), stage, transcript, audioRef: input.audioRef, evaluation: ev, followUp: follow, createdAt: now() });
     this.store.saveInterview(it);
     return { evaluation: ev, next: follow, transcript } as const;

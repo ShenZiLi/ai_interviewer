@@ -70,6 +70,10 @@ export interface PlanStreamProgress extends ResumeStreamProgress {
   task: 'P02' | 'P03' | 'P04';
 }
 
+export interface AnswerStreamProgress extends ResumeStreamProgress {
+  task: 'ASR' | 'P07' | 'P08';
+}
+
 export interface PlanStreamResult {
   position?: { role: string; seniority: string; focusAreas: string[] };
   recommendedDirections: { recommendedDirections: { id: string; name: string; weight: number; reason?: string }[] };
@@ -153,8 +157,16 @@ async function streamResume(text: string, title: string | undefined, onProgress:
   return result;
 }
 
-/** 面试计划 SSE：依次推送 P02/P03/P04 的模型增量与契约校验，再交付计划结果。 */
-async function streamPlan<T extends PlanStreamResult>(path: string, body: unknown, onProgress: (event: PlanStreamProgress) => void): Promise<T> {
+/**
+ * 通用 POST SSE 读取：`progress` 事件即时回调（模型增量与校验阶段），`result` 事件返回最终结果，`error` 事件抛出。
+ * messages 由各调用方传入，使报错文案贴合各自业务（计划生成 / 回答评价）。
+ */
+async function streamSse<TResult, TProgress extends ResumeStreamProgress>(
+  path: string,
+  body: unknown,
+  onProgress: (event: TProgress) => void,
+  messages: { connect: string; missing: string; failed: string },
+): Promise<TResult> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: { accept: 'text/event-stream', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
@@ -162,22 +174,22 @@ async function streamPlan<T extends PlanStreamResult>(path: string, body: unknow
   });
   if (!res.ok || !res.body) {
     const text = await res.text();
-    throw new Error(`HTTP ${res.status}: ${text || '无法建立计划流式连接'}`);
+    throw new Error(`HTTP ${res.status}: ${text || messages.connect}`);
   }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let result: T | undefined;
+  let result: TResult | undefined;
   const consume = (block: string) => {
     const event = /^event:\s*(.+)$/m.exec(block)?.[1]?.trim() ?? 'message';
     const raw = /^data:\s*(.+)$/m.exec(block)?.[1];
     if (!raw) return;
-    const data = JSON.parse(raw) as PlanStreamProgress | T | { code?: string; message?: string; detail?: string };
-    if (event === 'progress') onProgress(data as PlanStreamProgress);
-    if (event === 'result') result = data as T;
+    const data = JSON.parse(raw) as TProgress | TResult | { code?: string; message?: string; detail?: string };
+    if (event === 'progress') onProgress(data as TProgress);
+    if (event === 'result') result = data as TResult;
     if (event === 'error') {
       const error = data as { code?: string; message?: string; detail?: string };
-      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? '面试计划生成失败'}${error.detail && error.message ? `（${error.detail}）` : ''}`);
+      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? messages.failed}${error.detail && error.message ? `（${error.detail}）` : ''}`);
     }
   };
   while (true) {
@@ -189,9 +201,31 @@ async function streamPlan<T extends PlanStreamResult>(path: string, body: unknow
     if (done) break;
   }
   if (buffer.trim()) consume(buffer);
-  if (!result) throw new Error('计划流式处理结束，但未收到结果');
+  if (result === undefined) throw new Error(messages.missing);
   return result;
 }
+
+/** 面试计划 SSE：依次推送 P02/P03/P04 的模型增量与契约校验，再交付计划结果。 */
+const streamPlan = <T extends PlanStreamResult>(path: string, body: unknown, onProgress: (event: PlanStreamProgress) => void) =>
+  streamSse<T, PlanStreamProgress>(path, body, onProgress, {
+    connect: '无法建立计划流式连接',
+    missing: '计划流式处理结束，但未收到结果',
+    failed: '面试计划生成失败',
+  });
+
+/** 作答评价 SSE：依次推送 ASR 转写、P07 评价、P08 追问决策的模型增量，再交付作答结果。 */
+const streamAnswer = (
+  id: string,
+  turnId: string,
+  payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' },
+  onProgress: (event: AnswerStreamProgress) => void,
+) =>
+  streamSse<AnswerResult, AnswerStreamProgress>(
+    `/interviews/${id}/turns/${turnId}/answer/stream`,
+    { transcript: payload.transcript, audioRef: payload.audioRef, stage: payload.stage ?? 'first' },
+    onProgress,
+    { connect: '无法建立回答评价流式连接', missing: '回答评价流式处理结束，但未收到结果', failed: '回答评价失败' },
+  );
 
 export type AnswerResult =
   | { recorded: true }
@@ -239,6 +273,13 @@ export const api = {
     payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' },
   ) =>
     req<AnswerResult>('POST', `/interviews/${id}/turns/${turnId}/answer`, { transcript: payload.transcript, audioRef: payload.audioRef, stage: payload.stage ?? 'first' }),
+  answerStream: (
+    id: string,
+    turnId: string,
+    payload: { transcript?: string; audioRef?: string; stage?: 'first' | 'after_hint' },
+    onProgress: (event: AnswerStreamProgress) => void,
+  ) =>
+    streamAnswer(id, turnId, payload, onProgress),
   coach: (id: string, turnId: string) =>
     req<{ coaching: { modelAnswer: { summary: string; structure: { point: string; explanation: string }[] }; optimization?: { userPoint: string; improved: string; why: string }[]; coachingNote?: string; practicePrompt?: string } }>('POST', `/interviews/${id}/turns/${turnId}/coaching`),
   finish: (id: string) =>

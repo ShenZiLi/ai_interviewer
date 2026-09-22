@@ -1,7 +1,7 @@
 import { type ChangeEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
-import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport, type PlanStreamProgress, type ResumeStreamProgress } from './api';
+import { api, audioSrc, type AnswerResult, type AnswerStreamProgress, type InterviewDetail, type InterviewReport, type PlanStreamProgress, type ResumeStreamProgress } from './api';
 import { buildTrend } from './lib/trend';
 import { recentScores, type ScorePoint } from './lib/session-trend';
 import { filterByRole, uniqueRoles } from './lib/session-filter';
@@ -192,6 +192,8 @@ export function App() {
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
   const [resumeProgress, setResumeProgress] = useState<ResumeStreamProgress[]>([]);
   const [planProgress, setPlanProgress] = useState<PlanStreamProgress[]>([]);
+  /** 作答评价的「大模型思考过程」：ASR 转写 + P07 评价 + P08 追问决策的模型原始输出。 */
+  const [answerProgress, setAnswerProgress] = useState<AnswerStreamProgress[]>([]);
   const [error, setError] = useState<string>();
   /** 全局确认弹窗的状态；非空时显示居中弹窗。 */
   const [confirmState, setConfirmState] = useState<{ opts: ConfirmOptions; onConfirm: () => void }>();
@@ -220,6 +222,20 @@ export function App() {
       return [...previous, event].slice(-45);
     });
   };
+
+  /** 同一阶段（task）的模型增量文本合并到一条，避免逐 token 刷屏。 */
+  const appendAnswerProgress = (event: AnswerStreamProgress) => {
+    setAnswerProgress((previous) => {
+      if (event.phase === 'delta' && previous.at(-1)?.phase === 'delta' && previous.at(-1)?.task === event.task) {
+        const last = previous.at(-1)!;
+        return [...previous.slice(0, -1), { ...last, message: `${last.message}${event.message}`.slice(-6_000) }];
+      }
+      return [...previous, event].slice(-45);
+    });
+  };
+
+  /** 换到新题目后清空上一题的思考过程，避免与当前题目混淆（作答中 turn.id 不变，不会误清）。 */
+  useEffect(() => { setAnswerProgress([]); }, [turn?.id]);
 
   /** 输入变化后，旧简历的分析不再对应当前文本，必须立即清除。 */
   const updateResumeText = (value: string) => {
@@ -543,7 +559,14 @@ export function App() {
       stopRecording();
       const stage = payload.stage ?? (revising ? 'after_hint' : 'first');
       const transcript = payload.transcript ?? draft;
-      const answered = await run(api.answer(interviewId!, turn!.id, payload.audioRef ? { audioRef: payload.audioRef, stage } : { transcript, stage }));
+      // 走 SSE 版本：边评价边把模型原始输出推给「大模型思考过程」面板；落库与返回结构同非流式端点。
+      setAnswerProgress([]);
+      const answered = await run(api.answerStream(
+        interviewId!,
+        turn!.id,
+        payload.audioRef ? { audioRef: payload.audioRef, stage } : { transcript, stage },
+        appendAnswerProgress,
+      ));
       setScoreHistory((h) => {
         if ('recorded' in answered && answered.recorded) return [...h, { stage, score: 0, dims: [] }];
         const coach = answered as Extract<AnswerResult, { evaluation: { score: number } }>;
@@ -1550,6 +1573,22 @@ export function App() {
                           )}
                           <p>{recording ? '录音中 · 完成后上传做语音转写（无麦克风则自动用文本）' : '手动开始 · 手动提交 · 留出思考时间'}</p>
                         </div>
+                      )}
+                      {(submitAnswer.isPending || answerProgress.length > 0) && (
+                        <section className="stream-panel answer" aria-live="polite">
+                          <div className="row between">
+                            <div><b>回答评价实时进度</b><small> 转写、评价与追问决策的模型原始输出及校验状态</small></div>
+                            <span className={`tag ${submitAnswer.isPending ? 'blue' : 'green'}`}>{submitAnswer.isPending ? '处理中' : '已结束'}</span>
+                          </div>
+                          <div className="stream-log">
+                            {answerProgress.map((event, index) => (
+                              <div className={`stream-event ${event.phase}`} key={`${event.task}-${event.phase}-${index}`}>
+                                <span>{({ ASR: '转写', P07: 'P07 评价', P08: 'P08 追问' } as Record<string, string>)[event.task]} · {({ requesting: '请求', validating: '校验', retrying: '重试', complete: '完成', delta: '模型' } as Record<string, string>)[event.phase]}</span>
+                                <pre>{event.message}</pre>
+                              </div>
+                            ))}
+                          </div>
+                        </section>
                       )}
                       <textarea value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="亦可直接输入你的回答…" disabled={!!turn?.answered || submitAnswer.isPending} />
                       {!turn?.answered ? (

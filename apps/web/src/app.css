@@ -263,6 +263,8 @@ section.card.section-title{padding:22px 24px 24px;}
 .stream-event{display:grid;grid-template-columns:34px minmax(0,1fr);gap:8px;padding:4px 0;border-bottom:1px solid rgba(218,231,255,.11)}
 .stream-event:last-child{border-bottom:0}.stream-event>span{color:#9cb6ef;font-weight:700}.stream-event pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit}.stream-event.retrying>span{color:#ffd38d}.stream-event.complete>span{color:#75dfb8}.stream-event.delta>span{color:#c0d0fb}
 @container (max-width:700px){.stream-panel{padding:12px}.stream-log{max-height:190px}}
+/* 作答评价面板的标签带任务号（如「P07 评价 · 模型」），第一列需按内容自适应，否则会被 34px 挤成竖排。 */
+.stream-panel.answer .stream-event{grid-template-columns:max-content minmax(0,1fr)}
 @media (max-width:640px){.saved-resume-row{align-items:flex-start;flex-direction:column}.saved-resume-actions{margin-left:0}}
 
 /* Hero — tighter, more purposeful, motion on the waveforms */
