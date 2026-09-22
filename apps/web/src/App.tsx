@@ -1643,11 +1643,11 @@ export function App() {
                       </div>
                     </section>
                   )}
-                  <div className="grid2 section-title">
-                    <section className="card"><h2>下一个题，专注这 {report.actions.length} 件事</h2>
+                  <section className="card section-title"><div className="row between"><h2>下一个题，专注这 {report.actions.length} 件事</h2><span className="tag blue">行动清单</span></div>
+                    <div className="action-grid">
                       {report.actions.map((a, i) => <div className="list-row" key={i}><div className="row"><span className="step-number">0{i + 1}</span><div><b>{a}</b></div></div></div>)}
-                    </section>
-                  </div>
+                    </div>
+                  </section>
 
                   {review.length > 0 && (
                     <section className="card section-title">

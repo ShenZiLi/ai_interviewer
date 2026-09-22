@@ -153,6 +153,12 @@ textarea:focus,input[type=text]:focus,input[type=password]:focus,select:focus{bo
 .dimension-grid{padding-top:3px}
 .dimension-grid .score-row{padding:8px 0;margin:0;border-bottom:1px solid #f0f2f6}
 .dimension-grid .score-row:last-child{border-bottom:0}
+/* 复盘行动清单：双列平铺，避免右侧留白 */
+.action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px}
+.action-grid .list-row{background:linear-gradient(180deg,#fbfcff,#f7faff);border:1px solid #e6ecf7;border-radius:11px;padding:11px 13px}
+.action-grid .list-row .row{display:flex;align-items:flex-start;gap:10px}
+.action-grid .list-row b{color:var(--ink);font-size:13.5px;line-height:1.55;font-weight:500}
+@media (max-width:640px){.action-grid{grid-template-columns:1fr}}
 .trend-block{background:#fbfcff;border:1px solid #e5ebf4;border-radius:12px;padding:15px 16px;margin-top:23px}
 .highlight-item{transition:transform .18s,box-shadow .18s,border-color .18s}
 .highlight-item:hover{transform:translateY(-2px);border-color:#c8d5ec;box-shadow:0 8px 20px rgba(32,49,77,.06)}
