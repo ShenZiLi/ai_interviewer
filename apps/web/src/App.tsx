@@ -1061,7 +1061,7 @@ export function App() {
                       <div className="row" style={{ gap: 6, marginBottom: 4 }}>
                         {scores.map((s, i) => <span className="tag" key={i}>{s.value}<small>/100</small></span>)}
                       </div>
-                      <TrendChart data={scores} />
+                      <div className="trend-chart"><TrendChart data={scores} /></div>
                     </section>
                   )}
 
