@@ -1144,7 +1144,7 @@ export function App() {
                     )}
                   </section>
                   <section className="card">
-                    <div className="row between"><h2>确认分析结果</h2><span className={`tag ${structured ? 'blue' : modelQuery.data?.status.mode === 'mock' ? '' : 'blue'}`}>{structured ? '待你确认' : modelQuery.data?.status.mode === 'mock' ? '需配置模型' : '等待分析'}</span></div>
+                    <div className="row between"><h2>确认分析结果</h2><div className="row" style={{ gap: 6 }}><span className="tag ai">AI 生成</span><span className={`tag ${structured ? 'blue' : modelQuery.data?.status.mode === 'mock' ? '' : 'blue'}`}>{structured ? '待你确认' : modelQuery.data?.status.mode === 'mock' ? '需配置模型' : '等待分析'}</span></div></div>
                     <div className="profile-summary"><span className="eyebrow">候选人概况</span><strong>{analysis ?? '尚未完成分析'}</strong></div>
                     {structured ? (
                       <>
@@ -1217,7 +1217,7 @@ export function App() {
                             {dirs.map((d) => {
                               const on = selectedDirs.includes(d.id);
                               return (
-                                <div className="topic" key={d.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id])); } }} style={{ borderColor: on ? '#96b3f8' : undefined, background: on ? '#f6f9ff' : undefined }}>
+                                <div className={`topic${on ? ' on' : ''}`} key={d.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id])); } }}>
                                   <span><b>{d.name}</b><small>{d.reason}</small></span>
                                 </div>
                               );
@@ -1225,7 +1225,7 @@ export function App() {
                             {customDirs.map((c) => {
                               const on = selectedDirs.includes(c.id);
                               return (
-                                <div className="topic" key={c.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id])); } }} style={{ borderColor: on ? '#96b3f8' : undefined, background: on ? '#f6f9ff' : undefined }}>
+                                <div className={`topic${on ? ' on' : ''}`} key={c.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id])); } }}>
                                   <button type="button" className="dir-remove" aria-label="删除该方向" onClick={(e) => { e.stopPropagation(); removeCustomDir(c.id); }}>×</button>
                                   <span className="custom-dir-body"><b>{c.name}</b><small>自定义方向</small></span>
                                 </div>
@@ -1464,10 +1464,15 @@ export function App() {
                   </section>
                   <aside className="card feedback">
                     {!turn?.answered ? (
-                      <div className="empty"><div className="empty-icon">◌</div>回答结束后，<br />在这里查看评分与优化建议。</div>
+                      <div className="empty">
+                        <div className="empty-icon">◌</div>
+                        <b style={{ fontSize: 15 }}>答题后查看本轮反馈</b>
+                        <p className="muted" style={{ margin: '6px 0 2px' }}>这里会展示 AI 对本轮回答的评分、逐维度表现与优化建议。</p>
+                        <div className="feedback-preview"><span className="tag">综合评分</span><span className="tag">逐维表现</span><span className="tag">优化建议</span></div>
+                      </div>
                     ) : (
                       <>
-                        <div className="row between"><h3>本轮反馈</h3><span className="tag blue">{mode === 'mock' ? '模拟' : '陪练'}</span></div>
+                        <div className="row between"><h3>本轮反馈</h3><div className="row" style={{ gap: 6 }}><span className="tag ai">AI 生成</span><span className="tag blue">{mode === 'mock' ? '模拟' : '陪练'}</span></div></div>
                         {turn.answered.recorded ? (
                           <div className="empty" style={{ padding: '16px 0' }}>
                             <div className="empty-icon">◎</div>
@@ -1542,7 +1547,7 @@ export function App() {
                       <div>
                         <h2>{reportLine.head}</h2>
                         <p className="muted">{reportLine.sub}</p>
-                        <div className="row"><span className="tag">{role}</span><span className="tag">{level}</span><span className="tag blue">复盘报告</span>{report.keepAudio && <span className="tag green">录音已保留 · 可回听</span>}</div>
+                        <div className="row"><span className="tag">{role}</span><span className="tag">{level}</span><span className="tag blue">复盘报告</span><span className="tag ai">AI 生成</span>{report.keepAudio && <span className="tag green">录音已保留 · 可回听</span>}</div>
                       </div>
                     </div>
                     <div className="dimension-grid" style={{ marginTop: 25 }}>
@@ -1627,7 +1632,7 @@ export function App() {
               {active === 'report' && !report && (
                 <section className="card">
                   <div className="eyebrow">04 / 已完成记录</div>
-                  <h2>历史复盘报告</h2>
+                  <div className="row between"><h2>历史复盘报告</h2><span className="tag ai">AI 生成</span></div>
                   <p className="subtitle">选择一场已完成的面试，查看其八维表现、逐题回答与行动建议。</p>
                   {histQuery.isLoading ? <p className="muted">正在读取历史报告…</p> : history.filter((item) => item.status === 'finished' && item.report).length ? (
                     history.filter((item) => item.status === 'finished' && item.report).map((item) => (

@@ -89,8 +89,15 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
     const text = await res.text();
     let reason = text;
     try {
-      const env = JSON.parse(text) as { error?: { message?: string; code?: string } };
-      reason = env.error?.message ? `${env.error.code ? `${env.error.code} · ` : ''}${env.error.message}` : text;
+      const env = JSON.parse(text) as { error?: { message?: string; code?: string; detail?: string; task?: string; details?: unknown[] } };
+      if (env.error?.message) {
+        const reasonParts = [env.error.code ? `${env.error.code} · ` : '', env.error.message];
+        const extra = env.error.detail ?? (Array.isArray(env.error.details) ? `参数校验失败（${env.error.details.length} 处）` : undefined) ?? env.error.task;
+        if (extra) reasonParts.push(`（${String(extra)}）`);
+        reason = reasonParts.join('');
+      } else {
+        reason = text;
+      }
     } catch {
       /* 非 JSON 错误体，原样展示 */
     }
@@ -130,7 +137,7 @@ async function streamResume(text: string, title: string | undefined, onProgress:
     if (event === 'result') result = data as ResumeCreateResponse;
     if (event === 'error') {
       const error = data as { code?: string; message?: string; detail?: string };
-      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? '简历解析失败'}`);
+      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? '简历解析失败'}${error.detail && error.message ? `（${error.detail}）` : ''}`);
     }
   };
   while (true) {
@@ -170,7 +177,7 @@ async function streamPlan<T extends PlanStreamResult>(path: string, body: unknow
     if (event === 'result') result = data as T;
     if (event === 'error') {
       const error = data as { code?: string; message?: string; detail?: string };
-      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? '面试计划生成失败'}`);
+      throw new Error(`${error.code ? `${error.code} · ` : ''}${error.message ?? error.detail ?? '面试计划生成失败'}${error.detail && error.message ? `（${error.detail}）` : ''}`);
     }
   };
   while (true) {
