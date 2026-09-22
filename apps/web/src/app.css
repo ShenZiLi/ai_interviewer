@@ -49,6 +49,16 @@
 }
 body{background:#e8edf4;color:var(--ink)}
 #viewport{background:radial-gradient(circle at 86% 8%,#eef3ff 0,#f4f6fa 34%,#f4f6fa 100%)}
+
+/* 准备页方向卡片：新增自定方向卡 + 右上角删除 */
+.topic-grid .topic{position:relative}
+.dir-remove{position:absolute;top:6px;right:6px;border:0;background:transparent;color:#a7b2c5;font-size:18px;line-height:1;padding:2px 6px;border-radius:6px;cursor:pointer}
+.dir-remove:hover{color:#c0392b;background:#fdeeee}
+.add-dir{display:flex;align-items:center;justify-content:center;gap:4px;border:1.5px dashed #e2c66b!important;color:#a08a3a;background:#fffdf4;min-height:64px;font-size:13px;font-weight:600}
+.add-dir:hover{border-color:#c9a92f!important;background:#fff9e2;transform:translateY(-1px)}
+.add-dir-card{align-items:center;background:#fffdf4;border-color:#e0c56a;min-height:64px}
+.add-dir-card input{width:100%;border:0;outline:0;background:transparent;font-size:13px;color:var(--ink)}
+.topic .custom-dir-body{padding-right:18px;min-width:0}
 .sidebar{box-shadow:10px 0 28px rgba(32,49,77,.035);padding-top:30px}
 .logo{letter-spacing:-.3px}
 .logo-mark{box-shadow:0 8px 18px rgba(45,91,209,.22);transform:rotate(-2deg)}

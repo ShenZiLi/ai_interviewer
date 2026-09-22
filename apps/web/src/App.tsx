@@ -77,7 +77,6 @@ export function App() {
   const [keepAudio, setKeepAudio] = useState(() => localStorage.getItem('keepAudio') === '1');
   /** 录音保留默认值：设置页可切换并持久化，准备页 checkbox 同步该状态。 */
   const setKeepAudioDefault = (v: boolean) => { setKeepAudio(v); localStorage.setItem('keepAudio', v ? '1' : '0'); };
-  const [extra, setExtra] = useState('');
   /** 面试风格：设置页存默认（localStorage），准备页本场可调整。 */
   const [style, setStyle] = useState<'professional' | 'coaching' | 'concise'>(() => (localStorage.getItem('style') as 'professional' | 'coaching' | 'concise') || 'professional');
   const setStyleAndSave = (s: 'professional' | 'coaching' | 'concise') => { setStyle(s); localStorage.setItem('style', s); };
@@ -91,9 +90,13 @@ export function App() {
   const [adjustNote, setAdjustNote] = useState<string>();
   const [dirs, setDirs] = useState<{ id: string; name: string; weight: number; reason?: string }[]>([]);
   const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
+  /** 用户通过「+」手动新增的自定义方向卡片，无限个；右上角 × 可删。 */
+  const [customDirs, setCustomDirs] = useState<{ id: string; name: string }[]>([]);
+  const customDirSeq = useRef(0);
+  /** 「+ 新增方向」的就地输入态。 */
+  const [addingDir, setAddingDir] = useState(false);
+  const [dirDraft, setDirDraft] = useState('');
   const [topics, setTopics] = useState<string[]>([]);
-  /** P02 岗位分析给出的考察重点（focusAreas），准备页展示。 */
-  const [positionAreas, setPositionAreas] = useState<string[]>([]);
   const [outlinePhases, setOutlinePhases] = useState<{ phase: string; minutes: number; questionCount: number; focus: string[] }[]>();
   const [outlineQuestions, setOutlineQuestions] = useState<{ topic: string; mainQuestion: string; difficulty?: string }[]>();
   const [turn, setTurn] = useState<RoomTurn>();
@@ -197,11 +200,11 @@ export function App() {
       setReview([]);
       setCoaching(undefined);
       setTopics([]);
-      setPositionAreas([]);
       setOutlinePhases(undefined);
       setOutlineQuestions(undefined);
       setSelectedDirs([]);
       setDirs([]);
+      setCustomDirs([]);
       setAdjustNote(undefined);
       setStartedAt(undefined);
       savedResumesQuery.refetch();
@@ -237,7 +240,6 @@ export function App() {
       }));
       setPlanProgress([]);
       const plan = await run(api.createPlanStream(interview.interview.id, appendPlanProgress));
-      setPositionAreas(plan.position?.focusAreas ?? []);
       setDirs(plan.recommendedDirections.recommendedDirections);
       setSelectedDirs(plan.recommendedDirections.recommendedDirections.map((x) => x.id));
       setInterviewId(interview.interview.id);
@@ -245,11 +247,31 @@ export function App() {
     },
   });
 
+  /** 提交就地新增方向卡片（空名称视为取消）；成功后默认选中并回到「+」态。 */
+  const addCustomDir = () => {
+    const name = dirDraft.trim();
+    setAddingDir(false);
+    setDirDraft('');
+    if (!name) return;
+    const id = `custom:${++customDirSeq.current}`;
+    setCustomDirs((cs) => [...cs, { id, name }]);
+    setSelectedDirs((s) => (s.includes(id) ? s : [...s, id]));
+  };
+
+  /** 删除一张自定义方向卡片（同时从已选集合移除）。 */
+  const removeCustomDir = (id: string) => {
+    setCustomDirs((cs) => cs.filter((c) => c.id !== id));
+    setSelectedDirs((s) => s.filter((x) => x !== id));
+  };
+
   /** 按已选方向重新推荐 + 生成大纲（不立即开考，供先预览流程/题目）。 */
   const generatePlan = useMutation({
     mutationFn: async () => {
       setPlanProgress([]);
-      const plan = await run(api.createOutlineStream(interviewId!, selectedDirs.length ? selectedDirs : undefined, extra || undefined, appendPlanProgress));
+      // 内置方向用 id 交给后端；自定义方向把名称拼入 extra，使其参与本次大纲生成。
+      const builtInSelected = selectedDirs.filter((id) => dirs.some((d) => d.id === id));
+      const customNames = customDirs.filter((c) => selectedDirs.includes(c.id)).map((c) => c.name).join('、');
+      const plan = await run(api.createOutlineStream(interviewId!, builtInSelected.length ? builtInSelected : undefined, customNames || undefined, appendPlanProgress));
       setDirs(plan.recommendedDirections.recommendedDirections);
       const outline = plan.outline!;
       setTopics(outline.outline.map((q) => q.topic));
@@ -688,7 +710,6 @@ export function App() {
       const detail = await run(api.getInterview(id));
       if (detail.interview.status !== 'active') throw new Error('该场不在进行中');
       const turns = detail.interview.turns ?? [];
-      const resumePhase = (turns[turns.length - 1]?.phase as Phase) ?? 'intro';
       // 按已有轮次重建各环节已答主问题数（追问轮不计）。
       const progress: Partial<Record<Phase, number>> = {};
       for (const t of turns) {
@@ -699,12 +720,10 @@ export function App() {
       setOutlinePhases(detail.interview.outline?.durationPlan?.phases);
       setOutlineQuestions(detail.interview.outline?.outline);
       setTopics(detail.interview.outline?.outline?.map((q) => q.topic) ?? []);
-      const res = await run(api.newTurn(id, resumePhase));
       setInterviewId(id);
       setStartedAt(detail.interview.startedAt);
       setMode(detail.interview.kind);
       setLevel(detail.interview.level === 'senior' ? '高级' : detail.interview.level === 'junior' ? '初级' : '中级');
-      setPhase(resumePhase);
       setDraft('');
       setScoreHistory([]);
       setCoaching(undefined);
@@ -713,8 +732,27 @@ export function App() {
       setPendingAdjust(undefined);
       setRecording(false);
       setFollowUpCount(0);
-      setAdjustNote('已从上次进度继续，这是本环节下一题。');
+
+      const lastTurn = turns[turns.length - 1];
+      // 上次离开前最后一题尚未作答：直接回到该题，不要派生新题（避免自我介绍阶段反复刷出进阶题）。
+      if (lastTurn && (lastTurn.attempts?.length ?? 0) === 0) {
+        setPhase(lastTurn.phase as Phase);
+        setAdjustNote('已从上次进度继续，直接回到该题。');
+        setTurn({ id: lastTurn.id, question: lastTurn.question, phase: lastTurn.phase as Phase, topic: lastTurn.topic, difficulty: lastTurn.difficulty, targetAspect: lastTurn.targetAspect, followup: false });
+        setPage('room');
+        return;
+      }
+      // 正常恢复：定位到「首个计划题数尚未答满」的环节，再生成该环节下一题。
+      const plannedOf = (p: Phase) => detail.interview.outline?.durationPlan?.phases?.find((x) => x.phase === p)?.questionCount;
+      let resumePhase: Phase = 'intro';
+      for (const p of PHASES) {
+        const pl = plannedOf(p);
+        if (pl === undefined || (progress[p] ?? 0) < pl) { resumePhase = p; break; }
+      }
+      setPhase(resumePhase);
+      const res = await run(api.newTurn(id, resumePhase));
       setTurn({ id: res.turn.id, question: res.turn.question, phase: res.turn.phase as Phase, topic: res.turn.topic, difficulty: res.turn.difficulty, targetAspect: res.turn.targetAspect, followup: false });
+      setAdjustNote('已从上次进度继续，这是本环节下一题。');
       setPage('room');
     },
     onSuccess: () => histQuery.refetch(),
@@ -758,11 +796,11 @@ export function App() {
       setReview([]);
       setCoaching(undefined);
       setTopics([]);
-      setPositionAreas([]);
       setOutlinePhases(undefined);
       setOutlineQuestions(undefined);
       setSelectedDirs([]);
       setDirs([]);
+      setCustomDirs([]);
       setAdjustNote(undefined);
       setStartedAt(undefined);
       setError(undefined);
@@ -1113,26 +1151,28 @@ export function App() {
                               const on = selectedDirs.includes(d.id);
                               return (
                                 <div className="topic" key={d.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id])); } }} style={{ borderColor: on ? '#96b3f8' : undefined, background: on ? '#f6f9ff' : undefined }}>
-                                  <span className="step-number">{Math.round(d.weight * 10)}</span>
                                   <span><b>{d.name}</b><small>{d.reason}</small></span>
                                 </div>
                               );
                             })}
-                          </div>
-                          <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向</small></div>
-                          <label className="field" style={{ marginTop: 12 }}>补充诉求（可选）<input type="text" value={extra} onChange={(e) => setExtra(e.target.value)} placeholder="例如：更看重原理深度、多考察分布式事务…" /></label>
-                          <h3 style={{ marginTop: 18 }}>侧重方向：<span className="tag blue">点击可切换</span></h3>
-                          <div className="row" style={{ marginTop: 8 }}>
-                            {dirs.map((d) => {
-                              const onDir = selectedDirs.includes(d.id);
-                              return <button key={d.id} type="button" className={`dir-tag${onDir ? ' on' : ''}`} aria-pressed={onDir} onClick={() => setSelectedDirs((s) => (onDir ? s.filter((x) => x !== d.id) : [...s, d.id]))}>{d.name}</button>;
+                            {customDirs.map((c) => {
+                              const on = selectedDirs.includes(c.id);
+                              return (
+                                <div className="topic" key={c.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== c.id) : [...s, c.id])); } }} style={{ borderColor: on ? '#96b3f8' : undefined, background: on ? '#f6f9ff' : undefined }}>
+                                  <button type="button" className="dir-remove" aria-label="删除该方向" onClick={(e) => { e.stopPropagation(); removeCustomDir(c.id); }}>×</button>
+                                  <span className="custom-dir-body"><b>{c.name}</b><small>自定义方向</small></span>
+                                </div>
+                              );
                             })}
+                            {addingDir ? (
+                              <div className="topic add-dir-card">
+                                <input autoFocus value={dirDraft} onChange={(e) => setDirDraft(e.target.value)} onBlur={() => addCustomDir()} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomDir(); } if (e.key === 'Escape') { setAddingDir(false); setDirDraft(''); } }} placeholder="输入方向名称，回车确认" />
+                              </div>
+                            ) : (
+                              <button type="button" className="topic add-dir" onClick={() => setAddingDir(true)} aria-label="新增方向">＋ 新增方向</button>
+                            )}
                           </div>
-                          <h3 style={{ marginTop: 16 }}>目标岗位：{role} · {level}</h3>
-                          {positionAreas.length > 0 && (
-                            <div className="row" style={{ marginTop: 8 }}><small style={{ marginRight: 4 }}>岗位考察重点（仅供参考）：</small>{positionAreas.map((a) => <span className="summary-chip" key={a}>{a}</span>)}</div>
-                          )}
-                          <div className="row">{topics.map((t) => <span className="summary-chip" key={t}>{t}</span>)}</div>
+                          <div className="row" style={{ marginTop: 10 }}><small>已选 {selectedDirs.length} 个方向 · 点击卡片可多选</small></div>
                           {outlinePhases && outlinePhases.length > 0 && (
                             <div className="flow" style={{ marginTop: 22 }}>
                               {outlinePhases.map((p) => (
@@ -1475,7 +1515,7 @@ export function App() {
                   <div className="actions"><button onClick={exportReport}>导出报告 ⤓</button><button className="primary" onClick={() => { setPage('home'); setInterviewId(undefined); setPhase('intro'); setTurn(undefined);
       setPhaseProgress({});
       setPendingAdjust(undefined); setReport(undefined);
-      setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setPositionAreas([]); setOutlinePhases(undefined);
+      setTrend(undefined); setReview([]); setCoaching(undefined); setTopics([]); setCustomDirs([]); setOutlinePhases(undefined);
       setOutlineQuestions(undefined); setSelectedDirs([]); setDirs([]); setAdjustNote(undefined); setStartedAt(undefined); }}>再来一次 →</button></div>
                 </>
               )}

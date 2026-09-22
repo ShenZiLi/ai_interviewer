@@ -29,7 +29,7 @@ export interface InterviewDetail extends InterviewSummary {
   startedAt?: string;
   promptLocks: Record<string, { versionId: string; versionNo: number }>;
   outline?: { durationPlan?: { tier: string; budgetMinutes: number; phases: { phase: string; minutes: number; questionCount: number; focus: string[] }[] }; outline: { topic: string; mainQuestion: string }[] };
-  turns?: { id: string; phase: string; question: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; audioRef?: string; evaluation?: { score: number; grade?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] } }[] }[];
+  turns?: { id: string; phase: string; question: string; topic?: string; difficulty?: string; targetAspect?: string; parentTurnId?: string; attempts: { transcript: string; stage?: string; audioRef?: string; evaluation?: { score: number; grade?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] } }[] }[];
 }
 
 export interface ResumeAnalysis {

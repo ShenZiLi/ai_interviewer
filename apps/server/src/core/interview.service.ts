@@ -42,6 +42,17 @@ export interface AnswerInput {
 
 export type ModelProgress = { phase: 'requesting' | 'delta' | 'validating' | 'retrying' | 'complete'; message: string };
 
+/**
+ * 自我介绍环节的引导问题。业务逻辑：面试开场固定为自我介绍，故不依赖模型生成，
+ * 避免进阶技术题混入 intro 阶段（与当前环节标签不一致）。
+ */
+const INTRO_TOPIC = '自我介绍';
+const INTRO_QUESTIONS = [
+  '请先用 1-2 分钟做一个自我介绍，重点介绍你最拿手、最能体现深度的一个项目。',
+  '简单介绍一下你的技术背景，以及这段经历中最让你有成就感的一件事。',
+  '先做个简短自我介绍，然后说说你目前最希望提升的一个方面。',
+];
+
 /** 面试状态机 + P01—P10 编排。MVP 直连 ComposeService + 内存仓库。 */
 @Injectable()
 export class InterviewService {
@@ -247,11 +258,19 @@ export class InterviewService {
       }
     }
     if (!questionText) {
-      const q = (await this.compose.compose('P06', this.ctx(it, 'P06', { it, phase }))) as MainQuestion;
-      questionText = q.questionText;
-      topic = q.topic;
-      difficulty = q.difficulty;
-      targetAspect = q.targetAspect;
+      if (phase === 'intro') {
+        // 环节业务逻辑：开场固定为自我介绍引导（确定性，不依赖模型），保证与环节标签一致。
+        questionText = INTRO_QUESTIONS[(seqNo - 1) % INTRO_QUESTIONS.length];
+        topic = INTRO_TOPIC;
+        difficulty = 'begin';
+        targetAspect = '表达与结构';
+      } else {
+        const q = (await this.compose.compose('P06', this.ctx(it, 'P06', { it, phase }))) as MainQuestion;
+        questionText = q.questionText;
+        topic = q.topic;
+        difficulty = q.difficulty;
+        targetAspect = q.targetAspect;
+      }
     }
     const audio = await this.voice.synthesize({ text: questionText });
     const turn: Turn = {
