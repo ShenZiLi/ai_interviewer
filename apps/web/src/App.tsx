@@ -1272,7 +1272,7 @@ export function App() {
                               const on = selectedDirs.includes(d.id);
                               return (
                                 <div className={`topic${on ? ' on' : ''}`} key={d.id} role="button" tabIndex={0} aria-pressed={on} onClick={() => setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id]))} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedDirs((s) => (on ? s.filter((x) => x !== d.id) : [...s, d.id])); } }}>
-                                  <span><b>{d.name}</b><small>{d.reason}</small></span>
+                                  <span className="topic-body"><b>{d.name}</b>{d.reason ? <span className="topic-chips">{d.reason.split(/[/、,，]+/).filter((t) => t.trim()).map((t) => <i key={t}>{t.trim()}</i>)}</span> : null}</span>
                                 </div>
                               );
                             })}

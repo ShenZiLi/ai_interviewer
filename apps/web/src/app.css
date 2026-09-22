@@ -52,6 +52,11 @@ body{background:#e8edf4;color:var(--ink)}
 
 /* 准备页方向卡片：新增自定方向卡 + 右上角删除 */
 .topic-grid .topic{position:relative}
+.topic-body{display:flex;flex-direction:column;gap:8px;min-width:0;width:100%}
+.topic-body>b{font-size:14.5px;color:var(--ink)}
+.topic-chips{display:flex;flex-wrap:wrap;gap:5px}
+.topic-chips>i{font-style:normal;font-size:11.5px;line-height:1;padding:4px 7px;border-radius:6px;border:1px solid #e2e9f4;background:#f6f9ff;color:#51617a;white-space:nowrap}
+.topic-chips>i:first-child{margin-left:0}
 .dir-remove{position:absolute;top:6px;right:6px;border:0;background:transparent;color:#a7b2c5;font-size:18px;line-height:1;padding:2px 6px;border-radius:6px;cursor:pointer}
 .dir-remove:hover{color:#c0392b;background:#fdeeee}
 .add-dir{display:flex;align-items:center;justify-content:center;gap:4px;border:1.5px dashed #e2c66b!important;color:#a08a3a;background:#fffdf4;min-height:64px;font-size:13px;font-weight:600}
