@@ -347,6 +347,18 @@ label.field{font-weight:600;color:#55637e;letter-spacing:.15px;}
 .empty-icon{background:linear-gradient(150deg,#eef3ff,#e6eeff);border-radius:18px;display:inline-grid;place-items:center;width:64px;height:64px;color:var(--blue);box-shadow:0 12px 26px rgba(43,86,214,.12);}
 .feedback-preview{display:flex;justify-content:center;gap:6px;margin-top:14px;flex-wrap:wrap;}
 
+/* 成绩走势折线图 */
+.trend-chart{width:100%;}
+.trend-chart svg{display:block;max-width:100%;}
+.trend-grid{stroke:#e6ebf3;stroke-width:1;stroke-dasharray:3 4;}
+.trend-axis{font-size:10px;fill:#8b96a6;}
+.trend-xlabel{font-size:10px;fill:#8b96a6;}
+.trend-line{stroke:var(--blue);stroke-width:2.25;stroke-linecap:round;stroke-linejoin:round;}
+.trend-area{fill:var(--soft);opacity:.5;}
+.trend-dot{fill:#fff;stroke:var(--blue);stroke-width:2;}
+.trend-dot.last{stroke-width:2.5;}
+.trend-point{font-size:12px;font-weight:700;fill:var(--ink);}
+
 @container (max-width:700px){
   .hero{padding:24px 22px;min-height:0;}
   .hero-art{margin-right:0;}

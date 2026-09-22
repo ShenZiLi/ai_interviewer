@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { gradeOf } from '@ai-interviewer/contracts';
 import { api, audioSrc, type AnswerResult, type InterviewDetail, type InterviewReport, type PlanStreamProgress, type ResumeStreamProgress } from './api';
 import { buildTrend } from './lib/trend';
-import { recentScores } from './lib/session-trend';
+import { recentScores, type ScorePoint } from './lib/session-trend';
 import { filterByRole, uniqueRoles } from './lib/session-filter';
 import { durLabel } from './lib/durations';
 import { avgDims } from './lib/dim-avg';
@@ -64,6 +64,50 @@ interface RoomTurn {
   answeredAt?: number;
   reanswer?: { readMs: number; reanswerMs: number };
   answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[]; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] };
+}
+
+/**
+ * 成绩走势折线图：内联 SVG 渲染，无第三方依赖。
+ * 数据按时序（旧→新）传入；自适应坐标，末点高亮并标注分值。
+ */
+function TrendChart({ data }: { data: ScorePoint[] }) {
+  const W = 360;
+  const H = 150;
+  const PAD_X = 12;
+  const PAD_TOP = 16;
+  const PAD_BOTTOM = 26;
+  const n = data.length;
+  if (n === 0) return null;
+  const values = data.map((d) => d.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const span = max - min || 20;
+  const y = (v: number) => PAD_TOP + (1 - (v - min) / span) * (H - PAD_TOP - PAD_BOTTOM);
+  const x = (i: number) => (n === 1 ? W / 2 : PAD_X + (i / (n - 1)) * (W - PAD_X * 2));
+  const pts = data.map((d, i) => `${x(i).toFixed(1)},${y(d.value).toFixed(1)}`);
+  const area = `M${x(0).toFixed(1)},${(H - PAD_BOTTOM).toFixed(1)} L${pts.join(' L')} L${x(n - 1).toFixed(1)},${(H - PAD_BOTTOM).toFixed(1)} Z`;
+  const last = data[n - 1];
+  return (
+    <div className="trend-chart" role="img" aria-label={`成绩走势：${data.map((d) => `${d.label} ${d.value}分`).join('，')}`}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" preserveAspectRatio="xMidYMid meet">
+        {[min, min + span / 2, max].map((g, gi) => (
+          <g key={gi}>
+            <line x1={PAD_X} y1={y(g)} x2={W - PAD_X} y2={y(g)} className="trend-grid" />
+            <text x={W - PAD_X} y={y(g) - 3} textAnchor="end" className="trend-axis">{Math.round(g)}</text>
+          </g>
+        ))}
+        <path d={area} className="trend-area" />
+        <polyline points={pts.join(' ')} className="trend-line" fill="none" />
+        {data.map((d, i) => (
+          <circle key={i} cx={x(i)} cy={y(d.value)} r={i === n - 1 ? 4.5 : 3.5} className={i === n - 1 ? 'trend-dot last' : 'trend-dot'} />
+        ))}
+        {data.map((d, i) => (
+          <text key={i} x={x(i)} y={H - 8} textAnchor="middle" className="trend-xlabel">{d.label}</text>
+        ))}
+        <text x={x(n - 1)} y={y(last.value) - 10} textAnchor="middle" className="trend-point">{last.value}</text>
+      </svg>
+    </div>
+  );
 }
 
 export function App() {
@@ -1001,13 +1045,14 @@ export function App() {
 
                   {scores.length > 0 && (
                     <section className="card" style={{ marginTop: 18 }}>
-                      <div className="row between" style={{ marginBottom: 10 }}>
+                      <div className="row between" style={{ marginBottom: 2 }}>
                         <h3 style={{ margin: 0 }}>成绩走势</h3>
-                        {scores.length >= 2 && (() => { const d = scores[scores.length - 1] - scores[0]; return <span className={`tag ${d > 0 ? 'green' : d < 0 ? 'amber' : ''}`}>{d >= 0 ? '▲' : '▼'} 首尾 {Math.abs(d)} 分</span>; })()}
+                        {scores.length >= 2 && (() => { const d = scores[scores.length - 1].value - scores[0].value; return <span className={`tag ${d > 0 ? 'green' : d < 0 ? 'amber' : ''}`}>{d >= 0 ? '▲' : '▼'} 首尾 {Math.abs(d)} 分</span>; })()}
                       </div>
-                      <div className="row" style={{ gap: 6 }}>
-                        {scores.map((s, i) => <span className="tag" key={i}>{s}<small> /100</small></span>)}
+                      <div className="row" style={{ gap: 6, marginBottom: 4 }}>
+                        {scores.map((s, i) => <span className="tag" key={i}>{s.value}<small>/100</small></span>)}
                       </div>
+                      <TrendChart data={scores} />
                     </section>
                   )}
 
