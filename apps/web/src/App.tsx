@@ -66,6 +66,36 @@ interface RoomTurn {
   answered?: { recorded?: boolean; transcript: string; score: number; grade: string; overall: string; dims: { dim: string; displayScore?: number }[]; strengths: string[]; weaknesses: string[]; suggestion: string; followup: string[]; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] };
 }
 
+/** 全局确认弹窗的通用入参。 */
+interface ConfirmOptions {
+  title?: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  /** 是否危险操作（删除类），确定按钮红色强调。 */
+  danger?: boolean;
+}
+
+/**
+ * 全局确认弹窗：固定窗口正中央，遮罩 + 品牌化卡片。
+ * 由 App 内 confirmUser 状态驱动，统一替代 window.confirm。
+ */
+function ConfirmDialog({ opts, onConfirm, onCancel }: { opts: ConfirmOptions; onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div className="confirm-overlay" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" onClick={onCancel}>
+      <div className={`confirm-dialog${opts.danger ? ' danger' : ''}`} onClick={(e) => e.stopPropagation()}>
+        <div className="confirm-icon" aria-hidden>{opts.danger ? '🗑' : '❓'}</div>
+        <h3 id="confirm-title">{opts.title ?? (opts.danger ? '确认删除' : '请确认')}</h3>
+        <p className="confirm-message">{opts.message}</p>
+        <div className="confirm-actions">
+          <button className="ghost" onClick={onCancel} autoFocus>{opts.cancelText ?? '取消'}</button>
+          <button className={opts.danger ? 'danger' : 'primary'} onClick={onConfirm}>{opts.confirmText ?? '确定'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * 成绩走势折线图：内联 SVG 渲染，无第三方依赖。
  * 数据按时序（旧→新）传入；自适应坐标，末点高亮并标注分值。
@@ -163,6 +193,11 @@ export function App() {
   const [resumeProgress, setResumeProgress] = useState<ResumeStreamProgress[]>([]);
   const [planProgress, setPlanProgress] = useState<PlanStreamProgress[]>([]);
   const [error, setError] = useState<string>();
+  /** 全局确认弹窗的状态；非空时显示居中弹窗。 */
+  const [confirmState, setConfirmState] = useState<{ opts: ConfirmOptions; onConfirm: () => void }>();
+
+  /** 弹出一个全局居中确认弹窗，返回 true（用户点确定）则执行指定动作。 */
+  const askConfirm = (opts: ConfirmOptions, action: () => void) => setConfirmState({ opts, onConfirm: action });
 
   const run = <T,>(p: Promise<T>): Promise<T> => p.catch((e: unknown) => { setError(String((e as Error)?.message ?? e)); throw e; });
 
@@ -386,7 +421,10 @@ export function App() {
   const goFinish = () => {
     const planned = plannedOf(phase);
     const done = phaseProgress[phase] ?? 0;
-    if (planned && done < planned && !window.confirm(`本环节计划 ${planned} 题，目前已答 ${done}。确定结束面试生成报告吗？`)) return;
+    if (planned && done < planned) {
+      askConfirm({ title: '结束面试', message: `本环节计划 ${planned} 题，目前已答 ${done}。确定结束面试生成报告吗？`, confirmText: '结束面试', cancelText: '继续练习' }, () => finish.mutate());
+      return;
+    }
     finish.mutate();
   };
 
@@ -394,7 +432,14 @@ export function App() {
   const advancePhase = async () => {
     const planned = plannedOf(phase);
     const done = phaseProgress[phase] ?? 0;
-    if (planned && done < planned && !window.confirm(`本环节计划 ${planned} 题，目前已答 ${done}。确定进入下一环节吗？`)) return;
+    if (planned && done < planned) {
+      askConfirm({ title: '进入下一环节', message: `本环节计划 ${planned} 题，目前已答 ${done}。确定进入下一环节吗？`, confirmText: '进入下一环节', cancelText: '继续作答' }, () => advanceNow());
+      return;
+    }
+    await advanceNow();
+  };
+
+  const advanceNow = async () => {
     const idx = PHASES.indexOf(phase);
     if (phase === 'intro' && mode === 'mock') {
       try {
@@ -1112,7 +1157,7 @@ export function App() {
                           ) : (
                             <button onClick={() => resumePreparation.mutate(h.id)} disabled={resumePreparation.isPending}>{resumePreparation.isPending ? '载入中…' : '继续准备'}</button>
                           )}
-                          <button className="danger ghost" onClick={() => { if (window.confirm('删除这场面试记录？')) deleteInterview.mutate(h.id); }} disabled={deleteInterview.isPending}>删除</button>
+                          <button className="danger ghost" onClick={() => askConfirm({ danger: true, title: '删除面试记录', message: '删除这场面试记录？删除后不可恢复。', confirmText: '删除', cancelText: '保留' }, () => deleteInterview.mutate(h.id))} disabled={deleteInterview.isPending}>删除</button>
                         </div>
                       ))}
                     </section>
@@ -1150,7 +1195,7 @@ export function App() {
                               </div>
                               <div className="saved-resume-actions">
                                 <button className="saved-resume-action use" onClick={() => loadSavedResume.mutate(saved.id)} disabled={loadSavedResume.isPending}>{loadSavedResume.isPending ? '载入中' : '使用'}</button>
-                                <button className="saved-resume-action delete" onClick={() => { if (window.confirm(`删除已保存简历“${saved.title}”？`)) deleteSavedResume.mutate(saved.id); }} disabled={deleteSavedResume.isPending}>删除</button>
+                                <button className="saved-resume-action delete" onClick={() => askConfirm({ danger: true, title: '删除简历', message: `删除已保存简历“${saved.title}”？删除后不可恢复。`, confirmText: '删除', cancelText: '保留' }, () => deleteSavedResume.mutate(saved.id))} disabled={deleteSavedResume.isPending}>删除</button>
                               </div>
                             </div>
                           ))}
@@ -1367,7 +1412,7 @@ export function App() {
                         <div><b>{item.targetRole} · {item.level === 'mid' ? '中级' : item.level === 'junior' ? '初级' : '高级'}</b><p>{item.kind === 'coach' ? '陪练' : '模拟'} · {item.currentPhase ? `${phaseLabel[item.currentPhase]}进行中` : '等待开始'} · {new Date(item.updatedAt).toLocaleString()}</p></div>
                         <div className="row" style={{ gap: 6 }}>
                           <button className="primary" onClick={() => resumeInterview.mutate(item.id)} disabled={resumeInterview.isPending}>{resumeInterview.isPending ? '继续中…' : '继续这场'}</button>
-                          <button className="danger ghost" onClick={() => { if (window.confirm(`删除这场进行中的练习（${item.targetRole} · ${item.kind === 'coach' ? '陪练' : '模拟'}）？删除后不可恢复。`)) deleteInterview.mutate(item.id); }} disabled={deleteInterview.isPending}>删除</button>
+                          <button className="danger ghost" onClick={() => askConfirm({ danger: true, title: '删除练习', message: `删除这场进行中的练习（${item.targetRole} · ${item.kind === 'coach' ? '陪练' : '模拟'}）？删除后不可恢复。`, confirmText: '删除', cancelText: '保留' }, () => deleteInterview.mutate(item.id))} disabled={deleteInterview.isPending}>删除</button>
                         </div>
                       </div>
                     ))
@@ -1697,7 +1742,7 @@ export function App() {
                         <div><b>{item.targetRole} · {item.level === 'mid' ? '中级' : item.level === 'junior' ? '初级' : '高级'}</b><p>{item.kind === 'coach' ? '陪练' : '模拟'} · {item.report?.overview.avgScore} 分 · 完成 {item.report?.overview.completedAnswers} 题 · {new Date(item.updatedAt).toLocaleString()}</p></div>
                         <div className="row" style={{ gap: 6 }}>
                           <button className="primary" onClick={() => openHistory.mutate(item.id)} disabled={openHistory.isPending}>{openHistory.isPending ? '打开中…' : '查看报告'}</button>
-                          <button className="danger ghost" onClick={() => { if (window.confirm(`删除这份复盘报告（${item.targetRole} · ${item.kind === 'coach' ? '陪练' : '模拟'}）？删除后不可恢复。`)) deleteInterview.mutate(item.id); }} disabled={deleteInterview.isPending}>删除</button>
+                          <button className="danger ghost" onClick={() => askConfirm({ danger: true, title: '删除复盘报告', message: `删除这份复盘报告（${item.targetRole} · ${item.kind === 'coach' ? '陪练' : '模拟'}）？删除后不可恢复。`, confirmText: '删除', cancelText: '保留' }, () => deleteInterview.mutate(item.id))} disabled={deleteInterview.isPending}>删除</button>
                         </div>
                       </div>
                     ))
@@ -1714,7 +1759,7 @@ export function App() {
                         <div><b>{t.taskCode} · {t.name}</b><p>{t.description}</p>{t.variables?.length ? <p className="muted" style={{ marginTop: 6 }}>上下文变量：{t.variables.map((v) => <span className="tag" key={v} style={{ marginRight: 4 }}>{v}</span>)}</p> : null}</div>
                         <div className="row">
                           <button className={selId === t.id ? 'primary' : ''} onClick={() => setSelId(t.id)}>编辑</button>
-                          <button className="danger ghost" onClick={() => { if (window.confirm(`删除模板 ${t.taskCode} 及其全部版本？已开始面试的回落到默认提示词。`)) deleteTemplate.mutate(t.id); }} disabled={deleteTemplate.isPending}>删除</button>
+                          <button className="danger ghost" onClick={() => askConfirm({ danger: true, title: '删除模板', message: `删除模板 ${t.taskCode} 及其全部版本？已开始面试的回落到默认提示词。`, confirmText: '删除', cancelText: '取消' }, () => deleteTemplate.mutate(t.id))} disabled={deleteTemplate.isPending}>删除</button>
                         </div>
                       </div>
                     ))}
@@ -1814,6 +1859,14 @@ export function App() {
             </nav>
         </div>
       </div>
+
+        {confirmState && (
+          <ConfirmDialog
+            opts={confirmState.opts}
+            onConfirm={() => { const fn = confirmState.onConfirm; setConfirmState(undefined); fn(); }}
+            onCancel={() => setConfirmState(undefined)}
+          />
+        )}
     </div>
   );
 }

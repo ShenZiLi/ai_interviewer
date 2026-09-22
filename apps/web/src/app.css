@@ -50,6 +50,18 @@
 body{background:#e8edf4;color:var(--ink)}
 #viewport{background:radial-gradient(circle at 86% 8%,#eef3ff 0,#f4f6fa 34%,#f4f6fa 100%)}
 
+/* 全局确认弹窗：固定窗口正中央 */
+.confirm-overlay{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;background:rgba(23,32,51,.42);backdrop-filter:blur(3px);animation:confirmFade .16s ease}
+.confirm-dialog{width:min(420px,calc(100vw - 40px));background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(16,28,52,.28);padding:28px 26px;text-align:center;animation:confirmPop .18s cubic-bezier(.2,.8,.3,1.1)}
+.confirm-icon{display:inline-grid;place-items:center;width:52px;height:52px;border-radius:14px;font-size:24px;margin-bottom:14px;background:linear-gradient(150deg,#eef4ff,#e4edff);color:var(--blue);box-shadow:0 8px 18px rgba(45,91,209,.12)}
+.confirm-dialog.danger .confirm-icon{background:linear-gradient(150deg,#fdeeee,#fbdddd);color:#c0392b;box-shadow:0 8px 18px rgba(192,57,43,.12)}
+.confirm-dialog h3{margin:0 0 8px;font-size:17px;letter-spacing:-.2px}
+.confirm-message{margin:0 0 22px;color:#5a6a85;font-size:13.5px;line-height:1.7;white-space:pre-line}
+.confirm-actions{display:flex;justify-content:center;gap:10px}
+.confirm-actions button{min-width:108px;padding:9px 18px;font-size:13.5px;border-radius:10px}
+@keyframes confirmFade{from{opacity:0}to{opacity:1}}
+@keyframes confirmPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+
 /* 准备页方向卡片：新增自定方向卡 + 右上角删除 */
 .topic-grid .topic{position:relative}
 .topic-body{display:flex;flex-direction:column;gap:8px;min-width:0;width:100%}
