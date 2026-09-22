@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 
 export const now = () => new Date().toISOString();
 
@@ -88,7 +88,10 @@ export interface StoredAudio {
   mime: string;
 }
 
-/** MVP 内存仓库。设置 `DATA_FILE` 环境变量后启用 JSON 文件持久化（重启不丢）；未设置则纯内存（便于测试隔离）。 */
+/**
+ * 本地持久化仓库：默认写入 `.data/ai-interviewer.json`，重启后保留已解析简历与面试记录。
+ * `DATA_FILE` 可覆盖默认位置；测试环境保持纯内存，以保障用例隔离。
+ */
 export class InMemoryStore {
   private resumes = new Map<string, ResumeRecord>();
   private interviews = new Map<string, InterviewRecord>();
@@ -97,7 +100,8 @@ export class InMemoryStore {
   private readonly file?: string;
 
   constructor() {
-    const f = process.env.DATA_FILE?.trim();
+    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const f = process.env.DATA_FILE?.trim() || (isTest ? undefined : join(process.cwd(), '.data', 'ai-interviewer.json'));
     if (!f) return;
     this.file = f;
     if (existsSync(f)) {
@@ -128,6 +132,14 @@ export class InMemoryStore {
   }
   getResume(id: string): ResumeRecord | undefined {
     return this.resumes.get(id);
+  }
+  listResumes(): ResumeRecord[] {
+    return [...this.resumes.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  deleteResume(id: string): boolean {
+    const existed = this.resumes.delete(id);
+    if (existed) this.persist();
+    return existed;
   }
 
   saveInterview(i: InterviewRecord): InterviewRecord {

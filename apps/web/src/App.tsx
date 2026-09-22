@@ -204,6 +204,7 @@ export function App() {
       setDirs([]);
       setAdjustNote(undefined);
       setStartedAt(undefined);
+      savedResumesQuery.refetch();
       // 停留本页供用户确认/修正，再由「确认分析」进入准备。
     },
   });
@@ -733,6 +734,44 @@ export function App() {
 
   // ---- 模型供应商设置 ----
   const modelQuery = useQuery({ queryKey: ['modelSettings'], queryFn: api.getModelSettings, enabled: page === 'settings' || page === 'resume' });
+  const savedResumesQuery = useQuery({ queryKey: ['savedResumes'], queryFn: api.listResumes, enabled: page === 'resume' });
+  const loadSavedResume = useMutation({
+    mutationFn: async (id: string) => {
+      const { resume } = await run(api.getResume(id));
+      if (!resume.analysis) throw new Error('该简历尚未完成分析，无法复用');
+      setText(resume.text);
+      setFileName(`已保存 · ${resume.title}`);
+      setResumeId(resume.id);
+      setAnalysis(resume.analysis.summary);
+      setStructured(resume.analysis);
+      setResumeProgress([{ phase: 'complete', message: '已载入已保存的 AI 分析，本次未调用模型。' }]);
+      setInterviewId(undefined);
+      setPhase('intro');
+      setTurn(undefined);
+      setPhaseProgress({});
+      setPendingAdjust(undefined);
+      setReport(undefined);
+      setTrend(undefined);
+      setReview([]);
+      setCoaching(undefined);
+      setTopics([]);
+      setPositionAreas([]);
+      setOutlinePhases(undefined);
+      setOutlineQuestions(undefined);
+      setSelectedDirs([]);
+      setDirs([]);
+      setAdjustNote(undefined);
+      setStartedAt(undefined);
+      setError(undefined);
+    },
+  });
+  const deleteSavedResume = useMutation({
+    mutationFn: async (id: string) => {
+      await run(api.deleteResume(id));
+      if (resumeId === id) updateResumeText('');
+      await savedResumesQuery.refetch();
+    },
+  });
   const [cfgMode, setCfgMode] = useState<{ baseUrl: string; model: string; apiKey: string; mode: 'platform' | 'custom' }>({ baseUrl: '', model: '', apiKey: '', mode: 'custom' });
   useEffect(() => {
     const s = modelQuery.data?.status;
@@ -911,6 +950,25 @@ export function App() {
                   <section className="card">
                     <div className="eyebrow">01 / 认识你的经历</div>
                     <h2>导入简历</h2>
+                    {(savedResumesQuery.data?.items.length ?? 0) > 0 && (
+                      <section className="saved-resumes" aria-label="已保存简历">
+                        <div className="row between"><b>已保存的简历</b><small>选择后直接复用 AI 分析，不会重新调用模型</small></div>
+                        <div className="saved-resume-list">
+                          {savedResumesQuery.data!.items.map((saved) => (
+                            <div className={`saved-resume-row ${resumeId === saved.id ? 'active' : ''}`} key={saved.id}>
+                              <div>
+                                <b>{saved.title}</b>
+                                <small>{saved.analysis?.summary ?? '已保存'} · {new Date(saved.createdAt).toLocaleString()}</small>
+                              </div>
+                              <div className="row" style={{ gap: 6 }}>
+                                <button onClick={() => loadSavedResume.mutate(saved.id)} disabled={loadSavedResume.isPending}>{loadSavedResume.isPending ? '载入中…' : '使用'}</button>
+                                <button className="danger ghost" onClick={() => { if (window.confirm(`删除已保存简历“${saved.title}”？`)) deleteSavedResume.mutate(saved.id); }} disabled={deleteSavedResume.isPending}>删除</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    )}
                     <div className="dropzone">
                       <div className="upload-icon">↥</div>
                       <h3>粘贴简历内容 或 上传 .md/.txt</h3>

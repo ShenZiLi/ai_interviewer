@@ -44,6 +44,18 @@ export interface ResumeCreateResponse {
   resume: { id: string; status: string; analysis: ResumeAnalysis };
 }
 
+export interface SavedResumeSummary {
+  id: string;
+  title: string;
+  status: string;
+  analysis?: ResumeAnalysis;
+  createdAt: string;
+}
+
+export interface SavedResume extends SavedResumeSummary {
+  text: string;
+}
+
 export interface ResumeStreamProgress {
   phase: 'requesting' | 'delta' | 'validating' | 'retrying' | 'complete';
   message: string;
@@ -182,6 +194,9 @@ export const api = {
     req<ResumeCreateResponse>('POST', '/resumes', { text, title }),
   createResumeStream: (text: string, onProgress: (event: ResumeStreamProgress) => void, title?: string) =>
     streamResume(text, title, onProgress),
+  listResumes: () => req<{ items: SavedResumeSummary[] }>('GET', '/resumes'),
+  getResume: (id: string) => req<{ resume: SavedResume }>('GET', `/resumes/${id}`),
+  deleteResume: (id: string) => req<{ ok: boolean }>('DELETE', `/resumes/${id}`),
   createPlanStream: (id: string, onProgress: (event: PlanStreamProgress) => void) =>
     streamPlan<PlanStreamResult>(`/interviews/${id}/plan/stream`, undefined, onProgress),
   createOutlineStream: (id: string, selectedDirections: string[] | undefined, extra: string | undefined, onProgress: (event: PlanStreamProgress) => void) =>

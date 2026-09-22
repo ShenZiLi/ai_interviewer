@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Inject, Param, Post, Res } from '@nestjs/common';
 import { InterviewService } from '../core/interview.service.js';
 import { z } from 'zod';
 
@@ -22,6 +22,14 @@ export class ResumesController {
   async create(@Body() body: unknown) {
     const input = importResumeSchema.parse(body);
     return { resume: await this.service.parseResume(input.text, input.title ?? '未命名简历') };
+  }
+
+  /** 已解析简历列表：用于直接复用既有 AI 分析，不重复发起 P01。 */
+  @Get()
+  list() {
+    return {
+      items: this.service.listResumes().map(({ id, title, status, analysis, createdAt }) => ({ id, title, status, analysis, createdAt })),
+    };
   }
 
   /** P01 流式解析：转发模型增量文本及校验/重试进度，最终以 result 事件交付结构化简历。 */
@@ -54,5 +62,11 @@ export class ResumesController {
   @Get(':id')
   get(@Param('id') id: string) {
     return { resume: this.service.getResume(id) };
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    this.service.removeResume(id);
+    return { ok: true };
   }
 }

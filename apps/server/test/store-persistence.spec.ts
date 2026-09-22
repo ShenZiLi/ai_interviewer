@@ -29,6 +29,11 @@ describe('InMemoryStore 可选手持 JSON 持久化（DATA_FILE）', () => {
     const got = b.getInterview(interview.id);
     expect(got?.keepAudio).toBe(true);
     expect(b.listInterviews().map((i) => i.id)).toContain(interview.id);
+    expect(b.listResumes().map((r) => r.id)).toContain(resume.id);
+    expect(b.deleteResume(resume.id)).toBe(true);
+
+    const c = new InMemoryStore();
+    expect(c.getResume(resume.id)).toBeUndefined();
   });
 
   it('未设 DATA_FILE 时不落盘（纯内存）', () => {

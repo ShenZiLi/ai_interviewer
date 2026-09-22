@@ -90,6 +90,18 @@ export class InterviewService {
     return r;
   }
 
+  listResumes() {
+    return this.store.listResumes();
+  }
+
+  removeResume(id: string): void {
+    this.getResume(id);
+    if (this.store.listInterviews().some((interview) => interview.resumeId === id)) {
+      throw new ConflictException('该简历已有面试记录，暂不能删除');
+    }
+    this.store.deleteResume(id);
+  }
+
   /* ---------- 面试创建与推进 ---------- */
 
   create(input: CreateInterviewInput): InterviewRecord {
