@@ -1132,8 +1132,9 @@ export function App() {
                     <section className="card"><small>平均表现</small><div className="metric">{avgFinished ? `${avgFinished}分` : '—'}<span>{avgFinished ? gradeOf(avgFinished) : '暂无'}</span></div></section>
                   </div>
 
+                  <div className="dashboard-overview">
                   {scores.length > 0 && (
-                    <section className="card" style={{ marginTop: 18 }}>
+                    <section className="card dashboard-panel">
                       <div className="row between" style={{ marginBottom: 10 }}>
                         <h3 style={{ margin: 0 }}>成绩走势</h3>
                         {scores.length >= 2 && (() => { const d = scores[scores.length - 1].value - scores[0].value; return <span className={`tag ${d > 0 ? 'green' : d < 0 ? 'amber' : ''}`}>{d >= 0 ? '▲' : '▼'} 首尾 {Math.abs(d)} 分</span>; })()}
@@ -1143,7 +1144,7 @@ export function App() {
                   )}
 
                   {avgDim.length > 0 && (
-                    <section className="card" style={{ marginTop: 18 }}>
+                    <section className="card dashboard-panel">
                       <div className="row between" style={{ marginBottom: 10 }}>
                         <h3 style={{ margin: 0 }}>平均八维</h3>
                         <span className="tag blue">{finishedReports.length} 场平均</span>
@@ -1155,6 +1156,7 @@ export function App() {
                       </div>
                     </section>
                   )}
+                  </div>
 
                   {history.length > 0 && (
                     <section className="card section-title">

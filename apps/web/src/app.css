@@ -390,3 +390,32 @@ label.field{font-weight:600;color:#55637e;letter-spacing:.15px;}
   .grid3 .metric{font-size:27px;}
   section.card.section-title{padding:18px 16px 20px;}
 }
+
+/* Final UI polish: clear dashboard grouping, quieter elevation, tactile controls. */
+.dashboard-overview{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(320px,.85fr);gap:18px;margin-top:18px;align-items:stretch}
+.dashboard-panel{min-width:0;margin-top:0!important;display:flex;flex-direction:column}
+.dashboard-panel .trend-chart{margin-top:auto;padding-top:8px}
+.dashboard-panel .dimension-grid{margin-top:2px}
+.dashboard-panel .score-row{min-height:34px}
+.card{transition-property:box-shadow,border-color,transform;transition-duration:.18s;transition-timing-function:cubic-bezier(.2,0,0,1)}
+.card:hover{transform:translateY(-1px)}
+button{transition-property:background-color,border-color,color,box-shadow,transform;transition-duration:.15s;transition-timing-function:cubic-bezier(.2,0,0,1)}
+button:active{transform:scale(.96)}
+button.primary:active{transform:scale(.96)}
+.navicon svg{stroke-width:1.5}
+.mobile-nav button svg{stroke-width:1.5}
+.hero h1{max-width:560px}
+.hero p{line-height:1.75}
+.grid3.section-title{margin-bottom:0}
+
+@container (max-width:900px){
+  .dashboard-overview{grid-template-columns:1fr}
+}
+
+@container (max-width:700px){
+  .dashboard-overview{display:grid;gap:12px;margin-top:12px}
+  .dashboard-panel{padding:18px 16px!important}
+  .dashboard-panel h3{font-size:14px}
+  .dashboard-panel .trend-chart{padding-top:2px}
+  .dashboard-panel .score-row{min-height:31px;font-size:11px}
+}
