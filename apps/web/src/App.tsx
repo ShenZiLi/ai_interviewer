@@ -12,7 +12,7 @@ import mascotLogo from './assets/ai-interviewer-mascot.png';
 type NavKey = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
 const titles: Record<NavKey, string> = { home: '工作台', resume: '我的简历', prepare: '准备面试', room: '面试练习室', report: '复盘报告', settings: '设置', admin: '提示词管理' };
 
-type IconName = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin';
+type IconName = 'home' | 'resume' | 'prepare' | 'room' | 'report' | 'settings' | 'admin' | 'more';
 
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
@@ -24,6 +24,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     report: <><path d="M5 19V9M12 19V5M19 19v-7" /><path d="M3.5 19.5h17" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.4 1.4-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-2v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L9 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H7v-2h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L8.4 9 9.8 7.6l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.6v-.2h2v.2a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.2 9l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v2h-.2a1.7 1.7 0 0 0-1.6 1Z" /></>,
     admin: <><path d="M5 4.5h14v15H5z" /><path d="m8 8 2 2-2 2M12 12h4M8 15h8" /></>,
+    more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
   };
   return <svg {...common}>{paths[name]}</svg>;
 }
@@ -37,12 +38,12 @@ const STYLES: { id: 'professional' | 'coaching' | 'concise'; name: string; desc:
   { id: 'coaching', name: '循循善诱', desc: '多给提示与鼓励，追问渐进' },
   { id: 'concise', name: '简洁高效', desc: '反馈简短，直击要点' },
 ];
-const nav: { k: NavKey; icon: IconName; label: string }[] = [
-  { k: 'home', icon: 'home', label: '工作台' },
-  { k: 'resume', icon: 'resume', label: '我的简历' },
-  { k: 'prepare', icon: 'prepare', label: '准备面试' },
-  { k: 'room', icon: 'room', label: '面试练习室' },
-  { k: 'report', icon: 'report', label: '复盘报告' },
+const nav: { k: NavKey; icon: IconName; label: string; mobileLabel?: string }[] = [
+  { k: 'home', icon: 'home', label: '工作台', mobileLabel: '工作台' },
+  { k: 'resume', icon: 'resume', label: '我的简历', mobileLabel: '简历' },
+  { k: 'prepare', icon: 'prepare', label: '准备面试', mobileLabel: '准备' },
+  { k: 'room', icon: 'room', label: '面试练习室', mobileLabel: '练习' },
+  { k: 'report', icon: 'report', label: '复盘报告', mobileLabel: '报告' },
   { k: 'settings', icon: 'settings', label: '设置' },
   { k: 'admin', icon: 'admin', label: '提示词管理' },
 ];
@@ -142,6 +143,9 @@ function TrendChart({ data }: { data: ScorePoint[] }) {
 
 export function App() {
   const [page, setPage] = useState<NavKey>('home');
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const mobileMoreRef = useRef<HTMLDivElement | null>(null);
+  const mobileMoreButtonRef = useRef<HTMLButtonElement | null>(null);
   const [text, setText] = useState('三年 Java 后端，负责订单与库存扣减改造，熟悉 Spring Boot、MySQL、Redis、消息队列。');
   const [role, setRole] = useState('Java 后端工程师');
   const [jd, setJd] = useState('');
@@ -187,6 +191,24 @@ export function App() {
   const [followUpCount, setFollowUpCount] = useState(0);
   const [startedAt, setStartedAt] = useState<string>();
   const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    if (!mobileMoreOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!mobileMoreRef.current?.contains(event.target as Node)) setMobileMoreOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMoreOpen(false);
+        mobileMoreButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [mobileMoreOpen]);
   const [report, setReport] = useState<{ avgScore: number; grade: string; completed: number; coverage: string; usedMinutes?: number; dims: { dim: string; displayScore?: number }[]; actions: string[]; keepAudio?: boolean; highlight?: { best: { q?: string; why: string }; improve: { q?: string; why: string } } }>();
   const [review, setReview] = useState<{ id: string; parentId?: string; phase: string; question: string; transcript: string; score?: number; grade?: string; attempts: { stage?: string; transcript: string; score?: number; grade?: string; audioRef?: string; misconceptions?: { quote: string; clarification: string; kind?: 'knowledge' | 'asr' | 'assumption' }[] }[] }[]>([]);
   const [trend, setTrend] = useState<{ avgDelta: number; dims: { dim: string; delta: number }[] }>();
@@ -1089,12 +1111,13 @@ export function App() {
   return (
     <div id="viewport">
       <div id="app">
+        <a className="skip-link" href="#main-content">跳转到主要内容</a>
         <div className="shell">
           <aside className="sidebar">
             <div className="logo"><span className="logo-mark"><BrandMark /></span><span>AI面试小助理</span></div>
             <nav className="nav">
               {nav.map((n) => (
-                <button key={n.k} className={active === n.k ? 'active' : ''} onClick={() => setPage(n.k)}>
+                <button key={n.k} className={active === n.k ? 'active' : ''} aria-current={active === n.k ? 'page' : undefined} onClick={() => setPage(n.k)}>
                   <span className="navicon"><Icon name={n.icon} /></span>{n.label}
                 </button>
               ))}
@@ -1104,7 +1127,7 @@ export function App() {
             </div>
           </aside>
 
-          <div className="main">
+          <main id="main-content" className="main" tabIndex={-1}>
             <header className="topbar">
               <div className="breadcrumb"><strong>{titles[active]}</strong></div>
               <div className="row">
@@ -1908,13 +1931,25 @@ export function App() {
                 </>
               )}
             </div>
-          </div>
-            <nav className="mobile-nav">
-              {nav.map((n) => (
-                <button key={n.k} className={active === n.k ? 'active' : ''} onClick={() => setPage(n.k)}>
-                  <span><Icon name={n.icon} size={19} /></span>{n.label}
+          </main>
+            <nav className="mobile-nav" aria-label="主导航">
+              {nav.slice(0, 5).map((n) => (
+                <button key={n.k} className={active === n.k ? 'active' : ''} aria-current={active === n.k ? 'page' : undefined} onClick={() => { setPage(n.k); setMobileMoreOpen(false); }}>
+                  <span><Icon name={n.icon} size={19} /></span>{n.mobileLabel ?? n.label}
                 </button>
               ))}
+              <div className="mobile-more" ref={mobileMoreRef}>
+                <button ref={mobileMoreButtonRef} className={active === 'settings' || active === 'admin' ? 'active' : ''} aria-label="更多" aria-expanded={mobileMoreOpen} aria-controls="mobile-more-menu" onClick={() => setMobileMoreOpen((open) => !open)}>
+                  <span><Icon name="more" size={19} /></span>更多
+                </button>
+                <div id="mobile-more-menu" className="mobile-more-menu" role="group" aria-label="更多页面" hidden={!mobileMoreOpen}>
+                  {nav.slice(5).map((n) => (
+                    <button key={n.k} className={active === n.k ? 'active' : ''} aria-current={active === n.k ? 'page' : undefined} onClick={() => { setPage(n.k); setMobileMoreOpen(false); }}>
+                      <Icon name={n.icon} size={18} />{n.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </nav>
         </div>
       </div>

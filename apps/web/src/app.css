@@ -145,7 +145,7 @@ textarea:focus,input[type=text]:focus,input[type=password]:focus,select:focus{bo
 .room>.outline .room-meta{font-size:11px;line-height:1.8}
 .room>section.card{padding:26px 28px}
 .room>section.card>.row:first-child{padding-bottom:14px;border-bottom:1px solid #e8edf4}
-.room .question{max-width:820px;font-size:clamp(10.5px,0.945vw,12.6px);line-height:1.7;letter-spacing:.1px;margin:20px 0 18px;padding:20px 22px;border:1px solid #f0e3b8;background:linear-gradient(180deg,#fffdf4,#fff9e7);border-radius:16px;box-shadow:0 8px 20px rgba(205,175,64,.08);color:#33322e;font-weight:500}
+.room .question{max-width:820px;font-size:20px;line-height:1.5;letter-spacing:.1px;margin:20px 0 18px;padding:20px 22px;border:1px solid #f0e3b8;background:linear-gradient(180deg,#fffdf4,#fff9e7);border-radius:16px;box-shadow:0 8px 20px rgba(205,175,64,.08);color:#33322e;font-weight:500}
 .question-context{background:#fbfcff;border-left-color:#9eb5e8;border-radius:0 8px 8px 0;padding:11px 14px}
 .answer{margin-top:26px;padding:19px;border-color:#dfe6f1;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
 .answer textarea{min-height:145px}
@@ -190,7 +190,7 @@ summary{color:#415471}
   .room>.outline,.room>.feedback{position:static;max-height:none;overflow:visible}
   .room>section.card{padding:20px 18px}
   .room>section.card>.row:first-child{padding-bottom:11px}
-  .room .question{font-size:11.2px;line-height:1.7;margin-top:20px;padding:16px 16px}
+.room .question{font-size:18px;line-height:1.5;margin-top:20px;padding:16px 16px}
   .room>.feedback{margin-top:18px}
   .room>.feedback .score{font-size:46px}
   .report-top{padding-bottom:20px}
@@ -272,11 +272,7 @@ section.card.section-title{padding:22px 24px 24px;}
 .hero h1{margin-bottom:12px;}
 .hero p{font-size:14px;color:#5e6d8a;max-width:520px;}
 .hero-art{transform:rotate(-6deg);gap:11px;margin-right:34px;}
-.hero-art i{border-radius:10px;width:15px;background:linear-gradient(180deg,var(--blue-2),var(--blue));box-shadow:0 14px 28px rgba(43,86,214,.22);animation:herofloat 3.4s ease-in-out infinite;}
-.hero-art i:nth-child(2n){animation-delay:.6s;}
-.hero-art i:nth-child(3n){animation-delay:1.2s;}
-.hero-art i:nth-child(4n){animation-delay:1.8s;}
-@keyframes herofloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.hero-art i{border-radius:10px;width:15px;background:linear-gradient(180deg,var(--blue-2),var(--blue));box-shadow:0 14px 28px rgba(43,86,214,.22);}
 .hero:after{width:270px;height:270px;right:26px;top:-100px;}
 
 /* Metrics — stat tiles with accent, readable numerals */
@@ -402,7 +398,7 @@ label.field{font-weight:600;color:#55637e;letter-spacing:.15px;}
 button{transition-property:background-color,border-color,color,box-shadow,transform;transition-duration:.15s;transition-timing-function:cubic-bezier(.2,0,0,1)}
 button:active{transform:scale(.96)}
 button.primary:active{transform:scale(.96)}
-.navicon svg{stroke-width:1.5}
+.navicon svg{stroke-width:2}
 .mobile-nav button svg{stroke-width:1.5}
 .hero h1{max-width:560px}
 .hero p{line-height:1.75}
@@ -418,4 +414,40 @@ button.primary:active{transform:scale(.96)}
   .dashboard-panel h3{font-size:14px}
   .dashboard-panel .trend-chart{padding-top:2px}
   .dashboard-panel .score-row{min-height:31px;font-size:11px}
+}
+
+/* UI review fixes: stable mobile navigation, keyboard access, and non-interactive surfaces. */
+.skip-link{position:fixed;z-index:100;top:12px;left:12px;padding:11px 15px;border:2px solid var(--blue);border-radius:9px;background:#fff;color:var(--blue);font-weight:600;box-shadow:0 8px 24px rgba(20,38,66,.16);transform:translateY(calc(-100% - 20px));}
+.skip-link:focus{transform:translateY(0)}
+#main-content:focus{outline:none}
+.card,.card:hover{transform:none}
+.card:hover{border-color:#e6ebf4;box-shadow:var(--shadow-card)}
+.grid3 .card:hover{transform:none}
+.highlight-item,.highlight-item:hover{transform:none;box-shadow:none}
+.nav button:hover{transform:none}
+.mobile-nav button svg{stroke-width:1.5}
+.mobile-more-menu[hidden]{display:none!important}
+
+@container (max-width:700px){
+  .content{padding-bottom:calc(98px + env(safe-area-inset-bottom))}
+  .mobile-nav{position:fixed;inset-inline:0;bottom:0;z-index:15;display:flex;align-items:stretch;justify-content:space-around;gap:0;height:auto;min-height:62px;margin:0;padding:7px 4px calc(7px + env(safe-area-inset-bottom));background:#fffffffa;border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(32,49,77,.08)}
+  .mobile-nav>button,.mobile-more>button{flex:1;min-width:0;min-height:46px;margin:0;padding:4px 2px;border:0;border-radius:10px;background:transparent;color:var(--muted);font-size:10px;font-weight:500;line-height:1.2;letter-spacing:0;box-shadow:none;white-space:nowrap}
+  .mobile-nav>button span,.mobile-more>button span{display:flex;height:21px;align-items:center;justify-content:center;margin-bottom:3px}
+  .mobile-nav>button.active,.mobile-more>button.active{color:var(--blue);background:#eef3ff}
+  .mobile-nav>button:focus-visible,.mobile-more>button:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+  .mobile-more{position:relative;display:flex;flex:1;min-width:0}
+  .mobile-more-menu{position:absolute;right:0;bottom:calc(100% + 12px);display:grid;gap:4px;width:max-content;min-width:184px;padding:8px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 14px 36px rgba(20,38,66,.16)}
+  .mobile-more-menu button{display:flex;align-items:center;gap:11px;width:100%;min-height:44px;padding:9px 11px;border:0;border-radius:9px;background:transparent;color:var(--ink);font-size:13px;text-align:left;box-shadow:none}
+  .mobile-more-menu button.active{background:var(--soft);color:var(--blue)}
+  .mobile-more-menu button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+}
+
+@media (hover:hover){
+  .topic:hover{border-color:#c7d5ef;background:#fafcff}
+  .dir-tag:hover{border-color:#a9bff0;background:#fafcff}
+  .nav button:hover{background:#f4f7fc}
+}
+@media (hover:none){
+  .card:hover,.grid3 .card:hover{transform:none;box-shadow:var(--shadow-card)}
+  .highlight-item:hover,.nav button:hover{transform:none;box-shadow:none}
 }
