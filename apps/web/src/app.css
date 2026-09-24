@@ -551,7 +551,7 @@ textarea{line-height:1.7}
 .page-room .room>.outline{padding:20px 18px;background:#f8faff;border-color:#e1e8f4}
 .page-room .room>section.card{padding:24px 26px;background:#fff}
 .page-room .room>section.card>.row:first-child{margin-bottom:4px}
-.page-room .room .question{font-size:19px;line-height:1.55;padding:20px 22px;border-color:#f0e0b9;border-radius:18px;background:#fffaf0;box-shadow:none;color:#282f3b}
+.page-room .room .question{font-size:15px;line-height:1.55;padding:20px 22px;border-color:#f0e0b9;border-radius:18px;background:#fffaf0;box-shadow:none;color:#282f3b}
 .page-room .answer{border:1px solid #e2e8f2;border-radius:16px;background:#fafcff;box-shadow:none}
 .page-room .answer textarea{min-height:160px;background:#fff}
 .page-room .room>.feedback{border-radius:20px}
@@ -661,7 +661,7 @@ textarea{line-height:1.7}
   .page-prepare .flow{gap:10px}
   .page-room>.room{display:block}
   .page-room .room>section.card{padding:19px 17px}
-  .page-room .room .question{font-size:18px;padding:16px;border-radius:15px}
+  .page-room .room .question{font-size:15px;padding:16px;border-radius:15px}
   .page-room .answer{padding:14px}
   .page-report>.card{padding:20px 17px}
   .page-report .report-top{grid-template-columns:1fr;gap:18px;text-align:center}
