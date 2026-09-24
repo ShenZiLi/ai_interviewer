@@ -1136,7 +1136,7 @@ export function App() {
                 {active === 'prepare' && resumeId && <span className="tag blue" title="本次练习所用简历">当前简历 · {currentResumeName ?? '已选择'}</span>}
               </div>
             </header>
-            <div className="content">
+            <div className={`content page-${active}`}>
               {error && <div className="notice amber" style={{ marginBottom: 16 }}>请求失败：{error}</div>}
 
               {active === 'home' && (
