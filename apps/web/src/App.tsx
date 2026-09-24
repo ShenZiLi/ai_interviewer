@@ -1153,7 +1153,7 @@ export function App() {
                   <div className="grid3 section-title">
                     <section className="card"><small>已练习场次</small><div className="metric">{scoped.length}<span>场</span></div></section>
                     <section className="card"><small>已完成</small><div className="metric">{finCount}<span>场</span></div></section>
-                    <section className="card"><small>平均表现</small><div className="metric">{avgFinished ? `${avgFinished}分` : '—'}<span>{avgFinished ? gradeOf(avgFinished) : '暂无'}</span></div></section>
+                    <section className="card"><small>平均表现</small><div className="metric">{avgFinished ? `${avgFinished}分` : '—'}{!avgFinished && <span>暂无</span>}</div></section>
                   </div>
 
                   <div className="dashboard-overview">
