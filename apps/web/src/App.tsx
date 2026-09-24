@@ -104,8 +104,9 @@ function ConfirmDialog({ opts, onConfirm, onCancel }: { opts: ConfirmOptions; on
 function TrendChart({ data }: { data: ScorePoint[] }) {
   const W = 360;
   const H = 150;
-  const PAD_X = 12;
-  const PAD_TOP = 16;
+  const PAD_LEFT = 40;
+  const PAD_RIGHT = 20;
+  const PAD_TOP = 28;
   const PAD_BOTTOM = 26;
   const n = data.length;
   if (n === 0) return null;
@@ -114,7 +115,7 @@ function TrendChart({ data }: { data: ScorePoint[] }) {
   const max = Math.max(...values);
   const span = max - min || 20;
   const y = (v: number) => PAD_TOP + (1 - (v - min) / span) * (H - PAD_TOP - PAD_BOTTOM);
-  const x = (i: number) => (n === 1 ? W / 2 : PAD_X + (i / (n - 1)) * (W - PAD_X * 2));
+  const x = (i: number) => (n === 1 ? (PAD_LEFT + W - PAD_RIGHT) / 2 : PAD_LEFT + (i / (n - 1)) * (W - PAD_LEFT - PAD_RIGHT));
   const pts = data.map((d, i) => `${x(i).toFixed(1)},${y(d.value).toFixed(1)}`);
   const area = `M${x(0).toFixed(1)},${(H - PAD_BOTTOM).toFixed(1)} L${pts.join(' L')} L${x(n - 1).toFixed(1)},${(H - PAD_BOTTOM).toFixed(1)} Z`;
   const last = data[n - 1];
@@ -123,8 +124,8 @@ function TrendChart({ data }: { data: ScorePoint[] }) {
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="auto" preserveAspectRatio="xMidYMid meet">
         {[min, min + span / 2, max].map((g, gi) => (
           <g key={gi}>
-            <line x1={PAD_X} y1={y(g)} x2={W - PAD_X} y2={y(g)} className="trend-grid" />
-            <text x={W - PAD_X} y={y(g) - 3} textAnchor="end" className="trend-axis">{Math.round(g)}</text>
+            <line x1={PAD_LEFT} y1={y(g)} x2={W - PAD_RIGHT} y2={y(g)} className="trend-grid" />
+            <text x={PAD_LEFT - 8} y={y(g) - 3} textAnchor="end" className="trend-axis">{Math.round(g)}</text>
           </g>
         ))}
         <path d={area} className="trend-area" />
