@@ -1920,7 +1920,7 @@ export function App() {
                   </section>
                   <section className="card"><h2>账号与数据</h2>
                     <div className="setting-row"><div><b>求职者</b><p>Web 与小程序使用同一份练习记录</p></div><span className="tag">示例</span></div>
-                    <div className="setting-row"><div><b>回答录音</b><p>新场次的默认保留偏好，准备页也可按本场调整</p></div><button onClick={() => setKeepAudioDefault(!keepAudio)} aria-pressed={keepAudio}>{keepAudio ? <span className="tag green">默认保留</span> : <span className="tag">默认仅转写</span>}</button></div>
+                    <div className="setting-row"><div><b>回答录音</b><p>新场次的默认保留偏好，准备页也可按本场调整</p></div><button className="retention-toggle" onClick={() => setKeepAudioDefault(!keepAudio)} aria-pressed={keepAudio}>{keepAudio ? '默认保留' : '默认仅转写'}</button></div>
                   </section>
                 </div>
                 <section className="card" style={{ marginTop: 20 }}>

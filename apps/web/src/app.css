@@ -588,6 +588,35 @@ textarea{line-height:1.7}
 .page-settings .choice button{min-height:84px;padding:15px 16px;border:1px solid #e1e7f0;border-radius:15px;background:#fafbfd}
 .page-settings .choice button[aria-pressed=true]{border-color:#9bb0f1;background:#f0f4ff;box-shadow:inset 0 0 0 1px #a9baf0}
 .page-settings .setting-row{min-height:72px}
+.page-settings .setting-row .retention-toggle{
+  min-width:104px;
+  min-height:44px;
+  padding:10px 14px;
+  border-radius:10px;
+  border-color:#d8e8df;
+  background:#edf7f1;
+  color:var(--green);
+  font-size:12px;
+  font-weight:600;
+  transition-property:background-color,border-color,color;
+  transition-duration:.15s;
+  transition-timing-function:cubic-bezier(.2,0,0,1);
+}
+.page-settings .setting-row .retention-toggle[aria-pressed=false]{
+  border-color:var(--line);
+  background:#f6f8fb;
+  color:var(--muted);
+}
+@media(hover:hover){
+  .page-settings .setting-row .retention-toggle[aria-pressed=true]:hover{
+    border-color:#cce4d7;
+    background:#e5f3eb;
+  }
+  .page-settings .setting-row .retention-toggle[aria-pressed=false]:hover{
+    border-color:#d8e0ea;
+    background:#edf1f6;
+  }
+}
 
 @media (hover:hover){
   .card:hover{border-color:#d7e0ed;box-shadow:var(--shadow-float)}
