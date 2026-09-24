@@ -1334,8 +1334,12 @@ export function App() {
               {active === 'prepare' && (
                 <div className="conversation">
                   <div className="message">
-                    <span className="bot">ai</span>
                     <section className="bubble">
+                      <div className="prepare-intro">
+                        <div className="eyebrow">02 / 明确本场目标</div>
+                        <h2>配置面试计划</h2>
+                        <p className="subtitle">选择目标岗位、练习方式与面试风格，生成贴合你简历的本场练习。</p>
+                      </div>
                       {(!resumeId || !interviewId) ? (
                         <>
                           {!resumeId && (

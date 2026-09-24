@@ -531,10 +531,11 @@ textarea{line-height:1.7}
 .page-resume .saved-resume-row{border-color:#e5eaf2;border-radius:12px}
 .page-resume .profile-summary{padding:18px;border-radius:16px;background:linear-gradient(145deg,#f3f6ff,#fafbff);border:1px solid #e7ecf7}
 .page-resume .resume-block{padding:12px 14px;border:1px solid #e7ecf3;border-left:3px solid #8da7ec;border-radius:0 12px 12px 0;background:#fbfcfe}
-.page-prepare .conversation{max-width:1080px}
-.page-prepare .message{gap:14px}
-.page-prepare .bot{width:42px;height:42px;border-radius:15px;background:#eaf0ff;color:#3159d9;font-size:15px}
+.page-prepare .conversation{max-width:none}
 .page-prepare .bubble{padding:26px;border:1px solid var(--line);border-radius:22px;background:#fff;box-shadow:var(--shadow-card)}
+.page-prepare .prepare-intro{margin-bottom:22px}
+.page-prepare .prepare-intro h2{font-size:22px;margin-bottom:8px}
+.page-prepare .prepare-intro .subtitle{max-width:720px;line-height:1.7}
 .page-prepare .fields{gap:16px}
 .page-prepare .choice{gap:12px}
 .page-prepare .choice button{min-height:84px;padding:15px 16px;border-color:#e1e7f0;border-radius:15px;background:#fbfcfe}
