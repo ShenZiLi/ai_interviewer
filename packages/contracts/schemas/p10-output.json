@@ -1,0 +1,214 @@
+{
+  "$ref": "#/definitions/P10Output",
+  "definitions": {
+    "P10Output": {
+      "type": "object",
+      "properties": {
+        "taskCode": {
+          "type": "string",
+          "const": "P10"
+        },
+        "overview": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "coach",
+                "mock"
+              ]
+            },
+            "directionCoverage": {
+              "type": "object",
+              "properties": {
+                "covered": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "planned": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "covered",
+                "planned"
+              ],
+              "additionalProperties": false
+            },
+            "durationUsedMinutes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "completedAnswers": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "avgScore": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "mode",
+            "directionCoverage",
+            "durationUsedMinutes",
+            "completedAnswers",
+            "avgScore"
+          ],
+          "additionalProperties": false
+        },
+        "dimensionReport": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "dim": {
+                "type": "string",
+                "enum": [
+                  "切题与完整性",
+                  "专业准确性",
+                  "分析与推理",
+                  "方案与取舍",
+                  "项目深度与贡献",
+                  "证据与一致性",
+                  "表达与结构",
+                  "沟通与反思"
+                ]
+              },
+              "overallScore": {
+                "type": "number"
+              },
+              "trend": {
+                "type": "string",
+                "enum": [
+                  "up",
+                  "flat",
+                  "down"
+                ]
+              },
+              "topStrengths": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 10
+              },
+              "topGaps": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 10
+              },
+              "evidenceRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20
+              }
+            },
+            "required": [
+              "dim",
+              "overallScore",
+              "trend"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 8
+        },
+        "highlight": {
+          "type": "object",
+          "properties": {
+            "bestAnswer": {
+              "type": "object",
+              "properties": {
+                "turnRef": {
+                  "type": "string"
+                },
+                "why": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "turnRef",
+                "why"
+              ],
+              "additionalProperties": false
+            },
+            "improvementStart": {
+              "type": "object",
+              "properties": {
+                "turnRef": {
+                  "type": "string"
+                },
+                "why": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "turnRef",
+                "why"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "bestAnswer",
+            "improvementStart"
+          ],
+          "additionalProperties": false
+        },
+        "actionPlan": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "area": {
+                "type": "string"
+              },
+              "suggestion": {
+                "type": "string"
+              },
+              "practiceSuggestion": {
+                "type": "string"
+              },
+              "priority": {
+                "type": "string",
+                "enum": [
+                  "high",
+                  "mid",
+                  "low"
+                ]
+              }
+            },
+            "required": [
+              "area",
+              "suggestion",
+              "priority"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 10
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "overview",
+        "dimensionReport",
+        "highlight",
+        "actionPlan",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

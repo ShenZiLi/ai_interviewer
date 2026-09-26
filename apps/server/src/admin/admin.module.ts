@@ -1,0 +1,50 @@
+import { Inject, Injectable, Module, OnModuleInit } from '@nestjs/common';
+import { AiModule } from '../ai/ai.module.js';
+import { PromptService } from './prompt.service.js';
+import { AdminController } from './admin.controller.js';
+
+const DEFAULT_PROMPTS: [string, string, string][] = [
+  ['P01', '简历理解', '把候选人原始简历整理为结构化简历理解（含教育、经历、项目、技能、待澄清要点）。'],
+  ['P02', '岗位分析', '结合简历与目标岗位，输出目标岗位分析（必备技能、考察重点、岗位风险）。'],
+  ['P03', '方向推荐', '依据岗位与简历，给出可多选的考察方向及推荐理由，必要时提出澄清问题。'],
+  ['P04', '大纲规划', '按所选方向与时长档位，输出分阶段的面试大纲与主问题计划，注意时长预算。'],
+  ['P05', '自我介绍后大纲调整', '根据自我介绍新增内容，给出后续大纲的增删改建议并说明原因。'],
+  ['P06', '主问题生成', '围绕当前考察方向，生成一道有区分度的主问题，附考察点与可选追问线索。'],
+  ['P07', '回答评价', '用八维量表对一次回答评分，输出含各维得分、证据、理由与改进建议的评价。'],
+  ['P08', '追问决策', '依据回答与评价，决定是否追问，并生成追问题目与目的。'],
+  ['P09', '辅导与优化', '给出更高分的示范回答结构与针对本次回答的优化建议。'],
+  ['P10', '整场复盘', '基于整场转写与各轮评价，生成复盘报告（维度总览、亮点、行动项）。'],
+];
+
+/** 每个任务实际注入的上下文变量（与 interview.service 中 compose 调用对齐），供管理员「查看上下文变量」。 */
+const TASK_VARIABLES: Record<string, string[]> = {
+  P01: ['text'],
+  P02: ['resume', 'targetRole'],
+  P03: ['position', 'selected'],
+  P04: ['it'],
+  P05: ['it'],
+  P06: ['it', 'phase'],
+  P07: ['it', 'turn', 'transcript'],
+  P08: ['it', 'turn', 'evaluation'],
+  P09: ['it', 'turn', 'transcript'],
+  P10: ['it'],
+};
+
+@Injectable()
+class PromptSeed implements OnModuleInit {
+  constructor(@Inject(PromptService) private readonly prompts: PromptService) {}
+  onModuleInit(): void {
+    if (this.prompts.listTemplates().length > 0) return;
+    for (const [taskCode, name, basePrompt] of DEFAULT_PROMPTS) {
+      this.prompts.createTemplate({ taskCode, name, basePrompt, variables: TASK_VARIABLES[taskCode] ?? [] });
+    }
+  }
+}
+
+@Module({
+  imports: [AiModule],
+  controllers: [AdminController],
+  providers: [PromptService, PromptSeed],
+  exports: [PromptService],
+})
+export class AdminModule {}

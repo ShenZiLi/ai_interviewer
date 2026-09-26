@@ -1,0 +1,399 @@
+import 'reflect-metadata';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import { FastifyAdapter, type NestFastifyApplication } from '@nestjs/platform-fastify';
+import { describe, beforeAll, afterAll, it, expect } from 'vitest';
+import { AppModule } from '../src/app.module.js';
+
+describe('MVP 面试全流程 (e2e, mock provider)', () => {
+  let app: NestFastifyApplication;
+  let resumeId = '';
+  let interviewId = '';
+  let turnId = '';
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    app = moduleRef.createNestApplication<NestFastifyApplication>(new FastifyAdapter());
+    await app.init();
+    await app.getHttpAdapter().getInstance().ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('AC1: 创建简历并解析 (P01)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/resumes')
+      .send({ title: '林同学', text: '三年 Java 后端，负责订单与库存扣减。' })
+      .expect(201);
+    resumeId = res.body.resume.id;
+    expect(res.body.resume.status).toBe('parsed');
+    expect(res.body.resume.analysis.summary).toBeTruthy();
+  });
+
+  it('AC2: 创建面试 + 岗位分析 P02 + 方向 P03 + 大纲 P04', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端工程师', level: 'mid', kind: 'coach', durationTier: '30m' })
+      .expect(201);
+    interviewId = created.body.interview.id;
+
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/analyze`).expect(201);
+
+    const dirs = await request(app.getHttpServer())
+      .post(`/interviews/${interviewId}/directions`)
+      .send({})
+      .expect(201);
+    expect(dirs.body.recommendedDirections.recommendedDirections.length).toBeGreaterThanOrEqual(2);
+
+    const outline = await request(app.getHttpServer()).post(`/interviews/${interviewId}/outline`).expect(201);
+    expect(outline.body.outline.outline.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('准备草稿可在中断后复用已保存的 P02/P03 结果，再继续生成大纲', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端工程师', level: 'mid', kind: 'coach' })
+      .expect(201);
+    const id = created.body.interview.id;
+
+    const position = await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    const resumedPosition = await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    expect(resumedPosition.body.position).toEqual(position.body.position);
+
+    const directions = await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    const resumedDirections = await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    expect(resumedDirections.body.recommendedDirections).toEqual(directions.body.recommendedDirections);
+
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    const detail = await request(app.getHttpServer()).get(`/interviews/${id}`).expect(200);
+    expect(detail.body.interview.status).toBe('draft');
+    expect(detail.body.interview.position).toEqual(position.body.position);
+    expect(detail.body.interview.directionsResult).toEqual(directions.body.recommendedDirections);
+    expect(detail.body.interview.outline).toBeTruthy();
+  });
+
+  it('AC3: 开始面试 + 固定开场自我介绍题', async () => {
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/start`).expect(201);
+    const turn = await request(app.getHttpServer())
+      .post(`/interviews/${interviewId}/turns`)
+      .send({ phase: 'intro' })
+      .expect(201);
+    turnId = turn.body.turn.id;
+    expect(turn.body.turn.question).toBeTruthy();
+    expect(turn.body.turn.phase).toBe('intro');
+  });
+
+  it('AC4: 作答 → 陪练返回评价 P07 + 追问 P08', async () => {
+    const res = await request(app.getHttpServer())
+      .post(`/interviews/${interviewId}/turns/${turnId}/answer`)
+      .send({ transcript: '我会考虑使用分布式锁并做好幂等。', stage: 'first' })
+      .expect(201);
+    expect(res.body.evaluation.score).toBeTypeOf('number');
+    expect(res.body.evaluation.dims.length).toBeGreaterThanOrEqual(1);
+    expect(res.body.next).toBeDefined();
+  });
+
+  it('AC5: 自我介绍后先持久化调整预览，确认后应用同一份延伸追问', async () => {
+    const preview = await request(app.getHttpServer())
+      .post(`/interviews/${interviewId}/outline/adjust`)
+      .send({ action: 'preview' })
+      .expect(201);
+    expect(preview.body.adjustment.followups.length).toBeGreaterThan(0);
+
+    let got = await request(app.getHttpServer()).get(`/interviews/${interviewId}`).expect(200);
+    expect(got.body.interview.pendingAdjustment.followups).toEqual(preview.body.adjustment.followups);
+
+    const applied = await request(app.getHttpServer())
+      .post(`/interviews/${interviewId}/outline/adjust`)
+      .send({ action: 'apply' })
+      .expect(201);
+    expect(applied.body.adjustment.followups).toEqual(preview.body.adjustment.followups);
+    got = await request(app.getHttpServer()).get(`/interviews/${interviewId}`).expect(200);
+    expect(got.body.interview.pendingAdjustment).toBeUndefined();
+    expect(got.body.interview.followups).toHaveLength(preview.body.adjustment.followups.length);
+
+    // P05 延伸追问只在对应环节的新主问题中优先消费；P08 指定追问不得被其覆盖。
+    const tech = await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns`).send({ phase: 'tech' }).expect(201);
+    expect(tech.body.turn.question).toBe(preview.body.adjustment.followups.find((x: { phase: string }) => x.phase === 'tech').question);
+    await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns/${tech.body.turn.id}/answer`).send({ transcript: '我会先梳理并发边界，再选择一致性方案。' }).expect(201);
+    const p08 = await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns`).send({ phase: 'tech', parentTurnId: tech.body.turn.id }).expect(201);
+    expect(p08.body.turn.parentTurnId).toBe(tech.body.turn.id);
+    expect(p08.body.turn.question).toBe('如果并发再翻一倍呢？');
+    const biz = await request(app.getHttpServer()).post(`/interviews/${interviewId}/turns`).send({ phase: 'biz' }).expect(201);
+    expect(biz.body.turn.question).toBe(preview.body.adjustment.followups.find((x: { phase: string }) => x.phase === 'biz').question);
+  });
+
+  it('AC6: 整场报告 P10', async () => {
+    const res = await request(app.getHttpServer()).post(`/interviews/${interviewId}/finish`).expect(201);
+    expect(res.body.report.overview.completedAnswers).toBeGreaterThanOrEqual(0);
+    expect(res.body.report.dimensionReport.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('两场不同作答的整场报告综合分不同（趋势数据来源）', async () => {
+    const runSession = async (transcript: string) => {
+      const created = await request(app.getHttpServer())
+        .post('/interviews')
+        .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+        .expect(201);
+      const mid = created.body.interview.id;
+      await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+      const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+      await request(app.getHttpServer()).post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`).send({ transcript, stage: 'first' }).expect(201);
+      const fin = await request(app.getHttpServer()).post(`/interviews/${mid}/finish`).expect(201);
+      return { avg: fin.body.report.overview.avgScore as number, dims: fin.body.report.dimensionReport as { overallScore: number }[] };
+    };
+    const a = await runSession('我会考虑分布式锁并做好幂等。');
+    const b = await runSession('先给结论再给约束。');
+    expect(a.avg).not.toBe(b.avg);
+    expect(a.dims.some((d, i) => d.overallScore !== b.dims[i]?.overallScore)).toBe(true);
+  });
+
+  it('AC7: 状态机防护——结束后作答返回 409', async () => {
+    await request(app.getHttpServer())
+      .post(`/interviews/${interviewId}/turns/${turnId}/answer`)
+      .send({ transcript: 'x' })
+      .expect(409);
+  });
+
+  it('重答：after_hint 独立记录，与首次并列', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach', durationTier: '30m' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '首次回答', stage: 'first' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '重答（得到提示后）', stage: 'after_hint' })
+      .expect(201);
+
+    const got = await request(app.getHttpServer()).get(`/interviews/${mid}`).expect(200);
+    const attempts = got.body.interview.turns.find((x: { id: string }) => x.id === t.body.turn.id).attempts;
+    expect(attempts.length).toBe(2);
+    expect(attempts.map((a: { stage: string }) => a.stage)).toEqual(['first', 'after_hint']);
+  });
+
+  it('考察方向可多选：selectedDirections 持久化到面试详情', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({ selectedDirections: ['concurrency', 'distributed'] }).expect(201);
+    const got = await request(app.getHttpServer()).get(`/interviews/${id}`).expect(200);
+    expect(got.body.interview.directions).toEqual(['concurrency', 'distributed']);
+  });
+
+  it('删除面试记录（DELETE /interviews/:id），再查 404', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).delete(`/interviews/${id}`).expect(200);
+    await request(app.getHttpServer()).get(`/interviews/${id}`).expect(404);
+  });
+
+  it('单轮辅导优化（P09）基于末次作答返回示范', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${id}/turns`).send({ phase: 'tech' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/turns/${t.body.turn.id}/answer`).send({ transcript: '先讲结论再讲约束。', stage: 'first' }).expect(201);
+    const c = await request(app.getHttpServer()).post(`/interviews/${id}/turns/${t.body.turn.id}/coaching`).expect(201);
+    expect(c.body.coaching.modelAnswer.summary).toBeTruthy();
+    expect(c.body.coaching.modelAnswer.structure.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('开考时间戳 startedAt 在 start 时记录（时长预算起点），重复 start 幂等', async () => {
+    const created = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    const st = await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    expect(st.body.interview.startedAt).toBeTruthy();
+    const st2 = await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    expect(st2.body.interview.startedAt).toBe(st.body.interview.startedAt);
+  });
+
+  it('大纲调整模式隔离：陪练预览不应用，模拟由客户端直接应用', async () => {
+    // 陪练未确认 → 不静默应用
+    const coach = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' }).expect(201);
+    const cid = coach.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${cid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/start`).expect(201);
+    const coachIntro = await request(app.getHttpServer()).post(`/interviews/${cid}/turns`).send({ phase: 'intro' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/turns/${coachIntro.body.turn.id}/answer`).send({ transcript: '这是我的自我介绍。' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${cid}/outline/adjust`).send({ action: 'preview' }).expect(201);
+    let got = await request(app.getHttpServer()).get(`/interviews/${cid}`).expect(200);
+    expect(got.body.interview.outlineAdjustedAt).toBeUndefined();
+
+    // 模拟未确认 → 自动应用
+    const mock = await request(app.getHttpServer()).post('/interviews').send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'mock' }).expect(201);
+    const mid = mock.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const mockIntro = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'intro' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/turns/${mockIntro.body.turn.id}/answer`).send({ transcript: '这是我的自我介绍。' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline/adjust`).send({ action: 'apply' }).expect(201);
+    got = await request(app.getHttpServer()).get(`/interviews/${mid}`).expect(200);
+    expect(got.body.interview.outlineAdjustedAt).toBeTruthy();
+
+    // 陪练确认后 → 应用
+    await request(app.getHttpServer()).post(`/interviews/${cid}/outline/adjust`).send({ confirm: true }).expect(201);
+    got = await request(app.getHttpServer()).get(`/interviews/${cid}`).expect(200);
+    expect(got.body.interview.outlineAdjustedAt).toBeTruthy();
+  });
+
+  it('保留录音偏好持久化到面试详情', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach', durationTier: '30m', keepAudio: true })
+      .expect(201);
+    const got = await request(app.getHttpServer()).get(`/interviews/${created.body.interview.id}`).expect(200);
+    expect(got.body.interview.keepAudio).toBe(true);
+  });
+
+  it('模式隔离：模拟面试作答仅记录，不返回即时评价', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'mock', durationTier: '30m' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+    const res = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '只记录不反馈。', stage: 'first' })
+      .expect(201);
+    expect(res.body).toEqual({ recorded: true });
+  });
+
+  it('模拟模式：静默评估存档，整场复盘基于真实作答而非固定样本', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'mock', durationTier: '30m' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+
+    // 作答：不返回评价，但内部应已存档 P07 实测
+    const res = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${t.body.turn.id}/answer`)
+      .send({ transcript: '只记录不反馈。', stage: 'first' })
+      .expect(201);
+    expect(res.body).toEqual({ recorded: true });
+    const got = await request(app.getHttpServer()).get(`/interviews/${mid}`).expect(200);
+    const stored = got.body.interview.turns.find((x: { id: string }) => x.id === t.body.turn.id).attempts[0];
+    expect(stored.transcript).toBe('只记录不反馈。');
+    expect(stored.evaluation).toBeTruthy();
+
+    // 整场报告应反映实测作答（维度条完整），而非固定样本兜底
+    const fin = await request(app.getHttpServer()).post(`/interviews/${mid}/finish`).expect(201);
+    expect(fin.body.report.overview.completedAnswers).toBe(1);
+    expect(fin.body.report.dimensionReport.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('追问链：以父轮 P08 追问文本生成追问轮', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const main = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+    const ans = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${main.body.turn.id}/answer`)
+      .send({ transcript: '先给结论，再给约束。', stage: 'first' })
+      .expect(201);
+    const followText = ans.body.next.questions[0].text;
+
+    const fu = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns`)
+      .send({ phase: 'tech', parentTurnId: main.body.turn.id })
+      .expect(201);
+    expect(fu.body.turn.parentTurnId).toBe(main.body.turn.id);
+    expect(fu.body.turn.question).toBe(followText);
+  });
+
+  it('主问题带出题元信息（主题/难度/考察维度），追问轮继承主题', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    const mid = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${mid}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${mid}/start`).expect(201);
+    const main = await request(app.getHttpServer()).post(`/interviews/${mid}/turns`).send({ phase: 'tech' }).expect(201);
+    expect(main.body.turn.topic).toBeTruthy();
+    expect(['begin', 'mid', 'deep']).toContain(main.body.turn.difficulty);
+    expect(main.body.turn.targetAspect).toBeTruthy();
+    const ans = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns/${main.body.turn.id}/answer`)
+      .send({ transcript: '先给结论，再给约束。', stage: 'first' })
+      .expect(201);
+    void ans;
+    const fu = await request(app.getHttpServer())
+      .post(`/interviews/${mid}/turns`)
+      .send({ phase: 'tech', parentTurnId: main.body.turn.id })
+      .expect(201);
+    expect(fu.body.turn.parentTurnId).toBe(main.body.turn.id);
+    expect(fu.body.turn.topic).toBe(main.body.turn.topic); // 追问轮继承主题
+  });
+
+  it('未生成大纲直接开始 → 409', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${created.body.interview.id}/start`).expect(409);
+  });
+
+  it('列表接口只返回摘要视图：不外送 turns（转写/评价），active 带 currentPhase', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/interviews')
+      .send({ resumeId, targetRole: 'Java 后端', level: 'mid', kind: 'coach' })
+      .expect(201);
+    const id = created.body.interview.id;
+    await request(app.getHttpServer()).post(`/interviews/${id}/analyze`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/directions`).send({}).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/outline`).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/start`).expect(201);
+    const t = await request(app.getHttpServer()).post(`/interviews/${id}/turns`).send({ phase: 'tech' }).expect(201);
+    await request(app.getHttpServer()).post(`/interviews/${id}/turns/${t.body.turn.id}/answer`).send({ transcript: '机密作答', stage: 'first' }).expect(201);
+    const list = await request(app.getHttpServer()).get('/interviews').expect(200);
+    const item = list.body.items.find((x: { id: string }) => x.id === id);
+    expect(item).toBeDefined();
+    expect(item.turns).toBeUndefined();
+    expect(item.currentPhase).toBe('tech');
+  });
+});
